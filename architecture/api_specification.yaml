@@ -1,0 +1,151 @@
+openapi: 3.0.0
+info:
+  title: Stablecoin Escrow API
+  version: 1.0.0
+  description: API for managing privacy-preserving stablecoin escrows on DAML.
+
+paths:
+  /escrows:
+    post:
+      summary: Create a new escrow contract
+      operationId: createEscrow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEscrowRequest'
+      responses:
+        '201':
+          description: Escrow created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Escrow'
+        '400':
+          description: Invalid request parameters
+
+  /escrows/{escrowID}:
+    get:
+      summary: Get escrow details by ID
+      operationId: getEscrow
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Escrow details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Escrow'
+        '404':
+          description: Escrow not found
+
+  /escrows/{escrowID}/release:
+    post:
+      summary: Release funds for the current milestone
+      operationId: releaseEscrow
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Milestone funds released
+        '404':
+          description: Escrow not found
+
+  /escrows/{escrowID}/refund:
+    post:
+      summary: Refund funds to the buyer (requires mediator or expiry)
+      operationId: refundEscrow
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Funds refunded
+        '404':
+          description: Escrow not found
+
+components:
+  schemas:
+    CreateEscrowRequest:
+      type: object
+      required:
+        - issuer
+        - buyer
+        - seller
+        - mediator
+        - totalAmount
+        - currency
+        - milestones
+      properties:
+        issuer:
+          type: string
+        buyer:
+          type: string
+        seller:
+          type: string
+        mediator:
+          type: string
+        totalAmount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+        description:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+
+    Escrow:
+      type: object
+      properties:
+        id:
+          type: string
+        issuer:
+          type: string
+        buyer:
+          type: string
+        seller:
+          type: string
+        mediator:
+          type: string
+        totalAmount:
+          type: number
+        currency:
+          type: string
+        description:
+          type: string
+        currentMilestoneIndex:
+          type: integer
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+
+    Milestone:
+      type: object
+      required:
+        - label
+        - amount
+      properties:
+        label:
+          type: string
+        amount:
+          type: number
+        completed:
+          type: boolean
+          default: false
