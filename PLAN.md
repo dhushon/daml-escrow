@@ -30,7 +30,7 @@ For later-stage integration testing that requires persistence, we may introduce 
 
 ------------------------------------------------------------------------
 
-## Phase 0 --- Architecture & Foundation
+## Phase 0 --- Architecture & Foundation (COMPLETE)
 
 Duration: 2--3 weeks
 
@@ -42,19 +42,21 @@ Goals:
 
 Deliverables:
 
-- Architecture document
-- Ledger topology design (initial design for local development using DAML Sandbox)
+- Architecture document (`architecture/system_design.md`)
+- Ledger topology design (DAML Sandbox)
+- API specification (`architecture/api_specification.yaml`)
+- Stablecoin abstraction layer (`internal/ledger/stablecoin.go`)
 - DAML contract skeletons
 - Initial Go service skeleton
 
 Tasks:
 
-1. Define escrow lifecycle
-2. Define stablecoin abstraction layer
-3. Select Canton / ledger environment (DAML Sandbox for local development)
-4. Establish repository structure
-5. Create CI/CD pipeline
-6. Define API contracts
+1. Define escrow lifecycle (DONE)
+2. Define stablecoin abstraction layer (DONE)
+3. Select Canton / ledger environment (DONE)
+4. Establish repository structure (DONE)
+5. Create CI/CD pipeline (DONE)
+6. Define API contracts (DONE)
 
 ------------------------------------------------------------------------
 
