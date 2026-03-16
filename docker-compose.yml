@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+
+  escrow-api:
+    build: .
+    container_name: escrow-api
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: info
+      LEDGER_HOST: canton
+      LEDGER_PORT: 6865
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16
+    container_name: escrow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: escrow
+      POSTGRES_PASSWORD: escrow
+      POSTGRES_DB: escrow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # optional future event streaming
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: escrow-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ENABLE_KRAFT: "yes"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+
+volumes:
+  postgres_data:

@@ -30,3 +30,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+.java-version
+
+# MacOS
+.DS_Store
+

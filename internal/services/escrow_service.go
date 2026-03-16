@@ -1,0 +1,57 @@
+package services
+
+import (
+	"context"
+
+	"daml-escrow/internal/ledger"
+
+	"go.uber.org/zap"
+)
+
+type EscrowService struct {
+	logger *zap.Logger
+	ledger ledger.Client
+}
+
+func NewEscrowService(
+	logger *zap.Logger,
+	ledger ledger.Client,
+) *EscrowService {
+
+	return &EscrowService{
+		logger: logger,
+		ledger: ledger,
+	}
+}
+
+func (s *EscrowService) CreateEscrow(
+	ctx context.Context,
+	req ledger.CreateEscrowRequest,
+) (*ledger.EscrowContract, error) {
+	s.logger.Info("creating escrow", zap.Any("request", req))
+	return s.ledger.CreateEscrow(ctx, req)
+}
+
+func (s *EscrowService) GetEscrow(
+	ctx context.Context,
+	id string,
+) (*ledger.EscrowContract, error) {
+	s.logger.Info("getting escrow", zap.String("id", id))
+	return s.ledger.GetEscrow(ctx, id)
+}
+
+func (s *EscrowService) ReleaseEscrow(
+	ctx context.Context,
+	id string,
+) error {
+	s.logger.Info("releasing escrow", zap.String("id", id))
+	return s.ledger.ReleaseFunds(ctx, id)
+}
+
+func (s *EscrowService) RefundEscrow(
+	ctx context.Context,
+	id string,
+) error {
+	s.logger.Info("refunding escrow", zap.String("id", id))
+	return s.ledger.RefundBuyer(ctx, id)
+}
