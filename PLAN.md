@@ -119,6 +119,11 @@ Tasks:
 3. Implement escrow creation endpoint (DONE)
 4. Implement milestone approval endpoint (DONE)
 5. Implement dispute endpoint (DONE)
+6. [TODO] Integrate DAML Build & Codegen:
+   - Setup `daml build` to generate `.dar` artifacts.
+   - Configure `daml codegen go` to produce type-safe bindings.
+   - Refactor `internal/ledger` to use generated bindings for command submission.
+   - Restructure repository if necessary to manage build-time dependencies.
 
 ### API Orchestration & Testing
 
