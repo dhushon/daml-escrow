@@ -243,13 +243,13 @@ Cons:
 
 ### DAML vs Stellar Smart Contracts
 
-  Feature                        DAML                Stellar
-  ------------------------------ ------------------- ---------------
-  Privacy                        Private contracts   Public ledger
-  Workflow complexity            High                Moderate
-  Token ecosystem                Smaller             Mature
-  Smart contract flexibility     Very high           Limited
-  Multi-chain interoperability   Canton networks     Stellar only
+| Feature | DAML | Stellar |
+| --------- | ------------------- | --------------- |
+| Privacy | Private contracts | Public ledger |
+| Workflow complexity | High | Moderate |
+| Token ecosystem | Smaller | Mature |
+| Smart contract flexibility | Very high | Limited |
+| Multi-chain interoperability | Canton networks | Stellar only |
 
 Pros of Stellar:
 
@@ -265,7 +265,7 @@ Pros of DAML:
 
 ------------------------------------------------------------------------
 
-# Future Extensions
+## Future Extensions
 
 Potential roadmap:
 
@@ -288,26 +288,27 @@ tooling
 
 ------------------------------------------------------------------------
 
-# Repository Structure
+## Repository Structure
 
-    /contracts
-        StablecoinEscrow.daml
-
-    /services
-        oracle-service
-        payment-gateway
-
-    /apps
-        buyer-portal
-        seller-portal
-        mediator-dashboard
-
-    /docs
-        architecture.md
+```text
+/cmd
+    /escrow-api         - Main application for the escrow API service
+/internal
+    /api                - HTTP handlers and routing
+    /ledger             - DAML ledger client
+    /services           - Escrow service logic
+/pkg
+    /logging            - Shared logging utilities
+/config                 - Configuration files
+/.github
+    /workflows          - CI/CD workflows
+/contracts              - DAML smart contracts (placeholder)
+/docs                   - Documentation files (placeholder)
+```
 
 ------------------------------------------------------------------------
 
-# Key Advantages of This Approach
+## Key Advantages of This Approach
 
 - Privacy-preserving escrow
 - Clear legal contract representation
@@ -320,7 +321,7 @@ digital commerce**.
 
 ------------------------------------------------------------------------
 
-# Next Exploration
+## Next Exploration
 
 Future technical work may include:
 
