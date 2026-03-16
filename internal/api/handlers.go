@@ -45,7 +45,11 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(escrow)
+	if err := json.NewEncoder(w).Encode(escrow); err != nil {
+		h.logger.Error("encode escrow failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +62,11 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(escrow)
+	if err := json.NewEncoder(w).Encode(escrow); err != nil {
+		h.logger.Error("encode escrow failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) ReleaseEscrow(w http.ResponseWriter, r *http.Request) {

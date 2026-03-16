@@ -19,7 +19,9 @@ import (
 func main() {
 
 	logger := logging.NewLogger()
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	ledgerClient := ledger.NewDamlClient(logger)
 
@@ -71,5 +73,7 @@ func waitForShutdown(server *http.Server, logger *zap.Logger) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	server.Shutdown(ctx)
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("server shutdown failed", zap.Error(err))
+	}
 }
