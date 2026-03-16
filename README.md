@@ -217,14 +217,14 @@ Integration approaches:
 
 ### DAML vs Solidity (Ethereum)
 
-|  Feature                   | DAML                            | Solidity |
-|  ------------------------- | ------------------------------- | --------------------- |
-|  Programming Model         | Rights & obligations            | Account-based |
-|  Privacy                   | Built-in selective disclosure   | Fully public |
-|  Multi-party workflows     | Native                          | Manual logic |
-|  Contract safety           | Strong type system              | More error prone |
-|  Determinism               | Guaranteed                      | Depends on contract |
-|  Legal contract alignment  | Strong                          | Weak |
+| Feature | DAML | Solidity |
+| ------------------------- | ---------------------------- | ------------------- |
+| Programming Model | Rights & obligations | Account-based |
+| Privacy | Built-in selective disclosure | Fully public |
+| Multi-party workflows | Native | Manual logic |
+| Contract safety | Strong type system | More error prone |
+| Determinism | Guaranteed | Depends on contract |
+| Legal contract alignment | Strong | Weak |
 
 Pros of DAML:
 
