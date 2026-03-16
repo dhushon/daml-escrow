@@ -81,31 +81,29 @@ The system is composed of:
 
 #### Architecture Diagram
 
-``` mermaid
+```mermaid
 flowchart LR
 
-Buyer -->|Lock Funds| EscrowContract
-Seller -->|Deliver Work| EscrowContract
-Mediator -->|Resolve Dispute| EscrowContract
+  subgraph "Canton Network"
+    EscrowContract
+    StablecoinToken
+  end
 
-EscrowContract --> StablecoinToken
+  subgraph "Applications"
+    BuyerApp
+    SellerApp
+    MediatorDashboard
+  end
 
-Oracle --> EscrowContract
+  Buyer -->|Lock Funds| EscrowContract
+  Seller -->|Deliver Work| EscrowContract
+  Mediator -->|Resolve Dispute| EscrowContract
+  Oracle --> EscrowContract
+  EscrowContract --> StablecoinToken
 
-subgraph Canton Network
-EscrowContract
-StablecoinToken
-end
-
-subgraph Applications
-BuyerApp
-SellerApp
-MediatorDashboard
-end
-
-BuyerApp --> EscrowContract
-SellerApp --> EscrowContract
-MediatorDashboard --> EscrowContract
+  BuyerApp --> EscrowContract
+  SellerApp --> EscrowContract
+  MediatorDashboard --> EscrowContract
 ```
 
 ------------------------------------------------------------------------

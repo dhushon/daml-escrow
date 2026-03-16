@@ -8,18 +8,19 @@ orchestration.
 
 The system will support:
 
--   Milestone-based escrow
--   Mediated dispute resolution
--   Oracle-based triggers
--   Enterprise-grade privacy using DAML/Canton
+- Milestone-based escrow
+- Mediated dispute resolution
+- Oracle-based triggers
+- Enterprise-grade privacy using DAML/Canton
 
 ------------------------------------------------------------------------
 
-# Development Environment
+## Development Environment
 
 For local development and testing, we will use the **DAML Sandbox**. It is an in-memory, lightweight DAML ledger that runs locally.
 
 **Rationale:**
+
 - **Simplicity:** Easy to start, stop, and reset.
 - **Speed:** Fast for local development and running tests.
 - **Compatibility:** Code developed against the sandbox is compatible with other DAML-enabled ledgers, including Canton, ensuring a smooth transition to production environments.
@@ -29,7 +30,7 @@ For later-stage integration testing that requires persistence, we may introduce 
 
 ------------------------------------------------------------------------
 
-# Phase 0 --- Architecture & Foundation
+## Phase 0 --- Architecture & Foundation
 
 Duration: 2--3 weeks
 
@@ -41,23 +42,23 @@ Goals:
 
 Deliverables:
 
--   Architecture document
--   Ledger topology design (initial design for local development using DAML Sandbox)
--   DAML contract skeletons
--   Initial Go service skeleton
+- Architecture document
+- Ledger topology design (initial design for local development using DAML Sandbox)
+- DAML contract skeletons
+- Initial Go service skeleton
 
 Tasks:
 
-1.  Define escrow lifecycle
-2.  Define stablecoin abstraction layer
-3.  Select Canton / ledger environment (DAML Sandbox for local development)
-4.  Establish repository structure
-5.  Create CI/CD pipeline
-6.  Define API contracts
+1. Define escrow lifecycle
+2. Define stablecoin abstraction layer
+3. Select Canton / ledger environment (DAML Sandbox for local development)
+4. Establish repository structure
+5. Create CI/CD pipeline
+6. Define API contracts
 
 ------------------------------------------------------------------------
 
-# Phase 1 --- Core Escrow Contracts
+## Phase 1 --- Core Escrow Contracts
 
 Duration: 4 weeks
 
@@ -67,27 +68,27 @@ Build the base escrow smart contracts.
 
 Deliverables:
 
--   Escrow DAML template
--   Settlement template
--   Milestone extension model
+- Escrow DAML template
+- Settlement template
+- Milestone extension model
 
 Tasks:
 
--   Implement escrow template
--   Implement settlement contract
--   Add milestone choices
--   Implement dispute flows
--   Write DAML unit tests
+- Implement escrow template
+- Implement settlement contract
+- Add milestone choices
+- Implement dispute flows
+- Write DAML unit tests
 
 Success Criteria:
 
--   Funds lock correctly
--   Authorized parties only can release
--   Dispute flow returns funds safely
+- Funds lock correctly
+- Authorized parties only can release
+- Dispute flow returns funds safely
 
 ------------------------------------------------------------------------
 
-# Phase 2 --- Backend Platform (Go)
+## Phase 2 --- Backend Platform (Go)
 
 Duration: 6 weeks
 
@@ -104,22 +105,22 @@ Services:
 
 Key responsibilities:
 
--   Contract submission
--   Ledger query services
--   Event streaming
--   Oracle integrations
+- Contract submission
+- Ledger query services
+- Event streaming
+- Oracle integrations
 
 Tasks:
 
-1.  Build REST/gRPC API
-2.  Implement ledger client
-3.  Implement escrow creation endpoint
-4.  Implement milestone approval endpoint
-5.  Implement dispute endpoint
+1. Build REST/gRPC API
+2. Implement ledger client
+3. Implement escrow creation endpoint
+4. Implement milestone approval endpoint
+5. Implement dispute endpoint
 
 ------------------------------------------------------------------------
 
-# Phase 3 --- Oracle Integrations
+## Phase 3 --- Oracle Integrations
 
 Duration: 3 weeks
 
@@ -129,9 +130,9 @@ Enable automated triggers.
 
 Examples:
 
--   Shipping confirmation
--   Delivery confirmation
--   Time-based releases
+- Shipping confirmation
+- Delivery confirmation
+- Time-based releases
 
 Architecture:
 
@@ -139,14 +140,14 @@ External System → Oracle Service → DAML Choice Execution
 
 Tasks:
 
--   Oracle adapter interface
--   Webhook ingestion
--   Signature verification
--   Event mapping to contract choices
+- Oracle adapter interface
+- Webhook ingestion
+- Signature verification
+- Event mapping to contract choices
 
 ------------------------------------------------------------------------
 
-# Phase 4 --- Frontend Applications
+## Phase 4 --- Frontend Applications
 
 Duration: 4--6 weeks
 
@@ -158,38 +159,38 @@ Mediator Dashboard
 
 Capabilities:
 
--   Escrow creation
--   Milestone tracking
--   Dispute handling
--   Payment confirmation
+- Escrow creation
+- Milestone tracking
+- Dispute handling
+- Payment confirmation
 
 ------------------------------------------------------------------------
 
-# Phase 5 --- Security & Compliance
+## Phase 5 --- Security & Compliance
 
 Duration: 3 weeks
 
 Tasks:
 
--   Contract audit
--   Key management review
--   Identity integration
--   KYC integration hooks
+- Contract audit
+- Key management review
+- Identity integration
+- KYC integration hooks
 
 ------------------------------------------------------------------------
 
-# Phase 6 --- Production Deployment
+## Phase 6 --- Production Deployment
 
 Tasks:
 
--   Kubernetes deployment
--   Ledger cluster setup
--   Observability stack
--   Backup and disaster recovery
+- Kubernetes deployment
+- Ledger cluster setup
+- Observability stack
+- Backup and disaster recovery
 
 ------------------------------------------------------------------------
 
-# Engineering Milestones
+## Engineering Milestones
 
 M1 --- Escrow contract working
 M2 --- API operational
@@ -199,20 +200,20 @@ M5 --- Production readiness
 
 ------------------------------------------------------------------------
 
-# Risks
+## Risks
 
-  Risk                    Mitigation
-  ----------------------- ---------------------------------
-  Ledger complexity       Use managed Canton environments
-  Oracle trust issues     Multi-source validation
-  Stablecoin compliance   Integrate KYC layer
-  Smart contract bugs     Formal testing
+| Risk | Mitigation |
+| --------------------- | ------------------------------- |
+| Ledger complexity | Use managed Canton environments |
+| Oracle trust issues | Multi-source validation |
+| Stablecoin compliance | Integrate KYC layer |
+| Smart contract bugs | Formal testing |
 
 ------------------------------------------------------------------------
 
-# Long Term Extensions
+## Long Term Extensions
 
--   DAO mediation pools
--   Marketplace SDK
--   Cross-chain settlement
--   Tokenized invoice financing
+- DAO mediation pools
+- Marketplace SDK
+- Cross-chain settlement
+- Tokenized invoice financing
