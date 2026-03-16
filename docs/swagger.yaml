@@ -1,0 +1,126 @@
+definitions:
+  ledger.CreateEscrowRequest:
+    properties:
+      amount:
+        type: number
+      buyer:
+        type: string
+      currency:
+        type: string
+      seller:
+        type: string
+    type: object
+  ledger.EscrowContract:
+    properties:
+      amount:
+        type: number
+      buyer:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      seller:
+        type: string
+      state:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /escrows:
+    post:
+      consumes:
+      - application/json
+      description: Initiate a new escrow agreement between buyer and seller
+      parameters:
+      - description: Escrow Creation Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ledger.CreateEscrowRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ledger.EscrowContract'
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Create a new escrow contract
+      tags:
+      - escrows
+  /escrows/{escrowID}:
+    get:
+      description: Retrieve information about a specific escrow contract
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.EscrowContract'
+        "404":
+          description: not found
+          schema:
+            type: string
+      summary: Get escrow details by ID
+      tags:
+      - escrows
+  /escrows/{escrowID}/refund:
+    post:
+      description: Cancel escrow and return funds (requires mediator)
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: refund failed
+          schema:
+            type: string
+      summary: Refund funds to the buyer
+      tags:
+      - escrows
+  /escrows/{escrowID}/release:
+    post:
+      description: Approve and release funds for the active milestone
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: release failed
+          schema:
+            type: string
+      summary: Release funds for the current milestone
+      tags:
+      - escrows
+swagger: "2.0"

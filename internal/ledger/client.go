@@ -5,19 +5,19 @@ import (
 )
 
 type CreateEscrowRequest struct {
-	Buyer    string
-	Seller   string
-	Amount   float64
-	Currency string
+	Buyer    string  `json:"buyer"`
+	Seller   string  `json:"seller"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
 }
 
 type EscrowContract struct {
-	ID       string
-	Buyer    string
-	Seller   string
-	Amount   float64
-	Currency string
-	State    string
+	ID       string  `json:"id"`
+	Buyer    string  `json:"buyer"`
+	Seller   string  `json:"seller"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+	State    string  `json:"state"`
 }
 
 type Client interface {

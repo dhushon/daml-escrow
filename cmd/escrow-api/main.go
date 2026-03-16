@@ -12,10 +12,18 @@ import (
 	"syscall"
 	"time"
 
+	_ "daml-escrow/docs"
+
 	chi "github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
 
+// @title Stablecoin Escrow API
+// @version 1.0
+// @description API for managing privacy-preserving stablecoin escrows on DAML.
+// @host localhost:8080
+// @BasePath /
 func main() {
 
 	logger := logging.NewLogger()
@@ -37,6 +45,10 @@ func main() {
 
 	router := chi.NewRouter()
 	router.Use(api.LoggingMiddleware(logger))
+
+	router.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+	))
 
 	router.Post("/escrows", handler.CreateEscrow)
 	router.Get("/escrows/{escrowID}", handler.GetEscrow)

@@ -26,6 +26,17 @@ func NewHandler(
 	}
 }
 
+// CreateEscrow handles creation of a new escrow
+// @Summary Create a new escrow contract
+// @Description Initiate a new escrow agreement between buyer and seller
+// @Tags escrows
+// @Accept json
+// @Produce json
+// @Param request body ledger.CreateEscrowRequest true "Escrow Creation Request"
+// @Success 201 {object} ledger.EscrowContract
+// @Failure 400 {string} string "invalid request"
+// @Failure 500 {string} string "internal error"
+// @Router /escrows [post]
 func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 
 	var req ledger.CreateEscrowRequest
@@ -45,6 +56,7 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(escrow); err != nil {
 		h.logger.Error("encode escrow failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -52,6 +64,15 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetEscrow handles retrieving escrow details
+// @Summary Get escrow details by ID
+// @Description Retrieve information about a specific escrow contract
+// @Tags escrows
+// @Produce json
+// @Param escrowID path string true "Escrow ID"
+// @Success 200 {object} ledger.EscrowContract
+// @Failure 404 {string} string "not found"
+// @Router /escrows/{escrowID} [get]
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "escrowID")
@@ -69,6 +90,14 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ReleaseEscrow handles fund release
+// @Summary Release funds for the current milestone
+// @Description Approve and release funds for the active milestone
+// @Tags escrows
+// @Param escrowID path string true "Escrow ID"
+// @Success 200 {string} string "ok"
+// @Failure 500 {string} string "release failed"
+// @Router /escrows/{escrowID}/release [post]
 func (h *Handler) ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "escrowID")
@@ -82,6 +111,14 @@ func (h *Handler) ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// RefundEscrow handles refund process
+// @Summary Refund funds to the buyer
+// @Description Cancel escrow and return funds (requires mediator)
+// @Tags escrows
+// @Param escrowID path string true "Escrow ID"
+// @Success 200 {string} string "ok"
+// @Failure 500 {string} string "refund failed"
+// @Router /escrows/{escrowID}/refund [post]
 func (h *Handler) RefundEscrow(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "escrowID")
