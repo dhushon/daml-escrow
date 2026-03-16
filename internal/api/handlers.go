@@ -7,7 +7,7 @@ import (
 	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
