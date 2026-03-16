@@ -1,0 +1,113 @@
+module StablecoinEscrow where
+
+import DA.Optional (catOptionals)
+import DA.List ((!!))
+
+data Milestone = Milestone with
+  label : Text
+  amount : Decimal
+  completed : Bool
+    deriving (Eq, Show)
+
+template StablecoinEscrow
+  with
+    issuer : Party
+    buyer : Party
+    seller : Party
+    mediator : Party
+    totalAmount : Decimal
+    currency : Text
+    description : Text
+    milestones : [Milestone]
+    currentMilestoneIndex : Int
+  where
+    signatory buyer, issuer
+    observer seller, mediator
+
+    ensure totalAmount == sum (map (\m -> m.amount) milestones) && totalAmount > 0.0
+
+    -- Approve a milestone and release its funds
+    choice ApproveMilestone : (Optional (ContractId StablecoinEscrow), ContractId EscrowSettlement)
+      controller buyer
+      do
+        assertMsg "No more milestones to approve" (currentMilestoneIndex < length milestones)
+        let milestone = milestones !! currentMilestoneIndex
+        assertMsg "Milestone already completed" (not milestone.completed)
+        
+        let 
+          numMilestones = length milestones
+          updatedMilestones = 
+            map (\i -> let m = milestones !! i in if i == currentMilestoneIndex then m with completed = True else m) 
+                [0 .. numMilestones - 1]
+        
+        settlement <- create EscrowSettlement with
+          issuer = issuer
+          recipient = seller
+          amount = milestone.amount
+          currency = currency
+          status = "Milestone Approved: " <> milestone.label
+
+        if currentMilestoneIndex + 1 < length milestones
+          then do
+            newEscrow <- create this with 
+              milestones = updatedMilestones
+              currentMilestoneIndex = currentMilestoneIndex + 1
+            return (Some newEscrow, settlement)
+          else do
+            return (None, settlement)
+
+    choice RaiseDispute : ContractId DisputedEscrow
+      controller buyer
+      do
+        create DisputedEscrow with
+          escrow = this
+
+template EscrowSettlement
+  with
+    issuer : Party
+    recipient : Party
+    amount : Decimal
+    currency : Text
+    status : Text
+  where
+    signatory issuer
+    observer recipient
+
+template DisputedEscrow
+  with
+    escrow : StablecoinEscrow
+  where
+    signatory escrow.buyer, escrow.issuer
+    observer escrow.seller, escrow.mediator
+
+    choice ResolveDispute : [ContractId EscrowSettlement]
+      with 
+        payoutToBuyer : Decimal
+        payoutToSeller : Decimal
+      controller escrow.mediator
+      do
+        -- Remaining amount in escrow (uncompleted milestones)
+        let remainingAmount = sum (map (\m -> if not m.completed then m.amount else 0.0) escrow.milestones)
+        assertMsg "Total payout must equal remaining escrow amount" (payoutToBuyer + payoutToSeller == remainingAmount)
+        
+        s1 <- if payoutToBuyer > 0.0 then do
+                s <- create EscrowSettlement with
+                  issuer = escrow.issuer
+                  recipient = escrow.buyer
+                  amount = payoutToBuyer
+                  currency = escrow.currency
+                  status = "Dispute Resolved - Refund"
+                return (Some s)
+              else return None
+            
+        s2 <- if payoutToSeller > 0.0 then do
+                s <- create EscrowSettlement with
+                  issuer = escrow.issuer
+                  recipient = escrow.seller
+                  amount = payoutToSeller
+                  currency = escrow.currency
+                  status = "Dispute Resolved - Payment"
+                return (Some s)
+              else return None
+          
+        return (catOptionals [s1, s2])

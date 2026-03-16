@@ -1,0 +1,109 @@
+module Test.StablecoinEscrowTest where
+
+import Daml.Script
+import StablecoinEscrow
+import DA.Optional (isSome, isNone)
+
+setup : Script (Party, Party, Party, Party)
+setup = do
+  issuer <- allocateParty "Issuer"
+  buyer <- allocateParty "Buyer"
+  seller <- allocateParty "Seller"
+  mediator <- allocateParty "Mediator"
+  return (issuer, buyer, seller, mediator)
+
+testEscrowFlow : Script ()
+testEscrowFlow = script do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let 
+    milestone1 = Milestone with label = "Design", amount = 100.0, completed = False
+    milestone2 = Milestone with label = "Implementation", amount = 200.0, completed = False
+    escrow = StablecoinEscrow with
+      issuer, buyer, seller, mediator
+      totalAmount = 300.0
+      currency = "USD"
+      description = "Software project"
+      milestones = [milestone1, milestone2]
+      currentMilestoneIndex = 0
+
+  escrowId <- submitMulti [buyer, issuer] [] do
+    createCmd escrow
+
+  -- Approve first milestone
+  (newEscrowIdOpt, settlementId) <- submit buyer do
+    exerciseCmd escrowId ApproveMilestone
+
+  assert (isSome newEscrowIdOpt)
+  let Some newEscrowId = newEscrowIdOpt
+
+  -- Check settlement
+  Some settlement <- queryContractId issuer settlementId
+  assert (settlement.amount == 100.0)
+  assert (settlement.recipient == seller)
+
+  -- Approve second (final) milestone
+  (finalEscrowIdOpt, settlementId2) <- submit buyer do
+    exerciseCmd newEscrowId ApproveMilestone
+
+  assert (isNone finalEscrowIdOpt)
+
+  Some settlement2 <- queryContractId issuer settlementId2
+  assert (settlement2.amount == 200.0)
+  assert (settlement2.recipient == seller)
+
+  return ()
+
+testDisputeFlow : Script ()
+testDisputeFlow = script do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let 
+    milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
+    escrow = StablecoinEscrow with
+      issuer, buyer, seller, mediator
+      totalAmount = 100.0
+      currency = "USD"
+      description = "Disputed work"
+      milestones = [milestone1]
+      currentMilestoneIndex = 0
+
+  escrowId <- submitMulti [buyer, issuer] [] do
+    createCmd escrow
+
+  -- Raise dispute
+  disputeId <- submit buyer do
+    exerciseCmd escrowId RaiseDispute
+
+  -- Resolve dispute: 50/50 split
+  settlementIds <- submit mediator do
+    exerciseCmd disputeId ResolveDispute with
+      payoutToBuyer = 50.0
+      payoutToSeller = 50.0
+
+  assert (length settlementIds == 2)
+
+  return ()
+
+testUnauthorizedApprove : Script ()
+testUnauthorizedApprove = script do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let 
+    milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
+    escrow = StablecoinEscrow with
+      issuer, buyer, seller, mediator
+      totalAmount = 100.0
+      currency = "USD"
+      description = "Unauthorized test"
+      milestones = [milestone1]
+      currentMilestoneIndex = 0
+
+  escrowId <- submitMulti [buyer, issuer] [] do
+    createCmd escrow
+
+  -- Seller tries to approve their own milestone - should fail
+  submitMustFail seller do
+    exerciseCmd escrowId ApproveMilestone
+
+  return ()
