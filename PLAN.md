@@ -90,7 +90,7 @@ Success Criteria:
 
 ------------------------------------------------------------------------
 
-## Phase 2 --- Backend Platform (Go)
+## Phase 2 --- Backend Platform (Go) (IN PROGRESS)
 
 Duration: 6 weeks
 
@@ -114,11 +114,38 @@ Key responsibilities:
 
 Tasks:
 
-1. Build REST/gRPC API
-2. Implement ledger client
-3. Implement escrow creation endpoint
-4. Implement milestone approval endpoint
-5. Implement dispute endpoint
+1. Build REST/gRPC API (DONE - with Swagger UI)
+2. Implement ledger client (MOCK DONE - In-memory)
+3. Implement escrow creation endpoint (DONE)
+4. Implement milestone approval endpoint (DONE)
+5. Implement dispute endpoint (DONE)
+
+### API Orchestration & Testing
+
+To ensure the backend platform functions as expected, a "Golden Path" orchestration test is available.
+
+**Description:**
+The test simulates a full transaction lifecycle:
+
+1. **Creation:** Submits a POST request to `/escrows` to initiate a new contract.
+2. **Retrieval:** Calls GET `/escrows/{id}` to verify the contract was stored and matches the initial state.
+3. **Action:** Executes a POST to `/escrows/{id}/release` to simulate fund release.
+4. **Verification:** Performs a final GET to ensure the state has transitioned to "Released".
+
+**Mechanics:**
+
+- **Manual:** Use the Swagger UI at `http://localhost:8080/swagger/index.html`.
+- **Automated:** Run the provided shell script:
+
+```bash
+# In one terminal
+make run
+
+# In another terminal
+./scripts/test_api.sh
+```
+
+The test requires `curl` and `jq` to be installed on the host system.
 
 ------------------------------------------------------------------------
 

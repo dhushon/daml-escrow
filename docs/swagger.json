@@ -1,0 +1,195 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/escrows": {
+            "post": {
+                "description": "Initiate a new escrow agreement between buyer and seller",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Create a new escrow contract",
+                "parameters": [
+                    {
+                        "description": "Escrow Creation Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ledger.CreateEscrowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.EscrowContract"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}": {
+            "get": {
+                "description": "Retrieve information about a specific escrow contract",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Get escrow details by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.EscrowContract"
+                        }
+                    },
+                    "404": {
+                        "description": "not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/refund": {
+            "post": {
+                "description": "Cancel escrow and return funds (requires mediator)",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Refund funds to the buyer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "refund failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/release": {
+            "post": {
+                "description": "Approve and release funds for the active milestone",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Release funds for the current milestone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "release failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ledger.CreateEscrowRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "buyer": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "seller": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.EscrowContract": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "buyer": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "seller": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
