@@ -192,11 +192,13 @@ Tasks:
 
 ## Engineering Milestones
 
-M1 --- Escrow contract working
-M2 --- API operational
-M3 --- Oracle integration functional
-M4 --- End-to-end escrow flow complete
-M5 --- Production readiness
+| Milestone | What/Why/Value |
+| --------------------- | ------------------------------- |
+| M1 | Escrow contract working |
+| M2 | API operational |
+| M3 | Oracle integration functional |
+| M4 | End-to-end escrow flow complete |
+| M5 | Production readiness |
 
 ------------------------------------------------------------------------
 
