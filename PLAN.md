@@ -119,11 +119,11 @@ Tasks:
 3. Implement escrow creation endpoint (DONE)
 4. Implement milestone approval endpoint (DONE)
 5. Implement dispute endpoint (DONE)
-6. [TODO] Integrate DAML Build & Codegen:
+6. Integrate DAML Build & Codegen (DONE):
    - Setup `daml build` to generate `.dar` artifacts.
-   - Configure `daml codegen go` to produce type-safe bindings.
-   - Refactor `internal/ledger` to use generated bindings for command submission.
-   - Restructure repository if necessary to manage build-time dependencies.
+   - Manually implemented type-safe Go bindings for `StablecoinEscrow` (due to `go-daml` codegen tool currently requiring DAML 3.0/LF 2.x).
+   - Refactored `internal/ledger` to use generated bindings and `go-daml` gRPC client for command submission.
+   - Verified end-to-end Go build with ledger integration.
 
 ### API Orchestration & Testing
 

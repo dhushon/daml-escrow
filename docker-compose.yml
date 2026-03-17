@@ -2,6 +2,27 @@ version: "3.9"
 
 services:
 
+  canton:
+    image: ghcr.io/digital-asset/canton-community:3.4.11
+    container_name: escrow-ledger
+    ports:
+      - "6865:6865" # Ledger API (gRPC)
+      - "7575:7575" # HTTP Ledger API (JSON V2)
+      - "6866:6866" # Admin API
+    volumes:
+      - ./contracts:/canton/contracts
+    command:
+      - "daemon"
+      - "-c"
+      - "/canton/contracts/canton.conf"
+      - "--bootstrap"
+      - "/canton/contracts/init.canton"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7575/livez"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   escrow-api:
     build: .
     container_name: escrow-api
@@ -10,9 +31,13 @@ services:
     environment:
       LOG_LEVEL: info
       LEDGER_HOST: canton
-      LEDGER_PORT: 6865
+      LEDGER_PORT: 7575
+      LEDGER_TYPE: json
     depends_on:
-      - postgres
+      canton:
+        condition: service_healthy
+      postgres:
+        condition: service_started
 
   postgres:
     image: postgres:16

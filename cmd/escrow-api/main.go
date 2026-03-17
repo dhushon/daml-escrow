@@ -38,7 +38,27 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	ledgerClient := ledger.NewDamlClient(logger, cfg.Ledger.Host, cfg.Ledger.Port)
+	// Environment variable overrides
+	ledgerHost := cfg.Ledger.Host
+	if host := os.Getenv("LEDGER_HOST"); host != "" {
+		ledgerHost = host
+	}
+	ledgerPort := cfg.Ledger.Port
+	if port := os.Getenv("LEDGER_PORT"); port != "" {
+		fmt.Sscanf(port, "%d", &ledgerPort)
+	}
+
+	var ledgerClient ledger.Client
+	ledgerType := os.Getenv("LEDGER_TYPE")
+
+	if ledgerType == "grpc" {
+		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
+		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
+	} else {
+		// Default to JSON API for better dynamic binding support
+		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
+		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
+	}
 
 	escrowService := services.NewEscrowService(
 		logger,
