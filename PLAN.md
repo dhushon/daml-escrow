@@ -17,16 +17,12 @@ The system will support:
 
 ## Development Environment
 
-For local development and testing, we will use the **DAML Sandbox**. It is an in-memory, lightweight DAML ledger that runs locally.
+For local development and testing, we use the **Canton 3.4.11 Sandbox** with **DPM**.
 
-**Rationale:**
-
-- **Simplicity:** Easy to start, stop, and reset.
-- **Speed:** Fast for local development and running tests.
-- **Compatibility:** Code developed against the sandbox is compatible with other DAML-enabled ledgers, including Canton, ensuring a smooth transition to production environments.
-- **No external dependencies:** It does not require a separate database.
-
-For later-stage integration testing that requires persistence, we may introduce a PostgreSQL-backed DAML driver.
+**Key Architectural Decisions (SDK 3.x Migration):**
+- **Protocol:** Daml JSON Ledger API V2 over HTTP/1.1.
+- **Identity:** User-Managed Identities (Stable User IDs mapped to dynamic Canton Party IDs).
+- **Tooling:** Mandatory JDK 17 and DPM (Daml Package Manager).
 
 ------------------------------------------------------------------------
 
@@ -34,222 +30,96 @@ For later-stage integration testing that requires persistence, we may introduce 
 
 Duration: 2--3 weeks
 
-Goals:
-
-• Finalize system architecture
-• Define contract models
-• Establish development environment
-
-Deliverables:
-
-- Architecture document (`architecture/system_design.md`)
-- Ledger topology design (DAML Sandbox)
-- API specification (`architecture/api_specification.yaml`)
-- Stablecoin abstraction layer (`internal/ledger/stablecoin.go`)
-- DAML contract skeletons
-- Initial Go service skeleton
-
 Tasks:
-
 1. Define escrow lifecycle (DONE)
 2. Define stablecoin abstraction layer (DONE)
-3. Select Canton / ledger environment (DONE)
+3. Select Canton / ledger environment (DONE - Daml 3.4.11)
 4. Establish repository structure (DONE)
 5. Create CI/CD pipeline (DONE)
 6. Define API contracts (DONE)
 
 ------------------------------------------------------------------------
 
-## Phase 1 --- Core Escrow Contracts
-
-Duration: 4 weeks
-
-Goals:
-
-Build the base escrow smart contracts.
-
-Deliverables:
-
-- Escrow DAML template
-- Settlement template
-- Milestone extension model
+## Phase 1 --- Core Escrow Contracts (COMPLETE)
 
 Tasks:
-
-- Implement escrow template
-- Implement settlement contract
-- Add milestone choices
-- Implement dispute flows
-- Write DAML unit tests
-
-Success Criteria:
-
-- Funds lock correctly
-- Authorized parties only can release
-- Dispute flow returns funds safely
+- Implement escrow template (DONE)
+- Implement settlement contract (DONE)
+- Add milestone choices (DONE)
+- Implement dispute flows (DONE)
+- Write DAML unit tests (DONE)
 
 ------------------------------------------------------------------------
 
 ## Phase 2 --- Backend Platform (Go) (IN PROGRESS)
 
-Duration: 6 weeks
+Goals: Create service layer to interact with the ledger.
 
-Goals:
+### Completed Work
+1. **REST API:** Swagger UI integrated on port 8080.
+2. **JSON V2 Client:** Implemented `JsonLedgerClient` with:
+   - Dynamic Party ID resolution via `/v2/parties`.
+   - Idempotent bootstrapping via `init.canton`.
+   - Recursive V2 JSON response parsing.
+   - Ledger offset tracking for consistent reads.
+3. **Integration Testing:** Substantial tests in `internal/ledger/ledger_integration_test.go` covering Standard and Refund lifecycles.
 
-Create service layer to interact with the ledger.
+### Detailed Next Steps (De-risking & Deep Integration)
 
-Services:
+**Task 2.7: Multi-Milestone API Expansion**
+- Update `internal/ledger/stablecoin.go` to support a `Milestones` slice in the `CreateEscrowRequest`.
+- Refactor `internal/ledger/json_client.go` to dynamically build the milestone list in the `CreateCommand` payload.
+- Update `internal/api/handlers.go` to accept milestone arrays from the REST client.
 
-• escrow-api
-• oracle-service
-• payment-gateway
-• identity-service
+**Task 2.8: Mediator "ResolveDispute" Implementation**
+- Implement `ResolveDispute` method in `JsonLedgerClient`.
+- Add `POST /escrows/{id}/resolve` endpoint to the REST API.
+- Update `EscrowService` to handle mediation logic (splitting payouts between Buyer and Seller).
 
-Key responsibilities:
+**Task 2.9: Precise Event Extraction**
+- Refactor `CreateEscrow` to extract the `contractId` directly from the `events` slice in the `submit-and-wait` response.
+- Eliminate the 1-second sleep and "query-after-create" logic to improve performance and thread safety.
 
-- Contract submission
-- Ledger query services
-- Event streaming
-- Oracle integrations
-
-Tasks:
-
-1. Build REST/gRPC API (DONE - with Swagger UI)
-2. Implement ledger client (MOCK DONE - In-memory)
-3. Implement escrow creation endpoint (DONE)
-4. Implement milestone approval endpoint (DONE)
-5. Implement dispute endpoint (DONE)
-6. Integrate DAML Build & Codegen (DONE):
-   - Setup `daml build` to generate `.dar` artifacts.
-   - Manually implemented type-safe Go bindings for `StablecoinEscrow` (due to `go-daml` codegen tool currently requiring DAML 3.0/LF 2.x).
-   - Refactored `internal/ledger` to use generated bindings and `go-daml` gRPC client for command submission.
-   - Verified end-to-end Go build with ledger integration.
-
-### API Orchestration & Testing
-
-To ensure the backend platform functions as expected, a "Golden Path" orchestration test is available.
-
-**Description:**
-The test simulates a full transaction lifecycle:
-
-1. **Creation:** Submits a POST request to `/escrows` to initiate a new contract.
-2. **Retrieval:** Calls GET `/escrows/{id}` to verify the contract was stored and matches the initial state.
-3. **Action:** Executes a POST to `/escrows/{id}/release` to simulate fund release.
-4. **Verification:** Performs a final GET to ensure the state has transitioned to "Released".
-
-**Mechanics:**
-
-- **Manual:** Use the Swagger UI at `http://localhost:8080/swagger/index.html`.
-- **Automated:** Run the provided shell script:
-
-```bash
-# In one terminal
-make run
-
-# In another terminal
-./scripts/test_api.sh
-```
-
-The test requires `curl` and `jq` to be installed on the host system.
+**Task 2.10: Stablecoin Settlement Logic**
+- Design the hand-off between the Escrow contract and actual token transfers.
+- Determine if the Go backend will trigger a secondary `TokenTransfer` contract choice upon milestone approval.
 
 ------------------------------------------------------------------------
 
 ## Phase 3 --- Oracle Integrations
 
-Duration: 3 weeks
-
-Goals:
-
-Enable automated triggers.
-
-Examples:
-
-- Shipping confirmation
-- Delivery confirmation
-- Time-based releases
-
-Architecture:
-
-External System → Oracle Service → DAML Choice Execution
-
 Tasks:
-
 - Oracle adapter interface
-- Webhook ingestion
+- Webhook ingestion (e.g., Shipping/Delivery confirmations)
 - Signature verification
-- Event mapping to contract choices
+- Event mapping to contract choices (`ApproveMilestone`)
 
 ------------------------------------------------------------------------
 
 ## Phase 4 --- Frontend Applications
 
-Duration: 4--6 weeks
-
 Applications:
-
-Buyer Portal
-Seller Portal
-Mediator Dashboard
-
-Capabilities:
-
-- Escrow creation
-- Milestone tracking
-- Dispute handling
-- Payment confirmation
+- **Buyer Portal:** Escrow creation, milestone approval.
+- **Seller Portal:** Progress tracking, payment view.
+- **Mediator Dashboard:** Dispute resolution interface.
 
 ------------------------------------------------------------------------
 
 ## Phase 5 --- Security & Compliance
 
-Duration: 3 weeks
-
 Tasks:
-
-- Contract audit
-- Key management review
-- Identity integration
-- KYC integration hooks
-
-------------------------------------------------------------------------
-
-## Phase 6 --- Production Deployment
-
-Tasks:
-
-- Kubernetes deployment
-- Ledger cluster setup
-- Observability stack
-- Backup and disaster recovery
+- JWT Authentication integration (RS256) for the JSON API.
+- Contract audit.
+- Key management strategy.
 
 ------------------------------------------------------------------------
 
 ## Engineering Milestones
 
-| Milestone | What/Why/Value |
-| --------------------- | ------------------------------- |
-| M1 | Escrow contract working |
-| M2 | API operational |
-| M3 | Oracle integration functional |
-| M4 | End-to-end escrow flow complete |
-| M5 | Production readiness |
-
-------------------------------------------------------------------------
-
-## Risks
-
-| Risk | Mitigation |
-| --------------------- | ------------------------------- |
-| Ledger complexity | Use managed Canton environments |
-| Oracle trust issues | Multi-source validation |
-| Stablecoin compliance | Integrate KYC layer |
-| Smart contract bugs | Formal testing |
-
-------------------------------------------------------------------------
-
-## Long Term Extensions
-
-- DAO mediation pools
-- Marketplace SDK
-- Cross-chain settlement
-- Tokenized invoice financing
+| Milestone | Status | Description |
+| :--- | :--- | :--- |
+| M1 | DONE | Escrow contract logic verified in DAML. |
+| M2 | DONE | API protocol established (JSON V2). |
+| M3 | TODO | Oracle integration functional. |
+| M4 | TODO | End-to-end multi-milestone settlement. |
+| M5 | TODO | Production readiness (Auth/TLS/Persistence). |
