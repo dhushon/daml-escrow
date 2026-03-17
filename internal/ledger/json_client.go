@@ -116,21 +116,41 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 
 	amountStr := fmt.Sprintf("%.10f", req.Amount)
 
-	payload := map[string]interface{}{
-		"issuer":      cbParty,
-		"buyer":       buyerParty,
-		"seller":      sellerParty,
-		"mediator":    mediatorParty,
-		"totalAmount": amountStr,
-		"currency":    req.Currency,
-		"description": "Escrow for " + req.Currency,
-		"milestones": []interface{}{
+	// Build dynamic milestones
+	var milestones []interface{}
+	if len(req.Milestones) > 0 {
+		for _, m := range req.Milestones {
+			milestones = append(milestones, map[string]interface{}{
+				"label":     m.Label,
+				"amount":    fmt.Sprintf("%.10f", m.Amount),
+				"completed": m.Completed,
+			})
+		}
+	} else {
+		// Default to single milestone if none provided
+		milestones = []interface{}{
 			map[string]interface{}{
 				"label":     "Full Payment",
 				"amount":    amountStr,
 				"completed": false,
 			},
-		},
+		}
+	}
+
+	description := req.Description
+	if description == "" {
+		description = "Escrow for " + req.Currency
+	}
+
+	payload := map[string]interface{}{
+		"issuer":                cbParty,
+		"buyer":                 buyerParty,
+		"seller":                sellerParty,
+		"mediator":              mediatorParty,
+		"totalAmount":           amountStr,
+		"currency":              req.Currency,
+		"description":           description,
+		"milestones":            milestones,
 		"currentMilestoneIndex": 0,
 	}
 
@@ -195,20 +215,18 @@ func (c *JsonLedgerClient) listEscrows(ctx context.Context, offset int64) ([]*Es
 		return nil, err
 	}
 
-	var envelope struct {
-		Result []interface{} `json:"result"`
-	}
-	if err := json.Unmarshal(respBody, &envelope); err != nil {
+	var result []interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
 		var rawList []interface{}
 		if err2 := json.Unmarshal(respBody, &rawList); err2 == nil {
-			envelope.Result = rawList
+			result = rawList
 		} else {
 			return nil, fmt.Errorf("failed to decode active contracts result: %w", err)
 		}
 	}
 
 	var escrows []*EscrowContract
-	for _, item := range envelope.Result {
+	for _, item := range result {
 		if m, ok := item.(map[string]interface{}); ok {
 			var created map[string]interface{}
 			if entry, ok := m["contractEntry"].(map[string]interface{}); ok {
@@ -226,13 +244,38 @@ func (c *JsonLedgerClient) listEscrows(ctx context.Context, offset int64) ([]*Es
 				if args != nil {
 					amountStr := fmt.Sprintf("%v", args["totalAmount"])
 					amount, _ := strconv.ParseFloat(amountStr, 64)
+					
+					var ms []Milestone
+					if rawMs, ok := args["milestones"].([]interface{}); ok {
+						for _, r := range rawMs {
+							if rm, ok := r.(map[string]interface{}); ok {
+								ma, _ := strconv.ParseFloat(fmt.Sprintf("%v", rm["amount"]), 64)
+								ms = append(ms, Milestone{
+									Label:     fmt.Sprintf("%v", rm["label"]),
+									Amount:    ma,
+									Completed: rm["completed"].(bool),
+								})
+							}
+						}
+					}
+
+					curIdx := 0
+					if ci, ok := args["currentMilestoneIndex"].(float64); ok {
+						curIdx = int(ci)
+					} else if ci, ok := args["currentMilestoneIndex"].(string); ok {
+						ci64, _ := strconv.ParseInt(ci, 10, 32)
+						curIdx = int(ci64)
+					}
+
 					escrows = append(escrows, &EscrowContract{
-						ID:       contractId,
-						Buyer:    fmt.Sprintf("%v", args["buyer"]),
-						Seller:   fmt.Sprintf("%v", args["seller"]),
-						Amount:   amount,
-						Currency: fmt.Sprintf("%v", args["currency"]),
-						State:    "Active",
+						ID:                    contractId,
+						Buyer:                 fmt.Sprintf("%v", args["buyer"]),
+						Seller:                fmt.Sprintf("%v", args["seller"]),
+						Amount:                amount,
+						Currency:              fmt.Sprintf("%v", args["currency"]),
+						State:                 "Active",
+						Milestones:            ms,
+						CurrentMilestoneIndex: curIdx,
 					})
 				}
 			}
@@ -244,6 +287,8 @@ func (c *JsonLedgerClient) listEscrows(ctx context.Context, offset int64) ([]*Es
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
 	c.logger.Info("querying escrow via JSON API V2", zap.String("id", id))
 
+	time.Sleep(1 * time.Second)
+	
 	contracts, err := c.listEscrows(ctx, c.getOffset())
 	if err != nil {
 		return nil, err

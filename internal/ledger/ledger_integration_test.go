@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,7 +56,6 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Successfully exercised ApproveMilestone")
 
 		// 4. Verify completion (Final Read)
-		// Our DAML code archives the contract if the last milestone is approved
 		t.Log("Testing GetEscrow after archive (should fail)...")
 		_, err = client.GetEscrow(ctx, escrow.ID)
 		require.Error(t, err)
@@ -83,5 +83,59 @@ func TestLedgerIntegration(t *testing.T) {
 		_, err = client.GetEscrow(ctx, escrow.ID)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after dispute")
+	})
+
+	t.Run("Escrow with Multi-Milestones", func(t *testing.T) {
+		// 1. Create Escrow with 3 milestones
+		t.Log("Testing CreateEscrow with milestones...")
+		milestones := []Milestone{
+			{Label: "Design", Amount: 100.0, Completed: false},
+			{Label: "Implementation", Amount: 300.0, Completed: false},
+			{Label: "Testing", Amount: 100.0, Completed: false},
+		}
+		createReq := CreateEscrowRequest{
+			Buyer:       BuyerUser,
+			Seller:      SellerUser,
+			Amount:      500.0,
+			Currency:    "USD",
+			Description: "Software Project",
+			Milestones:  milestones,
+		}
+		
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+		require.NotNil(t, escrow)
+		
+		// 2. Fetch and Verify
+		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(fetched.Milestones))
+		require.Equal(t, "Design", fetched.Milestones[0].Label)
+		require.Equal(t, 100.0, fetched.Milestones[0].Amount)
+		require.Equal(t, 0, fetched.CurrentMilestoneIndex)
+		t.Log("Multi-milestone escrow verified")
+
+		// 3. Approve first milestone
+		t.Log("Approving first milestone...")
+		err = client.ReleaseFunds(ctx, escrow.ID)
+		require.NoError(t, err)
+
+		// 4. Verify progress
+		// In DAML, exercising a choice that returns self creates a NEW contract ID
+		// So we search for the latest escrow for this buyer/seller
+		time.Sleep(2 * time.Second)
+		contracts, err := client.listEscrows(ctx, client.getOffset())
+		require.NoError(t, err)
+		
+		var updated *EscrowContract
+		for _, c := range contracts {
+			if strings.Contains(c.Buyer, "Buyer") && strings.Contains(c.Seller, "Seller") && c.CurrentMilestoneIndex == 1 {
+				updated = c
+				break
+			}
+		}
+		require.NotNil(t, updated, "Could not find updated escrow contract")
+		require.True(t, updated.Milestones[0].Completed)
+		t.Log("First milestone approval verified on new contract ID")
 	})
 }

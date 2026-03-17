@@ -40,18 +40,18 @@ func (s *EscrowService) GetEscrow(
 	return s.ledger.GetEscrow(ctx, id)
 }
 
-func (s *EscrowService) ReleaseEscrow(
+func (s *EscrowService) ReleaseFunds(
 	ctx context.Context,
 	id string,
 ) error {
-	s.logger.Info("releasing escrow", zap.String("id", id))
+	s.logger.Info("releasing funds", zap.String("id", id))
 	return s.ledger.ReleaseFunds(ctx, id)
 }
 
-func (s *EscrowService) RefundEscrow(
+func (s *EscrowService) RefundBuyer(
 	ctx context.Context,
 	id string,
 ) error {
-	s.logger.Info("refunding escrow", zap.String("id", id))
+	s.logger.Info("refunding buyer", zap.String("id", id))
 	return s.ledger.RefundBuyer(ctx, id)
 }

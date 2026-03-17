@@ -3,7 +3,6 @@ package ledger
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"daml-escrow/internal/ledger/generated"
@@ -71,8 +70,27 @@ func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) 
 	seller := PARTY(SellerParty)
 
 	// Ensure Numeric format matches what the ledger expects (10 decimal places for Decimal)
-	amountStr := strconv.FormatFloat(req.Amount, 'f', 10, 64)
+	amountStr := fmt.Sprintf("%.10f", req.Amount)
 	amountNumeric := NUMERIC(amountStr)
+
+	var milestones []generated.Milestone
+	if len(req.Milestones) > 0 {
+		for _, m := range req.Milestones {
+			milestones = append(milestones, generated.Milestone{
+				Label:     TEXT(m.Label),
+				Amount:    NUMERIC(fmt.Sprintf("%.10f", m.Amount)),
+				Completed: BOOL(m.Completed),
+			})
+		}
+	} else {
+		milestones = []generated.Milestone{
+			{
+				Label:     TEXT("Full Payment"),
+				Amount:    amountNumeric,
+				Completed: BOOL(false),
+			},
+		}
+	}
 
 	escrow := generated.StablecoinEscrow{
 		Issuer:      issuer,
@@ -81,15 +99,14 @@ func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) 
 		Mediator:    mediator,
 		TotalAmount: amountNumeric,
 		Currency:    TEXT(req.Currency),
-		Description: TEXT("Escrow for " + req.Currency),
-		Milestones: []generated.Milestone{
-			{
-				Label:     TEXT("Full Payment"),
-				Amount:    amountNumeric,
-				Completed: BOOL(false),
-			},
-		},
+		Description: TEXT(req.Description),
+		Milestones:  milestones,
 		CurrentMilestoneIndex: INT64(0),
+	}
+
+	var milestoneMaps []interface{}
+	for _, m := range escrow.Milestones {
+		milestoneMaps = append(milestoneMaps, m.ToMap())
 	}
 
 	createCmd := &model.CreateCommand{
@@ -102,7 +119,7 @@ func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) 
 			"totalAmount":           escrow.TotalAmount,
 			"currency":              escrow.Currency,
 			"description":           escrow.Description,
-			"milestones":            []interface{}{escrow.Milestones[0].ToMap()},
+			"milestones":            milestoneMaps,
 			"currentMilestoneIndex": escrow.CurrentMilestoneIndex,
 		},
 	}
@@ -126,13 +143,10 @@ func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) 
 		return nil, fmt.Errorf("ledger submission failed: %w", err)
 	}
 
-	// The response from CommandService.SubmitAndWait might vary, 
-	// but usually we can get the contract ID from the transaction/update ID or by querying.
-	// For now, if we don't have events in the response, we might need to handle it.
 	c.logger.Info("DAML escrow created", zap.String("updateId", response.UpdateID))
 
 	return &EscrowContract{
-		ID:       "unknown-id-query-needed", // Need to extract from response if available
+		ID:       "unknown-id-query-needed",
 		Buyer:    req.Buyer,
 		Seller:   req.Seller,
 		Amount:   req.Amount,
