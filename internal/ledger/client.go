@@ -59,6 +59,7 @@ type Client interface {
 	RaiseDispute(ctx context.Context, id string) (string, error)
 	ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error
 	RefundBuyer(ctx context.Context, id string) error
+	RefundBySeller(ctx context.Context, id string) error
 	
 	// Aggregated Views
 	GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error)

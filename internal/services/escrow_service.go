@@ -81,6 +81,14 @@ func (s *EscrowService) RefundBuyer(
 	return s.ledger.RefundBuyer(ctx, id)
 }
 
+func (s *EscrowService) RefundBySeller(
+	ctx context.Context,
+	id string,
+) error {
+	s.logger.Info("seller refunding buyer", zap.String("id", id))
+	return s.ledger.RefundBySeller(ctx, id)
+}
+
 func (s *EscrowService) ListSettlements(
 	ctx context.Context,
 ) ([]*ledger.EscrowSettlement, error) {

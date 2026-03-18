@@ -22,7 +22,7 @@ func TestLedgerIntegration(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	client := NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	t.Run("Standard Escrow Lifecycle", func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Verified contract is archived")
 	})
 
-	t.Run("Escrow Refund Lifecycle", func(t *testing.T) {
+	t.Run("Escrow Refund Lifecycle (Buyer Initiated)", func(t *testing.T) {
 		// 1. Create Escrow
 		createReq := CreateEscrowRequest{
 			Buyer:    BuyerUser,
@@ -83,6 +83,29 @@ func TestLedgerIntegration(t *testing.T) {
 		_, err = client.GetEscrow(ctx, escrow.ID)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after refund")
+	})
+
+	t.Run("Escrow Refund Lifecycle (Seller Initiated)", func(t *testing.T) {
+		// 1. Create Escrow
+		createReq := CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   300.0,
+			Currency: "GBP",
+		}
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+
+		// 2. Seller Proactive Refund
+		t.Log("Testing RefundBySeller...")
+		err = client.RefundBySeller(ctx, escrow.ID)
+		require.NoError(t, err)
+		t.Log("Successfully exercised RefundBySeller")
+
+		// 3. Verify Original is gone
+		_, err = client.GetEscrow(ctx, escrow.ID)
+		require.Error(t, err)
+		t.Log("Verified original escrow is archived after seller refund")
 	})
 
 	t.Run("Escrow with Multi-Milestones", func(t *testing.T) {

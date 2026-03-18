@@ -82,6 +82,7 @@ func main() {
 	router.Get("/escrows/{escrowID}", handler.GetEscrow)
 	router.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
 	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
+	router.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
 	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
 
 	router.Get("/metrics", handler.GetMetrics)

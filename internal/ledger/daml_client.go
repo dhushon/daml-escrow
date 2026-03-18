@@ -214,6 +214,10 @@ func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error {
 	return err
 }
 
+func (c *DamlClient) RefundBySeller(ctx context.Context, id string) error {
+	return fmt.Errorf("RefundBySeller not implemented for gRPC client")
+}
+
 func (c *DamlClient) RaiseDispute(ctx context.Context, id string) (string, error) {
 	c.logger.Info("exercising RaiseDispute choice on DAML ledger", zap.String("id", id))
 

@@ -172,8 +172,8 @@ func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefundBuyer handles POST /escrows/{id}/refund
-// @Summary Refund funds to the buyer
-// @Description Cancel escrow and return funds (requires mediator)
+// @Summary Refund funds to the buyer (initiated by buyer)
+// @Description Cancel escrow and return funds (automates dispute+resolution)
 // @Tags escrows
 // @Param id path string true "Escrow ID"
 // @Success 200 {string} string "ok"
@@ -184,6 +184,26 @@ func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 	err := h.escrowService.RefundBuyer(r.Context(), id)
 	if err != nil {
 		h.logger.Error("refund failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RefundBySeller handles POST /escrows/{id}/refund-by-seller
+// @Summary Refund funds to the buyer (initiated by seller)
+// @Description Seller proactively returns all remaining funds to the buyer
+// @Tags escrows
+// @Param id path string true "Escrow ID"
+// @Success 200 {string} string "ok"
+// @Failure 500 {string} string "seller refund failed"
+// @Router /escrows/{id}/refund-by-seller [post]
+func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	err := h.escrowService.RefundBySeller(r.Context(), id)
+	if err != nil {
+		h.logger.Error("seller refund failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

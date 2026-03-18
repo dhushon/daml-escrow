@@ -23,7 +23,7 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-const PackageID = "18e54e4d3fcbb438bc3a3c2853348e5b87a02518c4f7ae047c1c74372668d41c"
+const PackageID = "0a5ec0d98c2dff0dfec5d7a5cc44a7fb41a07f5729de5e0edd8de1fcbb420de2"
 
 type JsonLedgerClient struct {
 	logger     *zap.Logger
@@ -560,6 +560,31 @@ func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
 
 	c.logger.Info("automated refund complete", zap.String("escrowID", id), zap.Float64("amount", remaining))
 	return nil
+}
+
+func (c *JsonLedgerClient) RefundBySeller(ctx context.Context, id string) error {
+	sellerParty := c.getParty(SellerUser)
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("seller-refund-%d", time.Now().UnixNano()),
+			"actAs":     []string{sellerParty},
+			"userId":    SellerUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
+						"contractId":     id,
+						"choice":         "SellerRefund",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	return err
 }
 
 func (c *JsonLedgerClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
