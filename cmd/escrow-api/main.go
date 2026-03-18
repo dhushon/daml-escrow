@@ -78,11 +78,13 @@ func main() {
 	))
 
 	router.Post("/escrows", handler.CreateEscrow)
+	router.Get("/escrows", handler.ListEscrows)
 	router.Get("/escrows/{escrowID}", handler.GetEscrow)
 	router.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
 	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
 	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
 
+	router.Get("/metrics", handler.GetMetrics)
 	router.Get("/settlements", handler.ListSettlements)
 	router.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
 

@@ -169,6 +169,10 @@ func (c *DamlClient) GetEscrow(ctx context.Context, id string) (*EscrowContract,
 	}, nil
 }
 
+func (c *DamlClient) ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error) {
+	return nil, fmt.Errorf("ListEscrows not implemented for gRPC client")
+}
+
 func (c *DamlClient) ReleaseFunds(ctx context.Context, id string) error {
 	c.logger.Info("exercising ApproveMilestone choice on DAML ledger", zap.String("id", id))
 
@@ -291,4 +295,16 @@ func (c *DamlClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, 
 
 func (c *DamlClient) SettlePayment(ctx context.Context, settlementID string) error {
 	return fmt.Errorf("SettlePayment not implemented for gRPC client")
+}
+
+func (c *DamlClient) GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error) {
+	return nil, fmt.Errorf("GetMetrics not implemented for gRPC client")
+}
+
+func (c *DamlClient) getParty(user string) string {
+	return user
+}
+
+func (c *DamlClient) getOffset() interface{} {
+	return nil
 }

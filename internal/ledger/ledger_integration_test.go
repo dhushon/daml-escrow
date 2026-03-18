@@ -73,17 +73,16 @@ func TestLedgerIntegration(t *testing.T) {
 		escrow, err := client.CreateEscrow(ctx, createReq)
 		require.NoError(t, err)
 
-		// 2. Raise Dispute (Refund Path)
-		t.Log("Testing RaiseDispute...")
-		disputeId, err := client.RaiseDispute(ctx, escrow.ID)
+		// 2. Automated Refund
+		t.Log("Testing RefundBuyer (Automated Raise+Resolve)...")
+		err = client.RefundBuyer(ctx, escrow.ID)
 		require.NoError(t, err)
-		require.NotEmpty(t, disputeId)
-		t.Logf("Successfully exercised RaiseDispute, new ID: %s", disputeId)
+		t.Log("Successfully exercised RefundBuyer")
 
 		// 3. Verify Original is gone
 		_, err = client.GetEscrow(ctx, escrow.ID)
 		require.Error(t, err)
-		t.Log("Verified original escrow is archived after dispute")
+		t.Log("Verified original escrow is archived after refund")
 	})
 
 	t.Run("Escrow with Multi-Milestones", func(t *testing.T) {
@@ -122,9 +121,8 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// 4. Verify progress
-		// Use listEscrows directly to check for the update
 		time.Sleep(2 * time.Second)
-		contracts, err := client.listEscrows(ctx)
+		contracts, err := client.ListEscrows(ctx, BuyerUser)
 		require.NoError(t, err)
 		
 		var updated *EscrowContract
@@ -217,5 +215,50 @@ func TestLedgerIntegration(t *testing.T) {
 		}
 		require.False(t, found, "Settlement contract should be archived")
 		t.Log("Verified settlement archived")
+	})
+
+	t.Run("Role-Based Visibility and Metrics", func(t *testing.T) {
+		// 1. Setup - Create an escrow
+		_, err := client.CreateEscrow(ctx, CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   777.0,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+
+		// 2. Verify visibility for Seller
+		t.Log("Checking visibility for Seller...")
+		sellerEscrows, err := client.ListEscrows(ctx, SellerUser)
+		require.NoError(t, err)
+		found := false
+		for _, e := range sellerEscrows {
+			if e.Amount == 777.0 {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "Seller should see the escrow")
+
+		// 3. Verify visibility for Bank
+		t.Log("Checking visibility for Bank...")
+		bankEscrows, err := client.ListEscrows(ctx, CentralBankUser)
+		require.NoError(t, err)
+		foundBank := false
+		for _, e := range bankEscrows {
+			if e.Amount == 777.0 {
+				foundBank = true
+				break
+			}
+		}
+		require.True(t, foundBank, "Bank should see the escrow as signatory")
+
+		// 4. Verify Metrics
+		t.Log("Checking aggregated metrics for Bank...")
+		metrics, err := client.GetMetrics(ctx, CentralBankUser)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, metrics.TotalActiveEscrows, 1)
+		require.GreaterOrEqual(t, metrics.TotalValueInEscrow, 777.0)
+		t.Logf("Bank Metrics: %+v", metrics)
 	})
 }

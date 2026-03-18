@@ -41,6 +41,8 @@ type EscrowResponse struct {
 	ID                    string             `json:"id"`
 	Buyer                 string             `json:"buyer"`
 	Seller                string             `json:"seller"`
+	Issuer                string             `json:"issuer"`
+	Mediator              string             `json:"mediator"`
 	Amount                float64            `json:"amount"`
 	Currency              string             `json:"currency"`
 	State                 string             `json:"state"`
@@ -119,6 +121,36 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(mapToResponse(escrow))
 }
 
+// ListEscrows handles GET /escrows
+// @Summary List all active escrows
+// @Description Retrieve a list of active escrow contracts, optionally filtered by user
+// @Tags escrows
+// @Produce json
+// @Param user query string false "Filter by User ID (e.g., Buyer, Seller, CentralBank)"
+// @Success 200 {array} EscrowResponse
+// @Router /escrows [get]
+func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user")
+	if userID == "" {
+		userID = ledger.BuyerUser // Default to Buyer view
+	}
+
+	escrows, err := h.escrowService.ListEscrows(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("list escrows failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	var resp []EscrowResponse
+	for _, e := range escrows {
+		resp = append(resp, mapToResponse(e))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 // ReleaseFunds handles POST /escrows/{id}/release
 // @Summary Release funds for the current milestone
 // @Description Approve and release funds for the active milestone
@@ -188,6 +220,31 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GetMetrics handles GET /metrics
+// @Summary Get aggregated ledger metrics
+// @Description Retrieve high-level awareness metrics for a specific user
+// @Tags analytics
+// @Produce json
+// @Param user query string false "User ID (e.g., CentralBank, Seller)"
+// @Success 200 {object} ledger.LedgerMetrics
+// @Router /metrics [get]
+func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user")
+	if userID == "" {
+		userID = ledger.CentralBankUser
+	}
+
+	metrics, err := h.escrowService.GetMetrics(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("get metrics failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(metrics)
+}
+
 // ListSettlements handles GET /settlements
 // @Summary List all pending settlements
 // @Description Retrieve a list of pending settlement obligations
@@ -245,6 +302,8 @@ func mapToResponse(e *ledger.EscrowContract) EscrowResponse {
 		ID:                    e.ID,
 		Buyer:                 e.Buyer,
 		Seller:                e.Seller,
+		Issuer:                e.Issuer,
+		Mediator:              e.Mediator,
 		Amount:                e.Amount,
 		Currency:              e.Currency,
 		State:                 e.State,
