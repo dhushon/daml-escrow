@@ -96,7 +96,9 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(mapToResponse(escrow))
+	if err := json.NewEncoder(w).Encode(mapToResponse(escrow)); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // GetEscrow handles GET /escrows/{id}
@@ -118,7 +120,9 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(mapToResponse(escrow))
+	if err := json.NewEncoder(w).Encode(mapToResponse(escrow)); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // ListEscrows handles GET /escrows
@@ -148,7 +152,9 @@ func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // ReleaseFunds handles POST /escrows/{id}/release

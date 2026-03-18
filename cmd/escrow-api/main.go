@@ -45,7 +45,9 @@ func main() {
 	}
 	ledgerPort := cfg.Ledger.Port
 	if port := os.Getenv("LEDGER_PORT"); port != "" {
-		fmt.Sscanf(port, "%d", &ledgerPort)
+		if _, err := fmt.Sscanf(port, "%d", &ledgerPort); err != nil {
+			logger.Warn("failed to parse LEDGER_PORT, using default", zap.String("port", port), zap.Int("default", ledgerPort))
+		}
 	}
 
 	var ledgerClient ledger.Client

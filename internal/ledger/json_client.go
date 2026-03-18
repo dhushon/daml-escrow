@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -30,8 +29,6 @@ type JsonLedgerClient struct {
 	httpClient *http.Client
 	baseURL    string
 	partyMap   map[string]string // Maps User ID -> Canton Party ID
-	lastOffset string
-	mu         sync.RWMutex
 }
 
 func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerClient {
@@ -379,10 +376,6 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 		}
 	}
 	return escrows, nil
-}
-
-func (c *JsonLedgerClient) listEscrows(ctx context.Context) ([]*EscrowContract, error) {
-	return c.ListEscrows(ctx, BuyerUser)
 }
 
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
