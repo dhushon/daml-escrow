@@ -81,7 +81,7 @@ test:
 .PHONY: integration-test
 integration-test:
 	@echo "Running integration tests..."
-	go test -v ./internal/ledger/ledger_integration_test.go \
+	go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
 		./internal/ledger/json_client.go \
 		./internal/ledger/daml_client.go \
 		./internal/ledger/client.go \
