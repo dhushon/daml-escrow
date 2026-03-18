@@ -7,325 +7,94 @@ stablecoin escrow platform** implemented using **DAML (Digital Asset
 Modeling Language)** and deployed on a **Canton-style distributed ledger
 network**.
 
-The goal is to replicate and extend models similar to **Trustless
-Work--style milestone escrow**, while leveraging DAML's strengths:
-
-- Rights and obligations modeling
-- Multi-party atomic workflows
-- Native privacy controls
-- Deterministic contract execution
-
-Rather than representing escrow as **account balances controlled by
-functions**, DAML models the escrow as a **living agreement contract**
-between defined parties.
-
 ------------------------------------------------------------------------
 
-## Product Goals
+## Getting Started
 
-Primary goals:
+### Prerequisites
+- **Go 1.24+**
+- **Java 17 (LTS)**
+- **DPM (Daml Package Manager)**
+- **Docker & Docker Compose**
 
-1. **Enable trust-minimized escrow using stablecoins**
-2. **Support milestone-based payments**
-3. **Allow dispute mediation**
-4. **Provide private contract execution**
-5. **Integrate external triggers (oracles, shipping confirmations,
-    APIs)**
+### Development Environment (Sandbox)
 
-Target use cases:
+The project supports two main ways to run the ledger environment:
 
-- Freelance marketplaces
-- Supply chain settlements
-- Marketplace payments
-- B2B milestone contracts
-- Cross‑border contractor payments
+#### 1. Local Sandbox (Recommended for Development)
+This mode runs the Canton ledger locally on your host machine while using a Docker container for Postgres persistence.
 
-------------------------------------------------------------------------
+```bash
+# Bring up Postgres, build contracts, start ledger, and setup topology/users
+make sandbox-up
 
-## Core Concepts
-
-### Rights and Obligations Model
-
-Unlike account-based smart contracts, DAML represents agreements between
-explicit parties.
-
-Each contract defines:
-
-- **Signatories** --- parties legally bound by the contract
-- **Observers** --- parties with visibility but not authority
-- **Choices** --- authorized actions that transition contract state
-
-For escrow this means:
-
-| Role | Responsibility |
-| ---------- | -------------------- |
-| Buyer | Locks funds |
-| Seller | Delivers work |
-| Mediator | Resolves disputes |
-| Issuer | Stablecoin backing |
-
-------------------------------------------------------------------------
-
-## Architecture
-
-### High Level System Components
-
-The system is composed of:
-
-- DAML Ledger (Canton)
-- Stablecoin Token Contract
-- Escrow Contract Templates
-- Oracle / API Integrations
-- Client Applications
-- Identity / Party Management
-
-#### Architecture Diagram
-
-```mermaid
-flowchart LR
-
-  subgraph "Canton Network"
-    EscrowContract
-    StablecoinToken
-  end
-
-  subgraph "Applications"
-    BuyerApp
-    SellerApp
-    MediatorDashboard
-  end
-
-  Buyer -->|Lock Funds| EscrowContract
-  Seller -->|Deliver Work| EscrowContract
-  Mediator -->|Resolve Dispute| EscrowContract
-  Oracle --> EscrowContract
-  EscrowContract --> StablecoinToken
-
-  BuyerApp --> EscrowContract
-  SellerApp --> EscrowContract
-  MediatorDashboard --> EscrowContract
+# Run the Go API locally
+make run
 ```
 
-------------------------------------------------------------------------
+#### 2. Full Docker Stack
+This mode runs the entire platform (Postgres, Ledger, and Go API) inside Docker containers.
 
-## Contract Model
+```bash
+# Deploy the full persistent stack
+make docker-up
 
-### Escrow Lifecycle
-
-1. Buyer and Issuer create escrow contract
-2. Funds are locked
-3. Seller performs work
-4. Buyer approves release OR mediator resolves dispute
-5. Settlement contract records final payout
-
-Lifecycle states:
-
-```text
-Created → Locked → Delivered → Released / Refunded
+# Verify service health
+docker-compose ps
 ```
 
-------------------------------------------------------------------------
+### Verification
+Once the ledger is initialized (either locally or via Docker), verify the full lifecycle functionality using the integration tests:
 
-## Example DAML Escrow Template
+```bash
+# Runs standard unit tests
+make test
 
-``` daml
-module StablecoinEscrow where
-
-template StablecoinEscrow
-  with
-    issuer : Party
-    buyer : Party
-    seller : Party
-    mediator : Party
-    amount : Decimal
-    currency : Text
-    description : Text
-  where
-    signatory buyer, issuer
-    observer seller, mediator
-
-    choice ReleaseFunds : ContractId EscrowSettlement
-      controller buyer
-      do
-        create EscrowSettlement with
-          recipient = seller, amount, currency, status = "Completed"
-
-    choice RefundBuyer : ContractId EscrowSettlement
-      controller mediator
-      do
-        create EscrowSettlement with
-          recipient = buyer, amount, currency, status = "Refunded"
+# Runs full ledger integration suite (requires active ledger)
+make integration-test
 ```
-
-Settlement template:
-
-``` daml
-template EscrowSettlement
-  with
-    recipient : Party
-    amount : Decimal
-    currency : Text
-    status : Text
-  where
-    signatory recipient
-```
-
-------------------------------------------------------------------------
-
-## Privacy Model
-
-DAML uses **need‑to‑know privacy**.
-
-Only the following parties can see the escrow contract:
-
-- Buyer
-- Seller
-- Mediator
-- Issuer
-
-Other escrows on the network remain invisible.
-
-This enables enterprise-grade financial agreements while still
-benefiting from distributed ledger guarantees.
-
-------------------------------------------------------------------------
-
-## Oracle / External Event Integration
-
-External systems can trigger escrow actions via **DAML triggers or
-integration services**.
-
-Examples:
-
-| Event | Result |
-| ------ | ----------------------- |
-| Shipping confirmation | auto‑unlock milestone |
-| Oracle price check | validate collateral |
-| Delivery API | trigger payment release |
-| Time expiry | automatic refund |
-
-Integration approaches:
-
-- REST gateway
-- Event streaming (Kafka)
-- Webhooks
-- Oracle providers
-
-------------------------------------------------------------------------
-
-## Comparison with Other Frameworks
-
-### DAML vs Solidity (Ethereum)
-
-| Feature | DAML | Solidity |
-| ------------------------- | ---------------------------- | ------------------- |
-| Programming Model | Rights & obligations | Account-based |
-| Privacy | Built-in selective disclosure | Fully public |
-| Multi-party workflows | Native | Manual logic |
-| Contract safety | Strong type system | More error prone |
-| Determinism | Guaranteed | Depends on contract |
-| Legal contract alignment | Strong | Weak |
-
-Pros of DAML:
-
-- Multi‑party transaction atomicity
-- Built‑in privacy
-- Strong permissions model
-- Easier representation of real agreements
-
-Cons:
-
-- Smaller ecosystem
-- Fewer public developer tools
-- Requires specialized infrastructure (Canton)
-
-------------------------------------------------------------------------
-
-### DAML vs Stellar Smart Contracts
-
-| Feature | DAML | Stellar |
-| --------- | ------------------- | --------------- |
-| Privacy | Private contracts | Public ledger |
-| Workflow complexity | High | Moderate |
-| Token ecosystem | Smaller | Mature |
-| Smart contract flexibility | Very high | Limited |
-| Multi-chain interoperability | Canton networks | Stellar only |
-
-Pros of Stellar:
-
-- Large existing payment ecosystem
-- Fast settlement
-- Simpler deployment
-
-Pros of DAML:
-
-- Enterprise-grade agreement modeling
-- Rich workflow capabilities
-- Fine-grained privacy
-
-------------------------------------------------------------------------
-
-## Future Extensions
-
-Potential roadmap:
-
-### Phase 1
-
-Basic escrow contracts Stablecoin settlement Buyer/Seller UI
-
-### Phase 2
-
-Milestone payments Oracle integrations Automated dispute workflows
-
-### Phase 3
-
-Multi‑chain settlement Tokenized invoices DAO‑style mediation pools
-
-### Phase 4
-
-Marketplace integrations Supply chain escrow Enterprise compliance
-tooling
 
 ------------------------------------------------------------------------
 
 ## Repository Structure
 
 ```text
-/cmd
-    /escrow-api         - Main application for the escrow API service
-/internal
-    /api                - HTTP handlers and routing
-    /ledger             - DAML ledger client
-    /services           - Escrow service logic
-/pkg
-    /logging            - Shared logging utilities
-/config                 - Configuration files
-/.github
-    /workflows          - CI/CD workflows
-/contracts              - DAML smart contracts (placeholder)
-/docs                   - Documentation files (placeholder)
+/cmd/escrow-api         - Entry point for the Go API service
+/internal/api           - REST handlers and routing
+/internal/ledger        - Daml JSON API V2 client
+/internal/services      - Escrow orchestration logic
+/contracts/Sandbox      - Stable single-node ledger configurations
+/contracts/DevNet       - Standard multi-node configurations (UNTESTED)
+/contracts/daml         - Daml smart contract templates
+/scripts                - Setup and utility scripts
+/docs                   - API documentation (Swagger)
 ```
 
 ------------------------------------------------------------------------
 
-## Key Advantages of This Approach
+## Development Modes
 
-- Privacy-preserving escrow
-- Clear legal contract representation
-- Atomic multi-party transactions
-- Native dispute resolution
-- Modular architecture
+### Sandbox Mode (Stable)
+Uses a single-node Canton process. The participant node uses **Postgres** for persistence, while internal infrastructure (Sequencer/Mediator) uses in-memory storage to simplify local development.
 
-This design enables a **next-generation programmable escrow layer for
-digital commerce**.
+### DevNet Mode (UNTESTED)
+Located in `/contracts/DevNet`, this configuration mirrors a production Canton network with separate participant and domain nodes. This mode is currently **untested** and intended for future distributed deployments.
 
 ------------------------------------------------------------------------
 
-## Next Exploration
+## Product Goals
 
-Future technical work may include:
+1. **Enable trust-minimized escrow using stablecoins**
+2. **Support milestone-based payments**
+3. **Allow dispute mediation**
+4. **Provide private contract execution**
+5. **Integrate external triggers (oracles, webhooks)**
 
-- Oracle integration patterns
-- Multi-ledger settlement
-- Token standards for DAML Finance
-- Compliance / KYC enforcement layers
+------------------------------------------------------------------------
+
+## Key Achievements (Phase 2)
+
+- **Daml 3.4.11 / LF 2.1:** Modernized contracts for the latest Canton standards.
+- **JSON API V2:** Full integration with the dynamic party and user management system.
+- **Persistent Storage:** Integrated Postgres for ledger state preservation.
+- **Verified Lifecycle:** 100% test coverage for creation, milestones, disputes, refunds, and settlements.
