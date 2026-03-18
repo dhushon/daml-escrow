@@ -3,79 +3,71 @@ package ledger
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"go.uber.org/zap"
 )
 
 type DamlClient struct {
-	logger  *zap.Logger
-	mu      sync.RWMutex
-	escrows map[string]*EscrowContract
+	logger *zap.Logger
 }
 
-func NewDamlClient(logger *zap.Logger) *DamlClient {
+func NewDamlClient(logger *zap.Logger, host string, port int) *DamlClient {
 	return &DamlClient{
-		logger:  logger,
-		escrows: make(map[string]*EscrowContract),
+		logger: logger,
 	}
 }
 
 func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	id := fmt.Sprintf("escrow-%d", len(c.escrows)+1)
-	escrow := &EscrowContract{
-		ID:       id,
-		Buyer:    req.Buyer,
-		Seller:   req.Seller,
-		Amount:   req.Amount,
-		Currency: req.Currency,
-		State:    "Created",
-	}
-
-	c.escrows[id] = escrow
-	c.logger.Info("created escrow in memory", zap.String("id", id))
-	return escrow, nil
+	return nil, fmt.Errorf("gRPC CreateEscrow not implemented")
 }
 
 func (c *DamlClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return nil, fmt.Errorf("gRPC GetEscrow not implemented")
+}
 
-	escrow, ok := c.escrows[id]
-	if !ok {
-		return nil, fmt.Errorf("escrow %s not found", id)
-	}
-
-	return escrow, nil
+func (c *DamlClient) ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error) {
+	return nil, fmt.Errorf("gRPC ListEscrows not implemented")
 }
 
 func (c *DamlClient) ReleaseFunds(ctx context.Context, id string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	return fmt.Errorf("gRPC ReleaseFunds not implemented")
+}
 
-	escrow, ok := c.escrows[id]
-	if !ok {
-		return fmt.Errorf("escrow %s not found", id)
-	}
+func (c *DamlClient) RaiseDispute(ctx context.Context, id string) (string, error) {
+	return "", fmt.Errorf("gRPC RaiseDispute not implemented")
+}
 
-	escrow.State = "Released"
-	c.logger.Info("released funds in memory", zap.String("id", id))
-	return nil
+func (c *DamlClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error {
+	return fmt.Errorf("gRPC ResolveDispute not implemented")
 }
 
 func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	return fmt.Errorf("gRPC RefundBuyer not implemented")
+}
 
-	escrow, ok := c.escrows[id]
-	if !ok {
-		return fmt.Errorf("escrow %s not found", id)
-	}
+func (c *DamlClient) RefundBySeller(ctx context.Context, id string) error {
+	return fmt.Errorf("gRPC RefundBySeller not implemented")
+}
 
-	escrow.State = "Refunded"
-	c.logger.Info("refunded buyer in memory", zap.String("id", id))
+func (c *DamlClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
+	return nil, fmt.Errorf("gRPC ListSettlements not implemented")
+}
+
+func (c *DamlClient) SettlePayment(ctx context.Context, settlementID string) error {
+	return fmt.Errorf("gRPC SettlePayment not implemented")
+}
+
+func (c *DamlClient) GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error) {
+	return nil, fmt.Errorf("gRPC GetMetrics not implemented")
+}
+
+func (c *DamlClient) getParty(user string) string {
+	return user
+}
+
+func (c *DamlClient) getOffset() interface{} {
 	return nil
 }
+
+// Ensure DamlClient implements Client interface
+var _ Client = (*DamlClient)(nil)

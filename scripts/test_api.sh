@@ -9,8 +9,8 @@ echo "--- 1. Creating a new Escrow ---"
 CREATE_RES=$(curl -s -X POST "$API_URL/escrows" \
   -H "Content-Type: application/json" \
   -d '{
-    "buyer": "buyer-alice",
-    "seller": "seller-bob",
+    "buyer": "Buyer",
+    "seller": "Seller",
     "amount": 500.0,
     "currency": "USD"
   }')

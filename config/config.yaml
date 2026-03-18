@@ -1,2 +1,12 @@
 server:
   port: 8080
+
+ledger:
+  host: "127.0.0.1"
+  port: 7575
+  parties:
+    issuer: "CentralBank"
+    buyer: "Buyer"
+    seller: "Seller"
+    mediator: "EscrowMediator"
+

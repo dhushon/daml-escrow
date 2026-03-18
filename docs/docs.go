@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ledger.CreateEscrowRequest"
+                            "$ref": "#/definitions/api.CreateEscrowRequest"
                         }
                     }
                 ],
@@ -43,7 +43,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/ledger.EscrowContract"
+                            "$ref": "#/definitions/api.EscrowResponse"
                         }
                     },
                     "400": {
@@ -61,7 +61,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/escrows/{escrowID}": {
+        "/escrows/{id}": {
             "get": {
                 "description": "Retrieve information about a specific escrow contract",
                 "produces": [
@@ -75,7 +75,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Escrow ID",
-                        "name": "escrowID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -84,11 +84,11 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ledger.EscrowContract"
+                            "$ref": "#/definitions/api.EscrowResponse"
                         }
                     },
                     "404": {
-                        "description": "not found",
+                        "description": "escrow not found",
                         "schema": {
                             "type": "string"
                         }
@@ -96,7 +96,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/escrows/{escrowID}/refund": {
+        "/escrows/{id}/refund": {
             "post": {
                 "description": "Cancel escrow and return funds (requires mediator)",
                 "tags": [
@@ -107,7 +107,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Escrow ID",
-                        "name": "escrowID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -128,7 +128,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/escrows/{escrowID}/release": {
+        "/escrows/{id}/release": {
             "post": {
                 "description": "Approve and release funds for the active milestone",
                 "tags": [
@@ -139,7 +139,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Escrow ID",
-                        "name": "escrowID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -159,10 +159,152 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/escrows/{id}/resolve": {
+            "post": {
+                "description": "Mediator resolve dispute by splitting payout",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Resolve a disputed escrow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dispute Resolution Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ResolveDisputeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "resolution failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements": {
+            "get": {
+                "description": "Retrieve a list of pending settlement obligations",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "List all pending settlements",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.SettlementResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements/{id}/settle": {
+            "post": {
+                "description": "Issuer (Central Bank) settles the obligation and releases stablecoins",
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "Finalize a pending settlement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Settlement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "settlement failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "ledger.CreateEscrowRequest": {
+        "api.CreateEscrowRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 100
+                },
+                "buyer": {
+                    "type": "string",
+                    "example": "Buyer"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "USD"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Payment for goods"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ledger.Milestone"
+                    }
+                },
+                "seller": {
+                    "type": "string",
+                    "example": "Seller"
+                }
+            }
+        },
+        "api.EscrowResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -174,19 +316,44 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "currentMilestoneIndex": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ledger.Milestone"
+                    }
+                },
                 "seller": {
+                    "type": "string"
+                },
+                "state": {
                     "type": "string"
                 }
             }
         },
-        "ledger.EscrowContract": {
+        "api.ResolveDisputeRequest": {
+            "type": "object",
+            "properties": {
+                "payoutToBuyer": {
+                    "type": "number",
+                    "example": 50
+                },
+                "payoutToSeller": {
+                    "type": "number",
+                    "example": 50
+                }
+            }
+        },
+        "api.SettlementResponse": {
             "type": "object",
             "properties": {
                 "amount": {
                     "type": "number"
-                },
-                "buyer": {
-                    "type": "string"
                 },
                 "currency": {
                     "type": "string"
@@ -194,10 +361,27 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "seller": {
+                "issuer": {
                     "type": "string"
                 },
-                "state": {
+                "recipient": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.Milestone": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "completed": {
+                    "type": "boolean"
+                },
+                "label": {
                     "type": "string"
                 }
             }
@@ -207,12 +391,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:8080",
+	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "Stablecoin Escrow API",
+	Description:      "API for managing privacy-preserving stablecoin escrows on DAML.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

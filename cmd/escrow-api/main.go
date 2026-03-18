@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"daml-escrow/internal/api"
+	"daml-escrow/internal/config"
 	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 	"daml-escrow/pkg/logging"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,7 +33,34 @@ func main() {
 		_ = logger.Sync()
 	}()
 
-	ledgerClient := ledger.NewDamlClient(logger)
+	cfg, err := config.LoadConfig("config/config.yaml")
+	if err != nil {
+		logger.Fatal("failed to load config", zap.Error(err))
+	}
+
+	// Environment variable overrides
+	ledgerHost := cfg.Ledger.Host
+	if host := os.Getenv("LEDGER_HOST"); host != "" {
+		ledgerHost = host
+	}
+	ledgerPort := cfg.Ledger.Port
+	if port := os.Getenv("LEDGER_PORT"); port != "" {
+		if _, err := fmt.Sscanf(port, "%d", &ledgerPort); err != nil {
+			logger.Warn("failed to parse LEDGER_PORT, using default", zap.String("port", port), zap.Int("default", ledgerPort))
+		}
+	}
+
+	var ledgerClient ledger.Client
+	ledgerType := os.Getenv("LEDGER_TYPE")
+
+	if ledgerType == "grpc" {
+		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
+		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
+	} else {
+		// Default to JSON API for better dynamic binding support
+		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
+		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
+	}
 
 	escrowService := services.NewEscrowService(
 		logger,
@@ -47,23 +76,30 @@ func main() {
 	router.Use(api.LoggingMiddleware(logger))
 
 	router.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
 	))
 
 	router.Post("/escrows", handler.CreateEscrow)
+	router.Get("/escrows", handler.ListEscrows)
 	router.Get("/escrows/{escrowID}", handler.GetEscrow)
-	router.Post("/escrows/{escrowID}/release", handler.ReleaseEscrow)
-	router.Post("/escrows/{escrowID}/refund", handler.RefundEscrow)
+	router.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
+	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
+	router.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
+	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
+
+	router.Get("/metrics", handler.GetMetrics)
+	router.Get("/settlements", handler.ListSettlements)
+	router.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
 
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
 	go func() {
-		logger.Info("starting escrow-api", zap.String("port", "8080"))
+		logger.Info("starting escrow-api", zap.Int("port", cfg.Server.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("server failed", zap.Error(err))
 		}

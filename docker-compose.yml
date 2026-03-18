@@ -2,18 +2,6 @@ version: "3.9"
 
 services:
 
-  escrow-api:
-    build: .
-    container_name: escrow-api
-    ports:
-      - "8080:8080"
-    environment:
-      LOG_LEVEL: info
-      LEDGER_HOST: canton
-      LEDGER_PORT: 6865
-    depends_on:
-      - postgres
-
   postgres:
     image: postgres:16
     container_name: escrow-postgres
@@ -26,16 +14,66 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escrow -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # optional future event streaming
-  kafka:
-    image: bitnami/kafka:3.6
-    container_name: escrow-kafka
-    ports:
-      - "9092:9092"
+  # Ensure clean DB for ledger every time
+  db-init:
+    image: postgres:16
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS escrow;"
+        psql -h postgres -U escrow -d postgres -c "CREATE DATABASE escrow;"
     environment:
-      KAFKA_ENABLE_KRAFT: "yes"
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      PGPASSWORD: escrow
+
+  sandbox:
+    image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
+    container_name: escrow-ledger
+    ports:
+      - "6865:6865"   # Ledger API (gRPC)
+      - "6866:6866"   # Admin API
+      - "7575:7575"   # HTTP JSON Ledger API
+    volumes:
+      - ./contracts:/canton/contracts
+    entrypoint: ["/app/bin/canton"]
+    command:
+      - "daemon"
+      - "--config"
+      - "/canton/contracts/Sandbox/sandbox-docker.conf"
+      - "--bootstrap"
+      - "/canton/contracts/Sandbox/sandbox_init.canton"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      # 1D97 is port 7575 in hex
+      test: ["CMD-SHELL", "grep -q '1D97' /proc/net/tcp || grep -q '1D97' /proc/net/tcp6 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  escrow-api:
+    build: .
+    container_name: escrow-api
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: info
+      LEDGER_HOST: sandbox
+      LEDGER_PORT: 7575
+      LEDGER_TYPE: json
+    depends_on:
+      sandbox:
+        condition: service_healthy
 
 volumes:
   postgres_data:

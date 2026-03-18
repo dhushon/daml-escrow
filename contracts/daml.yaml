@@ -1,4 +1,4 @@
-sdk-version: 2.2.0
+sdk-version: 3.4.11
 name: stablecoin-escrow
 source: daml
 version: 0.0.1
@@ -6,3 +6,5 @@ dependencies:
   - daml-prim
   - daml-stdlib
   - daml-script
+build-options:
+  - --target=2.1

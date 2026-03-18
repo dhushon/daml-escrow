@@ -1,0 +1,131 @@
+# GO-DAML Admin App (example)
+
+A comprehensive example application demonstrating all DAML Ledger API admin services using the go-daml SDK.
+
+## Overview
+
+This application showcases the complete DAML admin functionality in a single executable, including:
+
+- **User Management** - Create, list, and manage user rights
+- **Party Management** - Allocate parties, update details, and manage party information
+- **Identity Provider Management** - Configure and manage identity providers
+- **Package Management** - Upload, validate, and manage DAR packages
+- **Participant Pruning** - Prune ledger history
+
+## Structure
+
+```
+examples/admin_app/
+main.go                 # Entry point and client setup
+users_man.go           # User management functions
+party_man.go           # Party management functions
+identity_provider.go   # Identity provider management
+package_man.go         # Package management functions
+pruning.go            # Pruning operations
+README.md             # This file
+```
+
+## Running the Application
+
+### Prerequisites
+
+- Go 1.21 or later
+- Access to a DAML ledger with admin API enabled
+- Valid bearer token for authentication
+
+### Environment Variables
+
+Set the following environment variables:
+
+```bash
+export GRPC_ADDRESS="your-ledger-address:port"
+export BEARER_TOKEN="your-jwt-token"
+```
+
+### Running
+
+From the project root:
+
+```bash
+go run ./examples/admin_app/*.go
+```
+
+Or from the admin_app directory:
+
+```bash
+cd examples/admin_app
+go run *.go
+```
+
+### Example with Canton Network
+
+```bash
+GRPC_ADDRESS="grpc-ledger.canton-localnet.noders.services:443" \
+BEARER_TOKEN="your-jwt-token" \
+go run ./examples/admin_app/*.go
+```
+
+## Features Demonstrated
+
+### User Management
+- List all users
+- Get specific user details
+- List user rights
+- Grant and revoke user rights
+
+### Party Management
+- Get participant ID
+- List known parties
+- Get party details
+- Allocate new parties
+- Update party details with UpdateMask
+- Update party identity provider
+
+### Identity Provider Management
+- List identity provider configurations
+- Create new identity providers
+- Get identity provider details
+- Update identity provider configurations
+- Delete identity providers (with cleanup)
+
+### Package Management
+- List known packages with details
+- Validate DAR files
+- Upload DAR files to ledger
+- Show package counts before/after upload
+
+### Participant Pruning
+- Configure pruning requests
+- Execute pruning operations
+- Handle pruning results and errors
+
+## Logging
+
+The application uses structured logging with zerolog:
+- **INFO** level for normal operations and results
+- **WARN** level for warnings (e.g., missing environment variables)
+- **ERROR** level for non-fatal errors
+- **FATAL** level for critical errors that stop execution
+
+## Error Handling
+
+The application demonstrates proper error handling patterns:
+- Fatal errors stop execution (connection issues, critical API failures)
+- Non-fatal errors are logged but allow continuation
+- Expected errors (like validation failures) are handled gracefully
+
+## Notes
+
+- Some operations may fail with expected errors (e.g., DAR validation with incompatible versions)
+- The application includes cleanup operations where applicable (e.g., deleting created identity providers)
+- Party names and IDs are generated dynamically to avoid conflicts
+- All examples use the same client connection for efficiency
+
+## Development
+
+To add new admin functionality:
+
+1. Create a new `.go` file with your management functions
+2. Add a `Run*Management(cl *client.DamlBindingClient)` function
+3. Call your function from `main.go`
+4. Follow the existing logging and error handling patterns

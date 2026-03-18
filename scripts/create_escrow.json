@@ -1,0 +1,29 @@
+{
+  "commands": [
+    {
+      "CreateCommand": {
+        "templateId": "StablecoinEscrow:StablecoinEscrow",
+        "createArguments": {
+          "issuer": "CENTRAL_BANK_ID",
+          "buyer": "BUYER_ID",
+          "seller": "SELLER_ID",
+          "mediator": "MEDIATOR_ID",
+          "totalAmount": "100.0000000000",
+          "currency": "USD",
+          "description": "Synthetic Test Escrow",
+          "milestones": [
+            {
+              "label": "Full Payment",
+              "amount": "100.0000000000",
+              "completed": false
+            }
+          ],
+          "currentMilestoneIndex": "0"
+        }
+      }
+    }
+  ],
+  "actAs": ["BUYER_ID", "CENTRAL_BANK_ID"],
+  "commandId": "synthetic-test-001",
+  "userId": "Buyer"
+}

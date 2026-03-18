@@ -56,11 +56,26 @@ template StablecoinEscrow
           else do
             return (None, settlement)
 
+    -- Buyer can raise a dispute to stop payment and involve the mediator
     choice RaiseDispute : ContractId DisputedEscrow
       controller buyer
       do
         create DisputedEscrow with
           escrow = this
+
+    -- Seller can proactively refund the remaining amount to the buyer
+    choice SellerRefund : ContractId EscrowSettlement
+      controller seller
+      do
+        let remainingAmount = sum (map (\m -> if not m.completed then m.amount else 0.0) milestones)
+        assertMsg "No funds remaining to refund" (remainingAmount > 0.0)
+        
+        create EscrowSettlement with
+          issuer = issuer
+          recipient = buyer
+          amount = remainingAmount
+          currency = currency
+          status = "Seller Refunded Escrow"
 
 template EscrowSettlement
   with
@@ -72,6 +87,13 @@ template EscrowSettlement
   where
     signatory issuer
     observer recipient
+
+    -- The Issuer (CentralBank) calls this to finalize the payment
+    choice Settle : ()
+      controller issuer
+      do
+        -- In a real system, this would integrate with a separate Token template
+        return ()
 
 template DisputedEscrow
   with
@@ -86,7 +108,6 @@ template DisputedEscrow
         payoutToSeller : Decimal
       controller escrow.mediator
       do
-        -- Remaining amount in escrow (uncompleted milestones)
         let remainingAmount = sum (map (\m -> if not m.completed then m.amount else 0.0) escrow.milestones)
         assertMsg "Total payout must equal remaining escrow amount" (payoutToBuyer + payoutToSeller == remainingAmount)
         
