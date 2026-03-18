@@ -268,7 +268,9 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(metrics)
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // ListSettlements handles GET /settlements
@@ -300,7 +302,9 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // SettlePayment handles POST /settlements/{id}/settle
