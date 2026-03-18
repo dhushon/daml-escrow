@@ -2,116 +2,83 @@
 
 This guide documents the setup, configuration, and integration of the Canton 3.x ledger for the Stablecoin Escrow project.
 
-## 1. Prerequisites & Installation
+## 1. Critical Lessons Learned (Stabilization Phase)
 
-### Java Environment
-- **Requirement:** JDK 17 (LTS) is mandatory at `/opt/homebrew/opt/openjdk@17`.
-- **Verification:** `java -version` should report 17.x.
+### Daml Language Version
+- **Constraint:** Canton 3.x requires Daml LF **2.1** or higher.
+- **Fix:** `contracts/daml.yaml` must include:
+  ```yaml
+  build-options:
+    - --target=2.1
+  ```
+- **Error:** `ALLOWED_LANGUAGE_VERSIONS` or `Expected version between 2.1 and 2.2 but got 1.14`.
 
-### Daml Package Manager (DPM)
-Daml 3.x uses `dpm` instead of the legacy `daml` assistant.
-- **Binary:** `/Users/dhushon/.dpm/bin/dpm`
+### Bootstrap & Initialization (`sandbox_init.canton`)
+- **Node References:** Use generic positional access (`participants.all.head`) rather than variable names like `local` or `sandbox` to avoid "not found" errors in the console.
+- **Manual Setup:** Even in a single-node setup, the synchronizer must be explicitly bootstrapped in `daemon` mode:
+  ```scala
+  bootstrap.synchronizer_local("mysynchronizer")
+  ```
+- **Persistence:** Never include `sys.exit(0)` at the end of a bootstrap script passed via `--bootstrap` to a daemon, or the container will terminate immediately upon completion.
 
----
-
-## 2. Configuration
-
-### Canton Configuration (`contracts/sandbox.conf`)
-Minimal HOCON file to enable the HTTP JSON API:
-```hocon
-canton {
-  participants {
-    sandbox {
-      http-ledger-api {
-        port = 7575
-        address = 127.0.0.1
-      }
-    }
-  }
-}
-```
-
-### Bootstrap Script (`contracts/init.canton`)
-Automates environment readiness:
-1. Connects `sandbox` to `mysynchronizer`.
-2. Allocates and **Authorizes** parties (`CentralBank`, `Buyer`, `Seller`, `EscrowMediator`) on the topology.
-3. Maps human-readable User IDs (e.g., `"Buyer"`) to Canton Party IDs.
-4. Grants `actAs` rights for multi-party operations.
+### Docker Networking & Health
+- **Health Checks:** Use low-level `/proc/net/tcp` lookups to avoid dependencies like `nc` or `curl` in minimal base images:
+  ```yaml
+  test: ["CMD-SHELL", "grep -q '1D97' /proc/net/tcp || exit 1"] # 1D97 is port 7575
+  ```
+- **Postgres Persistence:**
+  - Nodes (Participant, Sequencer, Mediator) **cannot** share the same database schema.
+  - In our setup, the **Participant** uses Postgres, while **Sequencer/Mediator** use Memory to avoid schema conflicts while maintaining user/party persistence.
 
 ---
 
-## 3. Launching the Ledger
+## 2. Sandbox Operations
 
-### Full Start Sequence
-```bash
-make sandbox
-# Wait for port 6865
-make ledger-setup
-```
-
----
-
-## 4. Integration Strategy
-
-### User-Based Identities
-The Go backend (`JsonLedgerClient`) interacts with the ledger using **User IDs**.
-- It dynamically resolves User IDs to raw Canton Party IDs at startup via `/v2/parties`.
-- **Authorization:** `Buyer` user can `actAs` both `Buyer` and `CentralBank`.
-
-### JSON API V2
-- **Create:** `/v2/commands/submit-and-wait`
-- **Query:** `/v2/state/active-contracts` (Requires `filtersByParty` or `filtersForAnyParty`)
-
----
-
-## 5. Verified Synthetic Transaction (JSON V2)
-
-To verify the ledger manually, use this exact structure:
+### Automated Local Setup (Host)
+This is the recommended way to run the ledger for development. It uses the `dpm sandbox` wrapper which handles internal connections automatically.
 
 ```bash
-# 1. Get current Party IDs
-curl -s http://localhost:7575/v2/parties
-
-# 2. Create Escrow (Replace IDs with output from step 1)
-curl -X POST http://localhost:7575/v2/commands/submit-and-wait \
-  -H "Content-Type: application/json" \
-  -d '{
-    "commandId": "test-001",
-    "actAs": ["BUYER_ID", "CB_ID"],
-    "userId": "Buyer",
-    "commands": [
-      {
-        "CreateCommand": {
-          "templateId": "ec35fce924adbefbae43d1f546879c29fdc42b9efac531f4de8eaeb39a5693c1:StablecoinEscrow:StablecoinEscrow",
-          "createArguments": {
-            "issuer": "CB_ID",
-            "buyer": "BUYER_ID",
-            "seller": "SELLER_ID",
-            "mediator": "MEDIATOR_ID",
-            "totalAmount": "100.0000000000",
-            "currency": "USD",
-            "description": "Manual Test",
-            "milestones": [{"label":"Full","amount":"100.0000000000","completed":false}],
-            "currentMilestoneIndex": 0
-          }
-        }
-      }
-    ]
-  }'
+# Clean, Build, Start, and Setup Topology/Users
+make sandbox-up
 ```
+
+### Automated Docker Setup
+This runs the full stack (Postgres, Ledger, API) in containers. It uses the `daemon` mode with explicit node definitions.
+
+```bash
+# Deploy full persistent stack
+make docker-up
+
+# Verify health
+docker-compose ps
+```
+
+### Manual Configuration Management
+- **Local Config:** `contracts/Sandbox/sandbox.conf`
+- **Docker Config:** `contracts/Sandbox/sandbox-docker.conf`
+- **Init Script:** `contracts/Sandbox/sandbox_init.canton`
 
 ---
 
-## 6. Debugging
+## 3. JSON API V2 Integration
 
-### View Party Mappings
+### User Management
+User creation and rights management must follow the strict V2 schema:
+
+**Create User:**
 ```bash
-curl -s http://localhost:7575/v2/parties | jq
+curl -X POST http://localhost:7575/v2/users \
+  -d '{"user": {"id": "Buyer", "primaryParty": "PARTY_ID", "isDeactivated": false, "identityProviderId": ""}}'
 ```
 
-### View Update Stream (Flat)
+**Grant Rights:**
 ```bash
-curl -X POST http://localhost:7575/v2/updates/flats \
-  -H "Content-Type: application/json" \
-  -d '{"beginExclusive": 0, "filter": {"filtersByParty": {"BUYER_ID": {"cumulative": []}}}}'
+curl -X POST http://localhost:7575/v2/users/Buyer/rights \
+  -d '{"userId": "Buyer", "actAs": ["PARTY_ID"], "identityProviderId": ""}'
+```
+
+## 4. Verification
+After any ledger restart, run the integration tests to confirm full lifecycle functionality:
+```bash
+make integration-test
 ```

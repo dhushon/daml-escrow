@@ -23,7 +23,7 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-const PackageID = "0a5ec0d98c2dff0dfec5d7a5cc44a7fb41a07f5729de5e0edd8de1fcbb420de2"
+const PackageID = "bae2904693ac669c16c006f1002e0b018c4f50b2eeaf74de7f131562ceb8a0fc"
 
 type JsonLedgerClient struct {
 	logger     *zap.Logger

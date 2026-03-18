@@ -1,0 +1,92 @@
+val participant = participants.all.head
+val seqNode    = sequencers.all.head
+val medNode    = mediators.all.head
+
+def ignore[T](f: => T): Unit = try { f; () } catch { case _: Throwable => () }
+
+// 1. Wait for nodes
+println("Waiting for nodes to be ready...")
+def waitReady(label: String, check: => Unit): Unit = {
+  var ready = false
+  for (i <- 1 to 20 if !ready) {
+    try { check; ready = true }
+    catch { case _: Throwable =>
+      println(s"$label not ready, waiting 3s... ($i/20)")
+      Thread.sleep(3000)
+    }
+  }
+  if (!ready) { println(s"$label never became ready"); sys.exit(1) }
+}
+waitReady("participant", participant.health.status)
+waitReady("sequencer",   seqNode.health.status)
+waitReady("mediator",    medNode.health.status)
+
+// 2. Bootstrap the synchronizer
+println("Bootstrapping synchronizer...")
+ignore(bootstrap.synchronizer_local("mysynchronizer"))
+//ignore(bootstrap.synchronizer_local("mysynchronizer", Seq(seqNode), Seq(medNode)))
+Thread.sleep(3000)
+
+// 3. Connect participant
+println("Connecting participant...")
+var connected = false
+for (i <- 1 to 30 if !connected) {
+  try {
+    participant.synchronizers.connect_local(seqNode, "mysynchronizer")
+    connected = true
+  } catch {
+    case _: Throwable =>
+      println(s"Connection attempt $i failed, waiting 5s...")
+      Thread.sleep(5000)
+  }
+}
+if (!connected) { println("Failed to connect"); sys.exit(1) }
+
+val syncId = participant.synchronizers.list_connected().head.physicalSynchronizerId
+
+// 4. Upload DAR
+println("Uploading DAR...")
+ignore(participant.dars.upload("/canton/contracts/.daml/dist/stablecoin-escrow-0.0.1.dar"))
+
+// 5. Allocate Parties
+println("Allocating parties...")
+ignore(participant.parties.enable("CentralBank"))
+ignore(participant.parties.enable("Buyer"))
+ignore(participant.parties.enable("Seller"))
+ignore(participant.parties.enable("EscrowMediator"))
+Thread.sleep(3000)
+
+// 6. Topology Mappings
+import com.digitalasset.canton.topology.transaction.ParticipantPermission
+import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
+
+println("Authorizing parties...")
+val cbId       = participant.parties.find("CentralBank")
+val buyerId    = participant.parties.find("Buyer")
+val sellerId   = participant.parties.find("Seller")
+val mediatorId = participant.parties.find("EscrowMediator")
+
+Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
+  ignore(participant.topology.party_to_participant_mappings.propose(
+    party              = pid,
+    newParticipants    = Seq((participant.id, ParticipantPermission.Submission)),
+    store              = TopologyStoreId.Synchronizer(syncId),
+    mustFullyAuthorize = true
+  ))
+}
+
+// 7. Create Users
+println("Creating users...")
+ignore(participant.ledger_api.users.create("CentralBank",    primaryParty = Some(cbId)))
+ignore(participant.ledger_api.users.create("Buyer",          primaryParty = Some(buyerId)))
+ignore(participant.ledger_api.users.create("Seller",         primaryParty = Some(sellerId)))
+ignore(participant.ledger_api.users.create("EscrowMediator", primaryParty = Some(mediatorId)))
+
+// 8. Grant Rights
+println("Granting rights...")
+ignore(participant.ledger_api.users.rights.grant("Buyer",          actAs = Set(buyerId, cbId)))
+ignore(participant.ledger_api.users.rights.grant("Seller",         actAs = Set(sellerId)))
+ignore(participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId)))
+ignore(participant.ledger_api.users.rights.grant("CentralBank",    actAs = Set(cbId)))
+
+println("Setup complete.")

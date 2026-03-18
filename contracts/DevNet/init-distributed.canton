@@ -1,0 +1,64 @@
+// STATUS: UNTESTED
+// Standard Canton 3.x Distributed Bootstrap Script
+
+// 1. References to local and remote components
+val participant = participants.all.head
+// These assume names match domain.conf or use positional head
+val seq = sequencers.all.head
+val med = mediators.all.head
+
+// 2. Manual initialization (Standard for non-auto-init networks)
+println("Initializing node identities...")
+if (participant.id.isEmpty) participant.topology.init_id("sandbox")
+if (seq.id.isEmpty) seq.topology.init_id("local-sync")
+if (med.id.isEmpty) med.topology.init_id("mediator1")
+
+// 3. Wait for readiness
+println("Waiting for nodes to be ready...")
+participant.health.status
+seq.health.status
+med.health.status
+
+// Helper to ignore errors
+def ignore[T](f: => T): Unit = try { f; () } catch { case _: Throwable => () }
+
+// 4. Setup Domain
+println("Setting up domain...")
+val syncId = seq.setup.assign(med)
+
+// 5. Connect participant to domain
+println("Connecting participant to domain...")
+participant.synchronizers.connect("mysynchronizer", seq.public_api.toRemoteSynchronizerConfig)
+
+// 6. Upload DAR
+println("Uploading DAR...")
+ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow-v3.dar"))
+
+// 7. Allocate Parties
+println("Allocating parties...")
+ignore(participant.parties.enable("CentralBank"))
+ignore(participant.parties.enable("Buyer"))
+ignore(participant.parties.enable("Seller"))
+ignore(participant.parties.enable("EscrowMediator"))
+
+val cbId = participant.parties.find("CentralBank")
+val buyerId = participant.parties.find("Buyer")
+val sellerId = participant.parties.find("Seller")
+val mediatorId = participant.parties.find("EscrowMediator")
+
+// 8. Force Topology Mappings
+import com.digitalasset.canton.topology.transaction.ParticipantPermission
+import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
+
+println("Authorizing parties on synchronizer...")
+Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
+  ignore(participant.topology.party_to_participant_mappings.propose(
+    party = pid,
+    newParticipants = Seq((participant.id, ParticipantPermission.Submission)),
+    store = TopologyStoreId.Synchronizer(syncId),
+    mustFullyAuthorize = true
+  ))
+}
+
+println("DevNet Topology Setup Complete.")
+sys.exit(0)
