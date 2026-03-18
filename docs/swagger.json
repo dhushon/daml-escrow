@@ -153,6 +153,117 @@
                     }
                 }
             }
+        },
+        "/escrows/{id}/resolve": {
+            "post": {
+                "description": "Mediator resolve dispute by splitting payout",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Resolve a disputed escrow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dispute Resolution Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ResolveDisputeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "resolution failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements": {
+            "get": {
+                "description": "Retrieve a list of pending settlement obligations",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "List all pending settlements",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.SettlementResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements/{id}/settle": {
+            "post": {
+                "description": "Issuer (Central Bank) settles the obligation and releases stablecoins",
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "Finalize a pending settlement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Settlement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "settlement failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -215,6 +326,42 @@
                     "type": "string"
                 },
                 "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ResolveDisputeRequest": {
+            "type": "object",
+            "properties": {
+                "payoutToBuyer": {
+                    "type": "number",
+                    "example": 50
+                },
+                "payoutToSeller": {
+                    "type": "number",
+                    "example": 50
+                }
+            }
+        },
+        "api.SettlementResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "recipient": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

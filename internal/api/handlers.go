@@ -48,6 +48,15 @@ type EscrowResponse struct {
 	CurrentMilestoneIndex int                `json:"currentMilestoneIndex"`
 }
 
+type SettlementResponse struct {
+	ID        string  `json:"id"`
+	Issuer    string  `json:"issuer"`
+	Recipient string  `json:"recipient"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Status    string  `json:"status"`
+}
+
 // CreateEscrow handles POST /escrows
 // @Summary Create a new escrow contract
 // @Description Initiate a new escrow agreement between buyer and seller
@@ -172,6 +181,58 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 	err := h.escrowService.ResolveDispute(r.Context(), id, req.PayoutToBuyer, req.PayoutToSeller)
 	if err != nil {
 		h.logger.Error("resolve dispute failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListSettlements handles GET /settlements
+// @Summary List all pending settlements
+// @Description Retrieve a list of pending settlement obligations
+// @Tags settlements
+// @Produce json
+// @Success 200 {array} SettlementResponse
+// @Failure 500 {string} string "internal error"
+// @Router /settlements [get]
+func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
+	settlements, err := h.escrowService.ListSettlements(r.Context())
+	if err != nil {
+		h.logger.Error("list settlements failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	var resp []SettlementResponse
+	for _, s := range settlements {
+		resp = append(resp, SettlementResponse{
+			ID:        s.ID,
+			Issuer:    s.Issuer,
+			Recipient: s.Recipient,
+			Amount:    s.Amount,
+			Currency:  s.Currency,
+			Status:    s.Status,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// SettlePayment handles POST /settlements/{id}/settle
+// @Summary Finalize a pending settlement
+// @Description Issuer (Central Bank) settles the obligation and releases stablecoins
+// @Tags settlements
+// @Param id path string true "Settlement ID"
+// @Success 200 {string} string "ok"
+// @Failure 500 {string} string "settlement failed"
+// @Router /settlements/{id}/settle [post]
+func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	err := h.escrowService.SettlePayment(r.Context(), id)
+	if err != nil {
+		h.logger.Error("settle failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

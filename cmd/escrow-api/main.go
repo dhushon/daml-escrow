@@ -83,6 +83,9 @@ func main() {
 	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
 	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
 
+	router.Get("/settlements", handler.ListSettlements)
+	router.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      router,

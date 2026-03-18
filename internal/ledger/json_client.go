@@ -23,14 +23,14 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-const PackageID = "ec35fce924adbefbae43d1f546879c29fdc42b9efac531f4de8eaeb39a5693c1"
+const PackageID = "18e54e4d3fcbb438bc3a3c2853348e5b87a02518c4f7ae047c1c74372668d41c"
 
 type JsonLedgerClient struct {
 	logger     *zap.Logger
 	httpClient *http.Client
 	baseURL    string
 	partyMap   map[string]string // Maps User ID -> Canton Party ID
-	lastOffset interface{}
+	lastOffset string
 	mu         sync.RWMutex
 }
 
@@ -472,6 +472,107 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 
 func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
 	_, err := c.RaiseDispute(ctx, id)
+	return err
+}
+
+func (c *JsonLedgerClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
+	cbParty := c.getParty(CentralBankUser)
+	
+	offset, err := c.getLedgerEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	body := map[string]interface{}{
+		"activeAtOffset": offset,
+		"eventFormat": map[string]interface{}{
+			"verbose": true,
+			"filtersByParty": map[string]interface{}{
+				cbParty: map[string]interface{}{
+					"templateIds": []string{
+						fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowSettlement"),
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		var rawList []interface{}
+		if err2 := json.Unmarshal(respBody, &rawList); err2 == nil {
+			result = rawList
+		} else {
+			return nil, fmt.Errorf("failed to decode active contracts result: %w", err)
+		}
+	}
+
+	var settlements []*EscrowSettlement
+	for _, item := range result {
+		if m, ok := item.(map[string]interface{}); ok {
+			var created map[string]interface{}
+			if entry, ok := m["contractEntry"].(map[string]interface{}); ok {
+				if active, ok := entry["JsActiveContract"].(map[string]interface{}); ok {
+					if ce, ok := active["createdEvent"].(map[string]interface{}); ok {
+						created = ce
+					}
+				}
+			}
+
+			if created != nil {
+				contractId, _ := created["contractId"].(string)
+				var args map[string]interface{}
+				if a, ok := created["createArguments"].(map[string]interface{}); ok {
+					args = a
+				} else if a, ok := created["createArgument"].(map[string]interface{}); ok {
+					args = a
+				}
+
+				if args != nil {
+					amountStr := fmt.Sprintf("%v", args["amount"])
+					amount, _ := strconv.ParseFloat(amountStr, 64)
+					settlements = append(settlements, &EscrowSettlement{
+						ID:        contractId,
+						Issuer:    fmt.Sprintf("%v", args["issuer"]),
+						Recipient: fmt.Sprintf("%v", args["recipient"]),
+						Amount:    amount,
+						Currency:  fmt.Sprintf("%v", args["currency"]),
+						Status:    fmt.Sprintf("%v", args["status"]),
+					})
+				}
+			}
+		}
+	}
+	return settlements, nil
+}
+
+func (c *JsonLedgerClient) SettlePayment(ctx context.Context, settlementID string) error {
+	cbParty := c.getParty(CentralBankUser)
+	
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("settle-%d", time.Now().UnixNano()),
+			"actAs":     []string{cbParty},
+			"userId":    CentralBankUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowSettlement"),
+						"contractId":     settlementID,
+						"choice":         "Settle",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
 	return err
 }
 

@@ -165,4 +165,57 @@ func TestLedgerIntegration(t *testing.T) {
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after resolution")
 	})
+
+	t.Run("Full Settlement Lifecycle", func(t *testing.T) {
+		// 1. Create Escrow
+		createReq := CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   1000.0,
+			Currency: "USD",
+		}
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+
+		// 2. Approve Milestone (Creates Settlement)
+		t.Log("Approving milestone to create settlement...")
+		err = client.ReleaseFunds(ctx, escrow.ID)
+		require.NoError(t, err)
+
+		// 3. List Settlements
+		t.Log("Listing pending settlements...")
+		time.Sleep(2 * time.Second)
+		settlements, err := client.ListSettlements(ctx)
+		require.NoError(t, err)
+		
+		var mySettlement *EscrowSettlement
+		for _, s := range settlements {
+			if s.Recipient == client.getParty(SellerUser) && s.Amount == 1000.0 {
+				mySettlement = s
+				break
+			}
+		}
+		require.NotNil(t, mySettlement, "Could not find pending settlement")
+		t.Logf("Found settlement ID: %s", mySettlement.ID)
+
+		// 4. Settle Payment
+		t.Log("Finalizing settlement (CentralBank)...")
+		err = client.SettlePayment(ctx, mySettlement.ID)
+		require.NoError(t, err)
+		t.Log("Successfully finalized settlement")
+
+		// 5. Verify Settlement is archived
+		time.Sleep(1 * time.Second)
+		settlements2, err := client.ListSettlements(ctx)
+		require.NoError(t, err)
+		found := false
+		for _, s := range settlements2 {
+			if s.ID == mySettlement.ID {
+				found = true
+				break
+			}
+		}
+		require.False(t, found, "Settlement contract should be archived")
+		t.Log("Verified settlement archived")
+	})
 }

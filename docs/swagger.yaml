@@ -43,6 +43,30 @@ definitions:
       state:
         type: string
     type: object
+  api.ResolveDisputeRequest:
+    properties:
+      payoutToBuyer:
+        example: 50
+        type: number
+      payoutToSeller:
+        example: 50
+        type: number
+    type: object
+  api.SettlementResponse:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+      id:
+        type: string
+      issuer:
+        type: string
+      recipient:
+        type: string
+      status:
+        type: string
+    type: object
   ledger.Milestone:
     properties:
       amount:
@@ -154,4 +178,77 @@ paths:
       summary: Release funds for the current milestone
       tags:
       - escrows
+  /escrows/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Mediator resolve dispute by splitting payout
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dispute Resolution Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.ResolveDisputeRequest'
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "500":
+          description: resolution failed
+          schema:
+            type: string
+      summary: Resolve a disputed escrow
+      tags:
+      - escrows
+  /settlements:
+    get:
+      description: Retrieve a list of pending settlement obligations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.SettlementResponse'
+            type: array
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List all pending settlements
+      tags:
+      - settlements
+  /settlements/{id}/settle:
+    post:
+      description: Issuer (Central Bank) settles the obligation and releases stablecoins
+      parameters:
+      - description: Settlement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: settlement failed
+          schema:
+            type: string
+      summary: Finalize a pending settlement
+      tags:
+      - settlements
 swagger: "2.0"

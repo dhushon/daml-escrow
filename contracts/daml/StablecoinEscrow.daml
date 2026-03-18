@@ -73,6 +73,14 @@ template EscrowSettlement
     signatory issuer
     observer recipient
 
+    -- The Issuer (CentralBank) calls this to finalize the payment
+    choice Settle : ()
+      controller issuer
+      do
+        -- In a real system, this would integrate with a separate Token template
+        -- For this project, archiving represents successful settlement
+        return ()
+
 template DisputedEscrow
   with
     escrow : StablecoinEscrow

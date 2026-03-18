@@ -284,3 +284,11 @@ func (c *DamlClient) ResolveDispute(ctx context.Context, id string, payoutToBuye
 
 	return nil
 }
+
+func (c *DamlClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
+	return nil, fmt.Errorf("ListSettlements not implemented for gRPC client")
+}
+
+func (c *DamlClient) SettlePayment(ctx context.Context, settlementID string) error {
+	return fmt.Errorf("SettlePayment not implemented for gRPC client")
+}

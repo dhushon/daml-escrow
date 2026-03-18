@@ -30,10 +30,23 @@ type EscrowContract struct {
 	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
 }
 
+type EscrowSettlement struct {
+	ID        string  `json:"id"`
+	Issuer    string  `json:"issuer"`
+	Recipient string  `json:"recipient"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Status    string  `json:"status"`
+}
+
 type Client interface {
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
 	GetEscrow(ctx context.Context, id string) (*EscrowContract, error)
 	ReleaseFunds(ctx context.Context, id string) error
 	RaiseDispute(ctx context.Context, id string) (string, error)
 	ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error
+	
+	// Settlement interactions
+	ListSettlements(ctx context.Context) ([]*EscrowSettlement, error)
+	SettlePayment(ctx context.Context, settlementID string) error
 }

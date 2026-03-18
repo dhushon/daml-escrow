@@ -48,12 +48,12 @@ func (s *EscrowService) ReleaseFunds(
 	return s.ledger.ReleaseFunds(ctx, id)
 }
 
-func (s *EscrowService) RefundBuyer(
+func (s *EscrowService) RaiseDispute(
 	ctx context.Context,
 	id string,
-) error {
-	s.logger.Info("refunding buyer", zap.String("id", id))
-	return s.ledger.RefundBuyer(ctx, id)
+) (string, error) {
+	s.logger.Info("raising dispute", zap.String("id", id))
+	return s.ledger.RaiseDispute(ctx, id)
 }
 
 func (s *EscrowService) ResolveDispute(
@@ -63,4 +63,19 @@ func (s *EscrowService) ResolveDispute(
 ) error {
 	s.logger.Info("resolving dispute", zap.String("id", id), zap.Float64("payoutToBuyer", payoutToBuyer), zap.Float64("payoutToSeller", payoutToSeller))
 	return s.ledger.ResolveDispute(ctx, id, payoutToBuyer, payoutToSeller)
+}
+
+func (s *EscrowService) ListSettlements(
+	ctx context.Context,
+) ([]*ledger.EscrowSettlement, error) {
+	s.logger.Info("listing settlements")
+	return s.ledger.ListSettlements(ctx)
+}
+
+func (s *EscrowService) SettlePayment(
+	ctx context.Context,
+	settlementID string,
+) error {
+	s.logger.Info("settling payment", zap.String("settlementID", settlementID))
+	return s.ledger.SettlePayment(ctx, settlementID)
 }

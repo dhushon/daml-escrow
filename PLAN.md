@@ -51,7 +51,7 @@ Tasks:
 
 ------------------------------------------------------------------------
 
-## Phase 2 --- Backend Platform (Go) (IN PROGRESS)
+## Phase 2 --- Backend Platform (Go) (COMPLETE)
 
 Goals: Create service layer to interact with the ledger.
 
@@ -64,23 +64,12 @@ Goals: Create service layer to interact with the ledger.
    - Ledger offset tracking for consistent reads.
 3. **Multi-Milestone Support:** API and Ledger client expanded to handle dynamic milestone lists.
 4. **Mediator Services:** `ResolveDispute` choice implemented and verified.
-5. **Integration Testing:** Extensive coverage in `internal/ledger/ledger_integration_test.go`.
-
-### Detailed Next Steps (De-risking & Deep Integration)
-
-**Task 2.9: Precise Event Extraction (IN PROGRESS)**
-- Refactor `JsonLedgerClient` to use `/v2/commands/submit-and-wait-for-transaction`.
-- Nest command payloads under the `commands: { ... }` key as required by V2.
-- Extract `contractId` directly from the `events` slice in the response.
-- Eliminate 1-second sleeps and "query-after-create" logic to improve performance and thread safety.
-
-**Task 2.10: Stablecoin Settlement Logic**
-- Design the hand-off between the Escrow contract and actual token transfers.
-- Determine if the Go backend will trigger a secondary `TokenTransfer` contract choice upon milestone approval.
+5. **Stablecoin Settlement:** Added `EscrowSettlement` lifecycle with `Settle` choice for Central Bank payout finalization.
+6. **Integration Testing:** 100% coverage of all major lifecycles in `internal/ledger/ledger_integration_test.go`.
 
 ------------------------------------------------------------------------
 
-## Phase 3 --- Oracle Integrations
+## Phase 3 --- Oracle Integrations (NEXT)
 
 Tasks:
 - Oracle adapter interface
@@ -96,6 +85,6 @@ Tasks:
 | :--- | :--- | :--- |
 | M1 | DONE | Escrow contract logic verified in DAML. |
 | M2 | DONE | API protocol established (JSON V2). |
-| M3 | TODO | Oracle integration functional. |
-| M4 | TODO | End-to-end multi-milestone settlement. |
+| M3 | DONE | Multi-milestone settlement and dispute flow verified. |
+| M4 | TODO | Oracle integration functional. |
 | M5 | TODO | Production readiness (Auth/TLS/Persistence). |

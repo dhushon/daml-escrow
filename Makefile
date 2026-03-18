@@ -1,6 +1,7 @@
 APP_NAME=escrow-api
 PORT=8080
 DPM=/Users/dhushon/.dpm/bin/dpm
+JAVA_HOME_17=/opt/homebrew/opt/openjdk@17
 
 .PHONY: build
 build:
@@ -12,13 +13,28 @@ daml-build:
 
 .PHONY: sandbox
 sandbox:
-	cd contracts && export JAVA_HOME="/opt/homebrew/opt/openjdk@17" && \
+	@echo "Starting Canton Sandbox 3.x..."
+	cd contracts && export JAVA_HOME="$(JAVA_HOME_17)" && \
 	nohup $(DPM) sandbox --config sandbox.conf --dar .daml/dist/stablecoin-escrow-0.0.1.dar > sandbox.log 2>&1 &
+	@echo "Sandbox started in background. Use 'make ledger-setup' once ready."
 
 .PHONY: ledger-setup
 ledger-setup:
-	cd contracts && export JAVA_HOME="/opt/homebrew/opt/openjdk@17" && \
+	@echo "Uploading latest DAR and establishing topology..."
+	cd contracts && export JAVA_HOME="$(JAVA_HOME_17)" && \
 	$(DPM) canton-console --port 6865 --bootstrap init.canton --no-tty
+
+.PHONY: restart-ledger
+restart-ledger: clean-ledger daml-build sandbox
+	@echo "Waiting for sandbox..."
+	@sleep 15
+	@$(MAKE) ledger-setup
+
+.PHONY: clean-ledger
+clean-ledger:
+	@echo "Stopping sandbox..."
+	-pkill -f "canton"
+	rm -f contracts/sandbox.log
 
 .PHONY: run
 run: build
@@ -34,4 +50,4 @@ integration-test:
 
 .PHONY: clean
 clean:
-	rm -rf bin api.log api_new.log api_v2_local.log api_v2_local_final.log api_v2_final.log
+	rm -rf bin *.log
