@@ -74,10 +74,11 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// 2. Raise Dispute (Refund Path)
-		t.Log("Testing RefundBuyer (RaiseDispute)...")
-		err = client.RefundBuyer(ctx, escrow.ID)
+		t.Log("Testing RaiseDispute...")
+		disputeId, err := client.RaiseDispute(ctx, escrow.ID)
 		require.NoError(t, err)
-		t.Log("Successfully exercised RaiseDispute")
+		require.NotEmpty(t, disputeId)
+		t.Logf("Successfully exercised RaiseDispute, new ID: %s", disputeId)
 
 		// 3. Verify Original is gone
 		_, err = client.GetEscrow(ctx, escrow.ID)
@@ -121,10 +122,9 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// 4. Verify progress
-		// In DAML, exercising a choice that returns self creates a NEW contract ID
-		// So we search for the latest escrow for this buyer/seller
+		// Use listEscrows directly to check for the update
 		time.Sleep(2 * time.Second)
-		contracts, err := client.listEscrows(ctx, client.getOffset())
+		contracts, err := client.listEscrows(ctx)
 		require.NoError(t, err)
 		
 		var updated *EscrowContract
@@ -136,6 +136,33 @@ func TestLedgerIntegration(t *testing.T) {
 		}
 		require.NotNil(t, updated, "Could not find updated escrow contract")
 		require.True(t, updated.Milestones[0].Completed)
-		t.Log("First milestone approval verified on new contract ID")
+		t.Log("First milestone approval verified")
+	})
+
+	t.Run("Mediated Dispute Resolution", func(t *testing.T) {
+		// 1. Create Escrow
+		createReq := CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   200.0,
+			Currency: "USD",
+		}
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+
+		// 2. Raise Dispute
+		disputeId, err := client.RaiseDispute(ctx, escrow.ID)
+		require.NoError(t, err)
+
+		// 3. Resolve Dispute (50/50 split)
+		t.Log("Testing ResolveDispute (Mediator path)...")
+		err = client.ResolveDispute(ctx, disputeId, 100.0, 100.0)
+		require.NoError(t, err)
+		t.Log("Successfully exercised ResolveDispute")
+
+		// 4. Verify Original is gone
+		_, err = client.GetEscrow(ctx, escrow.ID)
+		require.Error(t, err)
+		t.Log("Verified original escrow is archived after resolution")
 	})
 }

@@ -62,23 +62,17 @@ Goals: Create service layer to interact with the ledger.
    - Idempotent bootstrapping via `init.canton`.
    - Recursive V2 JSON response parsing.
    - Ledger offset tracking for consistent reads.
-3. **Integration Testing:** Substantial tests in `internal/ledger/ledger_integration_test.go` covering Standard and Refund lifecycles.
+3. **Multi-Milestone Support:** API and Ledger client expanded to handle dynamic milestone lists.
+4. **Mediator Services:** `ResolveDispute` choice implemented and verified.
+5. **Integration Testing:** Extensive coverage in `internal/ledger/ledger_integration_test.go`.
 
 ### Detailed Next Steps (De-risking & Deep Integration)
 
-**Task 2.7: Multi-Milestone API Expansion**
-- Update `internal/ledger/stablecoin.go` to support a `Milestones` slice in the `CreateEscrowRequest`.
-- Refactor `internal/ledger/json_client.go` to dynamically build the milestone list in the `CreateCommand` payload.
-- Update `internal/api/handlers.go` to accept milestone arrays from the REST client.
-
-**Task 2.8: Mediator "ResolveDispute" Implementation**
-- Implement `ResolveDispute` method in `JsonLedgerClient`.
-- Add `POST /escrows/{id}/resolve` endpoint to the REST API.
-- Update `EscrowService` to handle mediation logic (splitting payouts between Buyer and Seller).
-
-**Task 2.9: Precise Event Extraction**
-- Refactor `CreateEscrow` to extract the `contractId` directly from the `events` slice in the `submit-and-wait` response.
-- Eliminate the 1-second sleep and "query-after-create" logic to improve performance and thread safety.
+**Task 2.9: Precise Event Extraction (IN PROGRESS)**
+- Refactor `JsonLedgerClient` to use `/v2/commands/submit-and-wait-for-transaction`.
+- Nest command payloads under the `commands: { ... }` key as required by V2.
+- Extract `contractId` directly from the `events` slice in the response.
+- Eliminate 1-second sleeps and "query-after-create" logic to improve performance and thread safety.
 
 **Task 2.10: Stablecoin Settlement Logic**
 - Design the hand-off between the Escrow contract and actual token transfers.
@@ -93,24 +87,6 @@ Tasks:
 - Webhook ingestion (e.g., Shipping/Delivery confirmations)
 - Signature verification
 - Event mapping to contract choices (`ApproveMilestone`)
-
-------------------------------------------------------------------------
-
-## Phase 4 --- Frontend Applications
-
-Applications:
-- **Buyer Portal:** Escrow creation, milestone approval.
-- **Seller Portal:** Progress tracking, payment view.
-- **Mediator Dashboard:** Dispute resolution interface.
-
-------------------------------------------------------------------------
-
-## Phase 5 --- Security & Compliance
-
-Tasks:
-- JWT Authentication integration (RS256) for the JSON API.
-- Contract audit.
-- Key management strategy.
 
 ------------------------------------------------------------------------
 

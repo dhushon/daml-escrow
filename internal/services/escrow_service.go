@@ -55,3 +55,12 @@ func (s *EscrowService) RefundBuyer(
 	s.logger.Info("refunding buyer", zap.String("id", id))
 	return s.ledger.RefundBuyer(ctx, id)
 }
+
+func (s *EscrowService) ResolveDispute(
+	ctx context.Context,
+	id string,
+	payoutToBuyer, payoutToSeller float64,
+) error {
+	s.logger.Info("resolving dispute", zap.String("id", id), zap.Float64("payoutToBuyer", payoutToBuyer), zap.Float64("payoutToSeller", payoutToSeller))
+	return s.ledger.ResolveDispute(ctx, id, payoutToBuyer, payoutToSeller)
+}

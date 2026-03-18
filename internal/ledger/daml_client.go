@@ -206,10 +206,15 @@ func (c *DamlClient) ReleaseFunds(ctx context.Context, id string) error {
 }
 
 func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error {
+	_, err := c.RaiseDispute(ctx, id)
+	return err
+}
+
+func (c *DamlClient) RaiseDispute(ctx context.Context, id string) (string, error) {
 	c.logger.Info("exercising RaiseDispute choice on DAML ledger", zap.String("id", id))
 
 	if c.client == nil {
-		return fmt.Errorf("DAML client not connected")
+		return "", fmt.Errorf("DAML client not connected")
 	}
 
 	exerciseCmd := &model.ExerciseCommand{
@@ -235,7 +240,46 @@ func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error {
 	_, err := c.client.CommandService.SubmitAndWait(ctx, submitReq)
 	if err != nil {
 		c.logger.Error("failed to submit dispute command to DAML", zap.Error(err))
-		return fmt.Errorf("ledger dispute failed: %w", err)
+		return "", fmt.Errorf("ledger dispute failed: %w", err)
+	}
+
+	return "unknown-dispute-id", nil
+}
+
+func (c *DamlClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error {
+	c.logger.Info("exercising ResolveDispute choice on DAML ledger", zap.String("id", id))
+
+	if c.client == nil {
+		return fmt.Errorf("DAML client not connected")
+	}
+
+	exerciseCmd := &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("%s:%s:%s", generated.PackageID, "StablecoinEscrow", "DisputedEscrow"),
+		ContractID: id,
+		Choice:     "ResolveDispute",
+		Arguments: map[string]interface{}{
+			"payoutToBuyer":  NUMERIC(fmt.Sprintf("%.10f", payoutToBuyer)),
+			"payoutToSeller": NUMERIC(fmt.Sprintf("%.10f", payoutToSeller)),
+		},
+	}
+
+	submitReq := &model.SubmitAndWaitRequest{
+		Commands: &model.Commands{
+			CommandID: fmt.Sprintf("resolve-dispute-%d", time.Now().UnixNano()),
+			UserID:    EscrowMediatorParty,
+			ActAs:     []string{EscrowMediatorParty},
+			Commands: []*model.Command{
+				{
+					Command: exerciseCmd,
+				},
+			},
+		},
+	}
+
+	_, err := c.client.CommandService.SubmitAndWait(ctx, submitReq)
+	if err != nil {
+		c.logger.Error("failed to submit resolve command to DAML", zap.Error(err))
+		return fmt.Errorf("ledger resolve failed: %w", err)
 	}
 
 	return nil

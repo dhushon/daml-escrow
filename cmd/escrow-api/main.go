@@ -79,8 +79,9 @@ func main() {
 
 	router.Post("/escrows", handler.CreateEscrow)
 	router.Get("/escrows/{escrowID}", handler.GetEscrow)
-	router.Post("/escrows/{escrowID}/release", handler.ReleaseEscrow)
-	router.Post("/escrows/{escrowID}/refund", handler.RefundEscrow)
+	router.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
+	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
+	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),

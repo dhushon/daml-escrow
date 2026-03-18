@@ -32,6 +32,11 @@ type CreateEscrowRequest struct {
 	Milestones  []ledger.Milestone `json:"milestones,omitempty"`
 }
 
+type ResolveDisputeRequest struct {
+	PayoutToBuyer  float64 `json:"payoutToBuyer" example:"50.0"`
+	PayoutToSeller float64 `json:"payoutToSeller" example:"50.0"`
+}
+
 type EscrowResponse struct {
 	ID                    string             `json:"id"`
 	Buyer                 string             `json:"buyer"`
@@ -138,6 +143,35 @@ func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 	err := h.escrowService.RefundBuyer(r.Context(), id)
 	if err != nil {
 		h.logger.Error("refund failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ResolveDispute handles POST /escrows/{id}/resolve
+// @Summary Resolve a disputed escrow
+// @Description Mediator resolve dispute by splitting payout
+// @Tags escrows
+// @Accept json
+// @Param id path string true "Escrow ID"
+// @Param request body ResolveDisputeRequest true "Dispute Resolution Request"
+// @Success 200 {string} string "ok"
+// @Failure 400 {string} string "invalid request"
+// @Failure 500 {string} string "resolution failed"
+// @Router /escrows/{id}/resolve [post]
+func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req ResolveDisputeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.escrowService.ResolveDispute(r.Context(), id, req.PayoutToBuyer, req.PayoutToSeller)
+	if err != nil {
+		h.logger.Error("resolve dispute failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

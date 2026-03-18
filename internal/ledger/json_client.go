@@ -30,7 +30,7 @@ type JsonLedgerClient struct {
 	httpClient *http.Client
 	baseURL    string
 	partyMap   map[string]string // Maps User ID -> Canton Party ID
-	lastOffset int64
+	lastOffset interface{}
 	mu         sync.RWMutex
 }
 
@@ -88,18 +88,97 @@ func (c *JsonLedgerClient) getParty(user string) string {
 	return user
 }
 
-func (c *JsonLedgerClient) updateOffset(off int64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if off > c.lastOffset {
-		c.lastOffset = off
+func (c *JsonLedgerClient) getLedgerEnd(ctx context.Context) (interface{}, error) {
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/state/ledger-end", nil)
+	if err != nil {
+		return nil, err
 	}
+
+	var result struct {
+		Offset json.RawMessage `json:"offset"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to decode ledger end: %w", err)
+	}
+	
+	var offset interface{}
+	if err := json.Unmarshal(result.Offset, &offset); err != nil {
+		return nil, err
+	}
+	return offset, nil
 }
 
-func (c *JsonLedgerClient) getOffset() int64 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.lastOffset
+// Internal structures for parsing V2 Transaction responses
+type v2TransactionResponse struct {
+	Transaction struct {
+		Events []map[string]interface{} `json:"events"`
+		Offset json.RawMessage          `json:"offset"`
+	} `json:"transaction"`
+}
+
+func (c *JsonLedgerClient) extractContract(events []map[string]interface{}, templateName string) (*EscrowContract, error) {
+	for _, wrapper := range events {
+		var created map[string]interface{}
+		if ce, ok := wrapper["CreatedEvent"].(map[string]interface{}); ok {
+			created = ce
+		} else if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+			created = ce
+		}
+
+		if created != nil {
+			templateId, _ := created["templateId"].(string)
+			if !strings.Contains(templateId, templateName) {
+				continue
+			}
+
+			contractId, _ := created["contractId"].(string)
+			var args map[string]interface{}
+			if a, ok := created["createArguments"].(map[string]interface{}); ok {
+				args = a
+			} else if a, ok := created["createArgument"].(map[string]interface{}); ok {
+				args = a
+			}
+
+			if args != nil {
+				amountStr := fmt.Sprintf("%v", args["totalAmount"])
+				amount, _ := strconv.ParseFloat(amountStr, 64)
+				
+				var ms []Milestone
+				if rawMs, ok := args["milestones"].([]interface{}); ok {
+					for _, r := range rawMs {
+						if rm, ok := r.(map[string]interface{}); ok {
+							ma, _ := strconv.ParseFloat(fmt.Sprintf("%v", rm["amount"]), 64)
+							ms = append(ms, Milestone{
+								Label:     fmt.Sprintf("%v", rm["label"]),
+								Amount:    ma,
+								Completed: rm["completed"].(bool),
+							})
+						}
+					}
+				}
+
+				curIdx := 0
+				if ci, ok := args["currentMilestoneIndex"].(float64); ok {
+					curIdx = int(ci)
+				} else if ci, ok := args["currentMilestoneIndex"].(string); ok {
+					ci64, _ := strconv.ParseInt(ci, 10, 32)
+					curIdx = int(ci64)
+				}
+
+				return &EscrowContract{
+					ID:                    contractId,
+					Buyer:                 fmt.Sprintf("%v", args["buyer"]),
+					Seller:                fmt.Sprintf("%v", args["seller"]),
+					Amount:                amount,
+					Currency:              fmt.Sprintf("%v", args["currency"]),
+					State:                 "Active",
+					Milestones:            ms,
+					CurrentMilestoneIndex: curIdx,
+				}, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("contract with template %s not found in transaction events", templateName)
 }
 
 func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error) {
@@ -116,7 +195,6 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 
 	amountStr := fmt.Sprintf("%.10f", req.Amount)
 
-	// Build dynamic milestones
 	var milestones []interface{}
 	if len(req.Milestones) > 0 {
 		for _, m := range req.Milestones {
@@ -127,7 +205,6 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 			})
 		}
 	} else {
-		// Default to single milestone if none provided
 		milestones = []interface{}{
 			map[string]interface{}{
 				"label":     "Full Payment",
@@ -155,47 +232,42 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 	}
 
 	body := map[string]interface{}{
-		"commandId": fmt.Sprintf("create-escrow-%d", time.Now().UnixNano()),
-		"actAs":     []string{buyerParty, cbParty},
-		"userId":    BuyerUser,
-		"commands": []interface{}{
-			map[string]interface{}{
-				"CreateCommand": map[string]interface{}{
-					"templateId":      fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
-					"createArguments": payload,
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("create-escrow-%d", time.Now().UnixNano()),
+			"actAs":     []string{buyerParty, cbParty},
+			"userId":    BuyerUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"CreateCommand": map[string]interface{}{
+						"templateId":      fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
+						"createArguments": payload,
+					},
 				},
 			},
 		},
 	}
 
-	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait", body)
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
 	if err != nil {
 		return nil, err
 	}
 
-	var submitResp struct {
-		CompletionOffset int64 `json:"completionOffset"`
-	}
-	if err := json.Unmarshal(respBody, &submitResp); err == nil {
-		c.updateOffset(submitResp.CompletionOffset)
+	var txResp v2TransactionResponse
+	if err := json.Unmarshal(respBody, &txResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction response: %w", err)
 	}
 
-	time.Sleep(1 * time.Second)
-	
-	contracts, err := c.listEscrows(ctx, c.getOffset())
-	if err != nil {
-		return nil, fmt.Errorf("failed to list escrows after creation: %w", err)
-	}
-
-	if len(contracts) == 0 {
-		return nil, fmt.Errorf("escrow contract not found after creation at offset %d", c.getOffset())
-	}
-
-	return contracts[len(contracts)-1], nil
+	return c.extractContract(txResp.Transaction.Events, "StablecoinEscrow")
 }
 
-func (c *JsonLedgerClient) listEscrows(ctx context.Context, offset int64) ([]*EscrowContract, error) {
+func (c *JsonLedgerClient) listEscrows(ctx context.Context) ([]*EscrowContract, error) {
 	buyerParty := c.getParty(BuyerUser)
+	
+	offset, err := c.getLedgerEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	body := map[string]interface{}{
 		"activeAtOffset": offset,
 		"eventFormat": map[string]interface{}{
@@ -287,17 +359,21 @@ func (c *JsonLedgerClient) listEscrows(ctx context.Context, offset int64) ([]*Es
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
 	c.logger.Info("querying escrow via JSON API V2", zap.String("id", id))
 
-	time.Sleep(1 * time.Second)
-	
-	contracts, err := c.listEscrows(ctx, c.getOffset())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range contracts {
-		if item.ID == id {
-			return item, nil
+	// Implement retry mechanism for indexer catch-up
+	for retry := 0; retry < 5; retry++ {
+		contracts, err := c.listEscrows(ctx)
+		if err != nil {
+			return nil, err
 		}
+
+		for _, item := range contracts {
+			if item.ID == id {
+				return item, nil
+			}
+		}
+		
+		c.logger.Debug("escrow not found yet, retrying...", zap.Int("attempt", retry+1))
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return nil, fmt.Errorf("escrow not found: %s", id)
@@ -307,61 +383,95 @@ func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
 	buyerParty := c.getParty(BuyerUser)
 	
 	body := map[string]interface{}{
-		"commandId": fmt.Sprintf("release-%d", time.Now().UnixNano()),
-		"actAs":     []string{buyerParty},
-		"userId":    BuyerUser,
-		"commands": []interface{}{
-			map[string]interface{}{
-				"ExerciseCommand": map[string]interface{}{
-					"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
-					"contractId":     id,
-					"choice":         "ApproveMilestone",
-					"choiceArgument": map[string]interface{}{},
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("release-%d", time.Now().UnixNano()),
+			"actAs":     []string{buyerParty},
+			"userId":    BuyerUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
+						"contractId":     id,
+						"choice":         "ApproveMilestone",
+						"choiceArgument": map[string]interface{}{},
+					},
 				},
 			},
 		},
 	}
 
-	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait", body)
-	if err == nil {
-		var submitResp struct {
-			CompletionOffset int64 `json:"completionOffset"`
-		}
-		if err := json.Unmarshal(respBody, &submitResp); err == nil {
-			c.updateOffset(submitResp.CompletionOffset)
-		}
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	return err
+}
+
+func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string) (string, error) {
+	buyerParty := c.getParty(BuyerUser)
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("dispute-%d", time.Now().UnixNano()),
+			"actAs":     []string{buyerParty},
+			"userId":    BuyerUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
+						"contractId":     id,
+						"choice":         "RaiseDispute",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
 	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	if err != nil {
+		return "", err
+	}
+
+	var txResp v2TransactionResponse
+	if err := json.Unmarshal(respBody, &txResp); err != nil {
+		return "", fmt.Errorf("failed to unmarshal transaction response: %w", err)
+	}
+
+	escrow, err := c.extractContract(txResp.Transaction.Events, "DisputedEscrow")
+	if err != nil {
+		return "", err
+	}
+	return escrow.ID, nil
+}
+
+func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error {
+	mediatorParty := c.getParty(EscrowMediatorUser)
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("resolve-%d", time.Now().UnixNano()),
+			"actAs":     []string{mediatorParty},
+			"userId":    EscrowMediatorUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "DisputedEscrow"),
+						"contractId":     id,
+						"choice":         "ResolveDispute",
+						"choiceArgument": map[string]interface{}{
+							"payoutToBuyer":  fmt.Sprintf("%.10f", payoutToBuyer),
+							"payoutToSeller": fmt.Sprintf("%.10f", payoutToSeller),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
 	return err
 }
 
 func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	buyerParty := c.getParty(BuyerUser)
-
-	body := map[string]interface{}{
-		"commandId": fmt.Sprintf("refund-%d", time.Now().UnixNano()),
-		"actAs":     []string{buyerParty},
-		"userId":    BuyerUser,
-		"commands": []interface{}{
-			map[string]interface{}{
-				"ExerciseCommand": map[string]interface{}{
-					"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow"),
-					"contractId":     id,
-					"choice":         "RaiseDispute",
-					"choiceArgument": map[string]interface{}{},
-				},
-			},
-		},
-	}
-
-	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait", body)
-	if err == nil {
-		var submitResp struct {
-			CompletionOffset int64 `json:"completionOffset"`
-		}
-		if err := json.Unmarshal(respBody, &submitResp); err == nil {
-			c.updateOffset(submitResp.CompletionOffset)
-		}
-	}
+	_, err := c.RaiseDispute(ctx, id)
 	return err
 }
 

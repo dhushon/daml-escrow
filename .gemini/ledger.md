@@ -13,7 +13,7 @@ To avoid the instability of Canton's long, random Party IDs (e.g., `Buyer::1220.
 ### JSON Ledger API V2
 We utilize the modern V2 API, which aligns closely with gRPC but remains accessible over HTTP.
 - **Protocol:** HTTP/1.1 (Standard for the JSON API proxy).
-- **Communication Pattern:** `submit-and-wait` for synchronous command execution.
+- **Synchronous Returns:** Use `/v2/commands/submit-and-wait-for-transaction` to get the `contractId` immediately in the response `events` slice.
 - **State Discovery:** `/v2/state/active-contracts` for querying the current Active Contract Set (ACS).
 
 ---
@@ -23,31 +23,38 @@ We utilize the modern V2 API, which aligns closely with gRPC but remains accessi
 ### Rule 1: Numeric Precision (Decimal)
 Daml `Decimal` types (Map to Go `float64`) MUST be serialized as strings with exactly **10 decimal places**.
 - **Go Pattern:** `fmt.Sprintf("%.10f", value)`
-- **Failure Mode:** Providing fewer decimal places or a raw number may result in a `COMMAND_PREPROCESSING_FAILED` error.
+- **Failure Mode:** Providing fewer decimal places results in `COMMAND_PREPROCESSING_FAILED`.
 
 ### Rule 2: JSON Key Casing
-- **Commands:** Must use **PascalCase** (e.g., `CreateCommand`, `ExerciseCommand`).
-- **Fields:** Must use **camelCase** (e.g., `templateId`, `createArguments`, `choiceArgument`).
-- **userId:** Every command submission MUST include the `userId` field if auth is disabled or JWT claims are missing.
+- **Transaction Commands:** Must use **PascalCase** (e.g., `CreateCommand`, `ExerciseCommand`).
+- **Nesting:** Commands MUST be nested under a top-level `commands: { ... }` key for `/v2/commands/submit-and-wait-for-transaction`.
 
-### Rule 3: Dynamic Party Resolution
-The Go client MUST resolve User IDs to full Canton Party IDs at initialization.
-- **Reason:** Contract arguments inside the ledger (e.g., the `buyer` field in a template) require the full `Party::Hex` string, even if the submission uses a User ID.
-- **Pattern:** Query `/v2/parties` and build a prefix-based lookup map.
+### Rule 3: ACS Query Visibility (Lessons Learned)
+- **Failure:** Querying `/v2/state/active-contracts` with `activeAtOffset: 0` often returns an empty list immediately after a transaction, even if the transaction is confirmed.
+- **Retry Strategy:** If a fetch fails, implement a short retry loop (e.g., 5 attempts with 500ms delay).
+- **Offset Omission:** To ensure the query hits the absolute ledger head, OMIT the `activeAtOffset` field entirely. This forces the JSON API to return the most recent state.
+
+---
+
+## 3. Integration Failures & Resolutions
+
+| Issue | Attempted Fix | Outcome | Final Solution |
+| :--- | :--- | :--- | :--- |
+| `escrow not found` after create | `activeAtOffset: 0` | FAILED (Stale data) | Omit `activeAtOffset` to query head. |
+| `WRONGLY_TYPED_CONTRACT` | Used old ID after Choice | FAILED | Extract NEW `contractId` from response events. |
+| `Missing required field actAs` | Top-level fields | FAILED | Nest under `commands: { ... }` for V2. |
 
 ---
 
 ## 4. Expectations for Development Work
 
-1. **Idempotent Bootstrapping:** The `init.canton` script must be runnable multiple times against a persistent or in-memory ledger without failing. Use `ignore` or check-before-create logic.
-2. **Topology Readiness:** Topology changes (party enablement) take time to propagate across the synchronizer. Always include a small delay (~2-5s) after topology transactions in setup scripts.
-3. **Template References:** Use the format `Module:Template` for template IDs to maintain package independence, or the full `PackageID:Module:Template` for absolute precision.
+1. **Idempotent Bootstrapping:** The `init.canton` script must be runnable multiple times.
+2. **Event Extraction:** ALWAYS prefer extracting IDs from the transaction response rather than re-querying the ledger.
+3. **Milestone Consistency:** When creating multi-milestone escrows, ensure `totalAmount` exactly matches the sum of milestones to satisfy the DAML `ensure` clause.
 
 ---
 
 ## 5. Transition to Production
-
-When moving from local Sandbox to a Production/Testnet environment, the following changes are required:
 
 | Feature | Development (Current) | Production Requirement |
 | :--- | :--- | :--- |
@@ -55,8 +62,6 @@ When moving from local Sandbox to a Production/Testnet environment, the followin
 | **Security** | No Auth / Sandbox Defaults | JWT Authentication (RS256/ES256) |
 | **Synchronizer** | `local-sync` (In-process) | External Sequencer (BFT/Database) |
 | **TLS** | Disabled (Plaintext) | Mandatory Mutual TLS (mTLS) |
-| **Identity** | Automated Bootstrap | Formal Onboarding / DID Integration |
-| **API Proxy** | Local Process | Highly Available (Load Balanced) |
 
 ---
 
@@ -64,5 +69,4 @@ When moving from local Sandbox to a Production/Testnet environment, the followin
 
 - [ ] `make sandbox` starts the node.
 - [ ] `make ledger-setup` establishes users and topology.
-- [ ] `curl http://localhost:7575/v2/parties` returns all expected IDs.
-- [ ] `make integration-test` passes (Create -> Fetch -> Exercise).
+- [ ] `make integration-test` passes (Create -> Fetch -> Multi-Milestone -> Dispute -> Resolve).
