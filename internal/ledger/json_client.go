@@ -471,8 +471,40 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 }
 
 func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	_, err := c.RaiseDispute(ctx, id)
-	return err
+	c.logger.Info("automating full refund for buyer", zap.String("escrowID", id))
+	
+	// 1. Get escrow to know the remaining amount
+	escrow, err := c.GetEscrow(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Calculate remaining amount
+	remaining := 0.0
+	for _, m := range escrow.Milestones {
+		if !m.Completed {
+			remaining += m.Amount
+		}
+	}
+
+	if remaining <= 0 {
+		return fmt.Errorf("no remaining funds to refund in escrow %s", id)
+	}
+
+	// 2. Buyer raises dispute
+	disputeID, err := c.RaiseDispute(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to raise dispute for refund: %w", err)
+	}
+
+	// 3. Mediator resolves dispute 100% to Buyer
+	err = c.ResolveDispute(ctx, disputeID, remaining, 0.0)
+	if err != nil {
+		return fmt.Errorf("failed to resolve dispute for refund: %w", err)
+	}
+
+	c.logger.Info("automated refund complete", zap.String("escrowID", id), zap.Float64("amount", remaining))
+	return nil
 }
 
 func (c *JsonLedgerClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
