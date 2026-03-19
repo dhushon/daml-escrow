@@ -20,6 +20,9 @@ type Config struct {
 			Mediator string `yaml:"mediator"`
 		} `yaml:"parties"`
 	} `yaml:"ledger"`
+	Oracle struct {
+		WebhookSecret string `yaml:"webhookSecret"`
+	} `yaml:"oracle"`
 }
 
 func LoadConfig(path string) (*Config, error) {

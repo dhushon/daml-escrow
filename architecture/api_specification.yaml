@@ -2,13 +2,15 @@ openapi: 3.0.0
 info:
   title: Stablecoin Escrow API
   version: 1.0.0
-  description: API for managing privacy-preserving stablecoin escrows on DAML.
+  description: API for managing privacy-preserving stablecoin escrows on DAML with Oracle integration.
 
 paths:
   /escrows:
     post:
       summary: Create a new escrow contract
       operationId: createEscrow
+      tags:
+        - escrows
       requestBody:
         required: true
         content:
@@ -29,6 +31,8 @@ paths:
     get:
       summary: Get escrow details by ID
       operationId: getEscrow
+      tags:
+        - escrows
       parameters:
         - name: escrowID
           in: path
@@ -47,8 +51,10 @@ paths:
 
   /escrows/{escrowID}/release:
     post:
-      summary: Release funds for the current milestone
+      summary: Manual release of funds for the current milestone
       operationId: releaseEscrow
+      tags:
+        - escrows
       parameters:
         - name: escrowID
           in: path
@@ -61,21 +67,28 @@ paths:
         '404':
           description: Escrow not found
 
-  /escrows/{escrowID}/refund:
+  /webhooks/milestone:
     post:
-      summary: Refund funds to the buyer (requires mediator or expiry)
-      operationId: refundEscrow
-      parameters:
-        - name: escrowID
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Oracle trigger for milestone approval
+      description: |
+        Receives external events (e.g. shipping, service completion) to automatically
+        advance escrow milestones.
+      operationId: oracleMilestoneTrigger
+      tags:
+        - oracles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OracleWebhookRequest'
       responses:
         '200':
-          description: Funds refunded
+          description: Webhook processed and milestone approved
+        '401':
+          description: Invalid signature
         '404':
-          description: Escrow not found
+          description: Escrow or Milestone not found
 
 components:
   schemas:
@@ -83,8 +96,6 @@ components:
       type: object
       required:
         - issuer
-        - buyer
-        - seller
         - mediator
         - totalAmount
         - currency
@@ -94,8 +105,10 @@ components:
           type: string
         buyer:
           type: string
+          description: Optional for anonymous buyer scenarios
         seller:
           type: string
+          description: Optional for anonymous seller scenarios
         mediator:
           type: string
         totalAmount:
@@ -149,3 +162,34 @@ components:
         completed:
           type: boolean
           default: false
+
+    OracleWebhookRequest:
+      type: object
+      required:
+        - escrowId
+        - milestoneIndex
+        - event
+        - signature
+      properties:
+        escrowId:
+          type: string
+          description: The Daml Contract ID of the escrow
+        milestoneIndex:
+          type: integer
+          description: Index of the milestone to approve
+        event:
+          type: string
+          example: "DELIVERY_CONFIRMED"
+        oracleProvider:
+          type: string
+          description: Identity of the oracle sending the data
+        evidence:
+          type: string
+          description: URL or hash of the proof (e.g. BOL, signed PDF)
+        metadata:
+          type: object
+          description: Open metadata map for provider-specific data (any:any)
+          additionalProperties: true
+        signature:
+          type: string
+          description: HMAC or Asymmetric signature for payload verification

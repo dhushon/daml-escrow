@@ -341,3 +341,37 @@ func mapToResponse(e *ledger.EscrowContract) EscrowResponse {
 		CurrentMilestoneIndex: e.CurrentMilestoneIndex,
 	}
 }
+
+// OracleMilestoneTrigger handles POST /webhooks/milestone
+// @Summary Oracle trigger for milestone approval
+// @Description Receives external events to automatically advance milestones
+// @Tags oracles
+// @Accept json
+// @Produce json
+// @Param request body ledger.OracleWebhookRequest true "Oracle Event Data"
+// @Success 200 {string} string "ok"
+// @Failure 401 {string} string "unauthorized"
+// @Failure 500 {string} string "internal error"
+// @Router /webhooks/milestone [post]
+func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
+	var req ledger.OracleWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("failed to decode webhook", zap.Error(err))
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Any:Any metadata logging for visibility
+	if len(req.Metadata) > 0 {
+		h.logger.Info("webhook metadata received", zap.Any("metadata", req.Metadata))
+	}
+
+	if err := h.escrowService.ProcessOracleWebhook(r.Context(), req); err != nil {
+		h.logger.Error("webhook processing failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}

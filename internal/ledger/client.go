@@ -48,6 +48,16 @@ type LedgerMetrics struct {
 	PendingSettlementValue float64 `json:"pendingSettlementValue"`
 }
 
+type OracleWebhookRequest struct {
+	EscrowID       string                 `json:"escrowId"`
+	MilestoneIndex int                    `json:"milestoneIndex"`
+	Event          string                 `json:"event"`
+	OracleProvider string                 `json:"oracleProvider"`
+	Evidence       string                 `json:"evidence"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	Signature      string                 `json:"signature"`
+}
+
 type Client interface {
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
 	GetEscrow(ctx context.Context, id string) (*EscrowContract, error)

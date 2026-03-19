@@ -65,6 +65,7 @@ func main() {
 	escrowService := services.NewEscrowService(
 		logger,
 		ledgerClient,
+		cfg.Oracle.WebhookSecret,
 	)
 
 	handler := api.NewHandler(
@@ -86,6 +87,8 @@ func main() {
 	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
 	router.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
 	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
+
+	router.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 
 	router.Get("/metrics", handler.GetMetrics)
 	router.Get("/settlements", handler.ListSettlements)

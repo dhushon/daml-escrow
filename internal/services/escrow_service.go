@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 
 	"daml-escrow/internal/ledger"
 
@@ -9,18 +13,21 @@ import (
 )
 
 type EscrowService struct {
-	logger *zap.Logger
-	ledger ledger.Client
+	logger        *zap.Logger
+	ledger        ledger.Client
+	webhookSecret string
 }
 
 func NewEscrowService(
 	logger *zap.Logger,
 	ledger ledger.Client,
+	webhookSecret string,
 ) *EscrowService {
 
 	return &EscrowService{
-		logger: logger,
-		ledger: ledger,
+		logger:        logger,
+		ledger:        ledger,
+		webhookSecret: webhookSecret,
 	}
 }
 
@@ -110,4 +117,49 @@ func (s *EscrowService) GetMetrics(
 ) (*ledger.LedgerMetrics, error) {
 	s.logger.Info("getting metrics for user", zap.String("userID", userID))
 	return s.ledger.GetMetrics(ctx, userID)
+}
+
+func (s *EscrowService) ProcessOracleWebhook(
+	ctx context.Context,
+	req ledger.OracleWebhookRequest,
+) error {
+	s.logger.Info("processing oracle webhook", 
+		zap.String("escrowId", req.EscrowID),
+		zap.Int("milestoneIndex", req.MilestoneIndex),
+		zap.String("event", req.Event),
+		zap.String("provider", req.OracleProvider))
+
+	// Verify Signature
+	if err := s.verifySignature(req); err != nil {
+		s.logger.Error("webhook signature verification failed", zap.Error(err))
+		return fmt.Errorf("unauthorized: %w", err)
+	}
+
+	// For now, we map the webhook directly to an automated milestone approval.
+	// In Task 3.2 logic, we act as the 'Buyer' to approve since they are the controller in Daml.
+	return s.ledger.ReleaseFunds(ctx, req.EscrowID)
+}
+
+func (s *EscrowService) verifySignature(req ledger.OracleWebhookRequest) error {
+	if s.webhookSecret == "" {
+		s.logger.Warn("webhook secret not configured, skipping verification")
+		return nil
+	}
+
+	if req.Signature == "" {
+		return fmt.Errorf("missing signature")
+	}
+
+	// Payload for signature: escrowId|milestoneIndex|event|oracleProvider
+	payload := fmt.Sprintf("%s|%d|%s|%s", req.EscrowID, req.MilestoneIndex, req.Event, req.OracleProvider)
+	
+	h := hmac.New(sha256.New, []byte(s.webhookSecret))
+	h.Write([]byte(payload))
+	expected := hex.EncodeToString(h.Sum(nil))
+
+	if !hmac.Equal([]byte(expected), []byte(req.Signature)) {
+		return fmt.Errorf("invalid signature")
+	}
+
+	return nil
 }
