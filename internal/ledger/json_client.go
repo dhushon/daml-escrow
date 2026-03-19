@@ -22,7 +22,7 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-const PackageID = "bae2904693ac669c16c006f1002e0b018c4f50b2eeaf74de7f131562ceb8a0fc"
+const PackageID = "fbbab3d109ee72290549160ecf2cdd9c1fa130fd97a93b9fc0dd5e376399b7c3"
 
 type JsonLedgerClient struct {
 	logger     *zap.Logger
@@ -162,7 +162,12 @@ func (c *JsonLedgerClient) extractContract(events []map[string]interface{}, temp
 					curIdx = int(ci64)
 				}
 
-				return &EscrowContract{
+				metadata := make(map[string]interface{})
+				if mJSON, ok := args["metadata"].(string); ok && mJSON != "" {
+					_ = json.Unmarshal([]byte(mJSON), &metadata)
+				}
+
+				item := &EscrowContract{
 					ID:                    contractId,
 					Buyer:                 fmt.Sprintf("%v", args["buyer"]),
 					Seller:                fmt.Sprintf("%v", args["seller"]),
@@ -173,7 +178,9 @@ func (c *JsonLedgerClient) extractContract(events []map[string]interface{}, temp
 					State:                 "Active",
 					Milestones:            ms,
 					CurrentMilestoneIndex: curIdx,
-				}, nil
+					Metadata:              metadata,
+				}
+				return item, nil
 			}
 		}
 	}
@@ -218,6 +225,13 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 		description = "Escrow for " + req.Currency
 	}
 
+	metadataJSON := "{}"
+	if len(req.Metadata) > 0 {
+		if b, err := json.Marshal(req.Metadata); err == nil {
+			metadataJSON = string(b)
+		}
+	}
+
 	payload := map[string]interface{}{
 		"issuer":                cbParty,
 		"buyer":                 buyerParty,
@@ -228,6 +242,7 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 		"description":           description,
 		"milestones":            milestones,
 		"currentMilestoneIndex": 0,
+		"metadata":              metadataJSON,
 	}
 
 	body := map[string]interface{}{
@@ -359,6 +374,11 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 						curIdx = int(ci64)
 					}
 
+					metadata := make(map[string]interface{})
+					if mJSON, ok := args["metadata"].(string); ok && mJSON != "" {
+						_ = json.Unmarshal([]byte(mJSON), &metadata)
+					}
+
 					escrows = append(escrows, &EscrowContract{
 						ID:                    contractId,
 						Buyer:                 fmt.Sprintf("%v", args["buyer"]),
@@ -370,6 +390,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 						State:                 state,
 						Milestones:            ms,
 						CurrentMilestoneIndex: curIdx,
+						Metadata:              metadata,
 					})
 				}
 			}

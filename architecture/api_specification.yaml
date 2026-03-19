@@ -2,7 +2,10 @@ openapi: 3.0.0
 info:
   title: Stablecoin Escrow API
   version: 1.0.0
-  description: API for managing privacy-preserving stablecoin escrows on DAML with Oracle integration.
+  description: |
+    API for managing privacy-preserving stablecoin escrows on DAML with Oracle integration.
+    Includes support for standardized metadata vocabularies inspired by Grants.gov and 
+    supply chain standards.
 
 paths:
   /escrows:
@@ -49,30 +52,12 @@ paths:
         '404':
           description: Escrow not found
 
-  /escrows/{escrowID}/release:
-    post:
-      summary: Manual release of funds for the current milestone
-      operationId: releaseEscrow
-      tags:
-        - escrows
-      parameters:
-        - name: escrowID
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Milestone funds released
-        '404':
-          description: Escrow not found
-
   /webhooks/milestone:
     post:
       summary: Oracle trigger for milestone approval
       description: |
         Receives external events (e.g. shipping, service completion) to automatically
-        advance escrow milestones.
+        advance escrow milestones. Supports a flexible metadata vocabulary.
       operationId: oracleMilestoneTrigger
       tags:
         - oracles
@@ -105,7 +90,7 @@ components:
           type: string
         buyer:
           type: string
-          description: Optional for anonymous buyer scenarios
+          description: Optional for anonymous buyer scenarios (e.g. hashed identity)
         seller:
           type: string
           description: Optional for anonymous seller scenarios
@@ -122,6 +107,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Milestone'
+        metadata:
+          $ref: '#/components/schemas/MetadataMap'
 
     Escrow:
       type: object
@@ -148,6 +135,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Milestone'
+        metadata:
+          $ref: '#/components/schemas/MetadataMap'
 
     Milestone:
       type: object
@@ -187,9 +176,27 @@ components:
           type: string
           description: URL or hash of the proof (e.g. BOL, signed PDF)
         metadata:
-          type: object
-          description: Open metadata map for provider-specific data (any:any)
-          additionalProperties: true
+          $ref: '#/components/schemas/MetadataMap'
         signature:
           type: string
           description: HMAC or Asymmetric signature for payload verification
+
+    MetadataMap:
+      type: object
+      description: |
+        A flexible map for "any:any" data. 
+        Recommended (Optional) Standard Vocabulary:
+        - `opportunityId`: Grants.gov funding opportunity number
+        - `assistanceListing`: Grants.gov ALN (formerly CFDA)
+        - `uei`: Unique Entity Identifier (SDE standard)
+        - `trackingNumber`: Logistics tracking ID
+        - `carrier`: Shipping provider (FedEx, UPS, etc.)
+        - `sku`: Product identifier
+        - `origin`: Source location
+        - `destination`: Target location
+      additionalProperties: true
+      example:
+        opportunityId: "O-ABC-123"
+        trackingNumber: "ZYX987"
+        carrier: "FedEx"
+        customField: "AnyValue"

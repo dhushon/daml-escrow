@@ -287,4 +287,34 @@ func TestLedgerIntegration(t *testing.T) {
 		require.GreaterOrEqual(t, metrics.TotalValueInEscrow, 777.0)
 		t.Logf("Bank Metrics: %+v", metrics)
 	})
+
+	t.Run("Metadata and Anonymous Counterparties", func(t *testing.T) {
+		// 1. Create Escrow with rich metadata and placeholder parties
+		metadata := map[string]interface{}{
+			"opportunityId":    "O-GRANT-999",
+			"trackingNumber":   "SHIP-12345",
+			"carrier":          "FedEx",
+			"customInternalId": "INT-777",
+		}
+		
+		createReq := CreateEscrowRequest{
+			Buyer:      "AnonymousBuyer", // Opaque ID
+			Seller:     "AnonymousSeller",
+			Amount:     100.0,
+			Currency:   "USD",
+			Metadata:   metadata,
+		}
+		
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+		
+		// 2. Fetch and Verify Metadata
+		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		require.NoError(t, err)
+		require.Equal(t, "O-GRANT-999", fetched.Metadata["opportunityId"])
+		require.Equal(t, "FedEx", fetched.Metadata["carrier"])
+		require.Equal(t, "INT-777", fetched.Metadata["customInternalId"])
+		
+		t.Logf("Verified rich metadata: %+v", fetched.Metadata)
+	})
 }

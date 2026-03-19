@@ -20,6 +20,7 @@ template StablecoinEscrow
     description : Text
     milestones : [Milestone]
     currentMilestoneIndex : Int
+    metadata : Text -- JSON serialized metadata map
   where
     signatory buyer, issuer
     observer seller, mediator

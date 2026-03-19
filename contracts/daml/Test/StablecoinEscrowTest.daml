@@ -26,6 +26,7 @@ testEscrowFlow = script do
       description = "Software project"
       milestones = [milestone1, milestone2]
       currentMilestoneIndex = 0
+      metadata = "{}"
 
   escrowId <- submitMulti [buyer, issuer] [] do
     createCmd escrow
@@ -67,6 +68,7 @@ testDisputeFlow = script do
       description = "Disputed work"
       milestones = [milestone1]
       currentMilestoneIndex = 0
+      metadata = "{}"
 
   escrowId <- submitMulti [buyer, issuer] [] do
     createCmd escrow
@@ -98,6 +100,7 @@ testUnauthorizedApprove = script do
       description = "Unauthorized test"
       milestones = [milestone1]
       currentMilestoneIndex = 0
+      metadata = "{}"
 
   escrowId <- submitMulti [buyer, issuer] [] do
     createCmd escrow
