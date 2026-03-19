@@ -227,7 +227,23 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 
 	metadataJSON := "{}"
 	if req.Metadata.SchemaURL != "" || len(req.Metadata.Payload) > 0 {
-		if b, err := json.Marshal(req.Metadata); err == nil {
+		// Handle Exclusions: create a filtered copy of the payload for the ledger
+		filteredPayload := make(map[string]interface{})
+		for k, v := range req.Metadata.Payload {
+			// If key is in exclusions, skip it (selective redaction)
+			if _, excluded := req.Metadata.Exclusions[k]; excluded {
+				c.logger.Debug("redacting sensitive field from ledger event", zap.String("key", k))
+				continue
+			}
+			filteredPayload[k] = v
+		}
+
+		toSerialize := EscrowMetadata{
+			SchemaURL: req.Metadata.SchemaURL,
+			Payload:   filteredPayload,
+		}
+
+		if b, err := json.Marshal(toSerialize); err == nil {
 			metadataJSON = string(b)
 		}
 	}

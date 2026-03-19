@@ -58,3 +58,10 @@ Preferred technologies:
 Escrow state transitions must always follow deterministic rules:
 
 Created → Locked → Delivered → Released/Refunded
+
+## 7. Metadata & Oracle Guardrails
+
+- **Schema Maturity:** Every business domain must provide a versioned JSON Schema in `/architecture/schemas`.
+- **Minimalist Ledger:** Only data required for settlement or audit-linkage should be persisted to the ledger.
+- **Privacy Redaction:** Sensitive operational data (detailed locations, PII, operator codes) MUST use the `exclusions` ("don't event") pattern to prevent leakage to the immutable record.
+- **Oracle Trust:** Webhooks must be authenticated using HMAC or asymmetric signatures verified against a pre-shared secret or public key.

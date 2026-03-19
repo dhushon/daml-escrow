@@ -13,6 +13,12 @@ SETUP_SCRIPT=scripts/setup_users.sh
 build:
 	@echo "Building Go API..."
 	go build -o bin/$(APP_NAME) ./cmd/escrow-api
+	@echo "Building Oracle Simulator..."
+	go build -o bin/oracle-simulator ./cmd/oracle-simulator
+
+.PHONY: oracle-sim
+oracle-sim:
+	@go run ./cmd/oracle-simulator/main.go
 
 .PHONY: daml-build
 daml-build:

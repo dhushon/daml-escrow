@@ -21,8 +21,9 @@ type CreateEscrowRequest struct {
 }
 
 type EscrowMetadata struct {
-	SchemaURL string                 `json:"schemaUrl"`
-	Payload   map[string]interface{} `json:"payload"`
+	SchemaURL  string                 `json:"schemaUrl"`
+	Payload    map[string]interface{} `json:"payload"`
+	Exclusions map[string]interface{} `json:"exclusions,omitempty"` // Instructions for field redaction
 }
 
 type EscrowContract struct {

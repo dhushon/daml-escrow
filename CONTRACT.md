@@ -36,11 +36,32 @@ type EscrowMetadata struct {
 ### Strategic Benefits
 - **Evolution:** New business domains can be added by creating a new JSON Schema without changing the smart contracts.
 - **Validation:** Metadata can be validated off-chain (in the Go API) or by Oracles using standard JSON Schema tools.
-- **Privacy:** Detailed metadata can be hashed or encrypted before being stored in the Daml `metadata` field if absolute privacy is required.
+- **Privacy & Selective Redaction:** 
+  The system supports a **"don't event"** strategy. Sensitive fields required for API processing but inappropriate for the permanent ledger record (e.g., precise GPS coordinates, operator PINs) can be selectively excluded from the on-chain serialization while remaining available in the initial request.
 
 ------------------------------------------------------------------------
 
 ## 3. Business Domain Examples
+...
+### Privacy Example: High-Value Tool Lease
+In this scenario, the `detailedLocation` is used for internal validation but redacted from the ledger event to prevent competitors from tracking asset movement.
+
+- **Metadata with Exclusions:**
+```json
+{
+  "schemaUrl": "https://stablecoin-escrow.io/schemas/leasing.v1.json",
+  "payload": {
+    "assetId": "TOOL-999",
+    "detailedLocation": "Warehouse A, Aisle 4, Shelf 2",
+    "operatorPin": "8877"
+  },
+  "exclusions": {
+    "detailedLocation": "don't event",
+    "operatorPin": "don't event"
+  }
+}
+```
+**Result:** The Daml ledger stores only the `assetId` and `schemaUrl`.
 
 ### Domain A: High-Value Equipment Leasing
 Focuses on security deposits and usage-based milestones.

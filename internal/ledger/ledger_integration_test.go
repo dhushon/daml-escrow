@@ -319,4 +319,47 @@ func TestLedgerIntegration(t *testing.T) {
 		
 		t.Logf("Verified schema-driven metadata: %+v", fetched.Metadata)
 	})
+
+	t.Run("Metadata Selective Exclusion (Privacy)", func(t *testing.T) {
+		// 1. Setup metadata with sensitive fields
+		metadata := EscrowMetadata{
+			SchemaURL: "https://stablecoin-escrow.io/schemas/leasing.v1.json",
+			Payload: map[string]interface{}{
+				"assetId":          "TRACTOR-456",
+				"detailedLocation": "Secret Warehouse 9, Restricted Zone X", // Sensitive
+				"operatorPin":      "1234",                                  // Sensitive
+			},
+			Exclusions: map[string]interface{}{
+				"detailedLocation": "don't event",
+				"operatorPin":      "don't event",
+			},
+		}
+
+		createReq := CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   200.0,
+			Currency: "USD",
+			Metadata: metadata,
+		}
+
+		// 2. Create Escrow
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+
+		// 3. Fetch and Verify Redaction
+		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		require.NoError(t, err)
+
+		// Asset ID should be present
+		require.Equal(t, "TRACTOR-456", fetched.Metadata.Payload["assetId"])
+
+		// Sensitive fields MUST be absent (redacted by the client before serialization)
+		_, hasLocation := fetched.Metadata.Payload["detailedLocation"]
+		_, hasPin := fetched.Metadata.Payload["operatorPin"]
+		require.False(t, hasLocation, "detailedLocation should have been redacted")
+		require.False(t, hasPin, "operatorPin should have been redacted")
+
+		t.Log("Verified sensitive fields were excluded from the ledger record")
+	})
 }
