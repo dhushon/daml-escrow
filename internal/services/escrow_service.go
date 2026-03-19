@@ -135,6 +135,9 @@ func (s *EscrowService) ProcessOracleWebhook(
 		return fmt.Errorf("unauthorized: %w", err)
 	}
 
+	// Ensure party map is fresh
+	_, _ = s.ledger.ListEscrows(ctx, ledger.BuyerUser)
+
 	// For now, we map the webhook directly to an automated milestone approval.
 	// In Task 3.2 logic, we act as the 'Buyer' to approve since they are the controller in Daml.
 	return s.ledger.ReleaseFunds(ctx, req.EscrowID)

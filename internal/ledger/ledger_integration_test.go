@@ -4,7 +4,14 @@
 package ledger
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -361,5 +368,55 @@ func TestLedgerIntegration(t *testing.T) {
 		require.False(t, hasPin, "operatorPin should have been redacted")
 
 		t.Log("Verified sensitive fields were excluded from the ledger record")
+	})
+
+	t.Run("Oracle Automated Approval", func(t *testing.T) {
+		// 1. Create an Escrow to trigger
+		createReq := CreateEscrowRequest{
+			Buyer:    BuyerUser,
+			Seller:   SellerUser,
+			Amount:   100.0,
+			Currency: "USD",
+		}
+		escrow, err := client.CreateEscrow(ctx, createReq)
+		require.NoError(t, err)
+
+		// 2. Prepare Signed Oracle Webhook
+		event := "DELIVERY_CONFIRMED"
+		provider := "TestOracle"
+		index := 0
+		secret := "development-secret-key"
+
+		payload := fmt.Sprintf("%s|%d|%s|%s", escrow.ID, index, event, provider)
+		h := hmac.New(sha256.New, []byte(secret))
+		h.Write([]byte(payload))
+		signature := hex.EncodeToString(h.Sum(nil))
+
+		webhookReq := OracleWebhookRequest{
+			EscrowID:       escrow.ID,
+			MilestoneIndex: index,
+			Event:          event,
+			OracleProvider: provider,
+			Signature:      signature,
+			Metadata: map[string]interface{}{
+				"test": "integration",
+			},
+		}
+
+		// 3. Send Webhook to the API
+		// Note: Tests run with the API active on localhost:8080
+		apiURL := "http://localhost:8080/webhooks/milestone"
+		jsonBody, _ := json.Marshal(webhookReq)
+		
+		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBody))
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// 4. Verify Milestone was approved on the ledger
+		time.Sleep(2 * time.Second)
+		_, err = client.GetEscrow(ctx, escrow.ID)
+		require.Error(t, err, "Escrow should be archived after approval")
+		
+		t.Log("Oracle automated approval verified end-to-end")
 	})
 }
