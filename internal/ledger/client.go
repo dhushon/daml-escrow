@@ -11,27 +11,32 @@ type Milestone struct {
 }
 
 type CreateEscrowRequest struct {
-	Buyer       string                 `json:"buyer"`
-	Seller      string                 `json:"seller"`
-	Amount      float64                `json:"amount"`
-	Currency    string                 `json:"currency"`
-	Description string                 `json:"description"`
-	Milestones  []Milestone            `json:"milestones,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Buyer       string         `json:"buyer"`
+	Seller      string         `json:"seller"`
+	Amount      float64        `json:"amount"`
+	Currency    string         `json:"currency"`
+	Description string         `json:"description"`
+	Milestones  []Milestone    `json:"milestones,omitempty"`
+	Metadata    EscrowMetadata `json:"metadata,omitempty"`
+}
+
+type EscrowMetadata struct {
+	SchemaURL string                 `json:"schemaUrl"`
+	Payload   map[string]interface{} `json:"payload"`
 }
 
 type EscrowContract struct {
-	ID                    string                 `json:"id"`
-	Buyer                 string                 `json:"buyer"`
-	Seller                string                 `json:"seller"`
-	Issuer                string                 `json:"issuer"`
-	Mediator              string                 `json:"mediator"`
-	Amount                float64                `json:"amount"`
-	Currency              string                 `json:"currency"`
-	State                 string                 `json:"state"` // "Active" or "Disputed"
-	Milestones            []Milestone            `json:"milestones"`
-	CurrentMilestoneIndex int                    `json:"currentMilestoneIndex"`
-	Metadata              map[string]interface{} `json:"metadata"`
+	ID                    string         `json:"id"`
+	Buyer                 string         `json:"buyer"`
+	Seller                string         `json:"seller"`
+	Issuer                string         `json:"issuer"`
+	Mediator              string         `json:"mediator"`
+	Amount                float64        `json:"amount"`
+	Currency              string         `json:"currency"`
+	State                 string         `json:"state"` // "Active" or "Disputed"
+	Milestones            []Milestone    `json:"milestones"`
+	CurrentMilestoneIndex int            `json:"currentMilestoneIndex"`
+	Metadata              EscrowMetadata `json:"metadata"`
 }
 
 type EscrowSettlement struct {

@@ -162,7 +162,7 @@ func (c *JsonLedgerClient) extractContract(events []map[string]interface{}, temp
 					curIdx = int(ci64)
 				}
 
-				metadata := make(map[string]interface{})
+				var metadata EscrowMetadata
 				if mJSON, ok := args["metadata"].(string); ok && mJSON != "" {
 					_ = json.Unmarshal([]byte(mJSON), &metadata)
 				}
@@ -226,7 +226,7 @@ func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowReq
 	}
 
 	metadataJSON := "{}"
-	if len(req.Metadata) > 0 {
+	if req.Metadata.SchemaURL != "" || len(req.Metadata.Payload) > 0 {
 		if b, err := json.Marshal(req.Metadata); err == nil {
 			metadataJSON = string(b)
 		}
@@ -374,7 +374,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 						curIdx = int(ci64)
 					}
 
-					metadata := make(map[string]interface{})
+					var metadata EscrowMetadata
 					if mJSON, ok := args["metadata"].(string); ok && mJSON != "" {
 						_ = json.Unmarshal([]byte(mJSON), &metadata)
 					}

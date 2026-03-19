@@ -4,8 +4,8 @@ info:
   version: 1.0.0
   description: |
     API for managing privacy-preserving stablecoin escrows on DAML with Oracle integration.
-    Includes support for standardized metadata vocabularies inspired by Grants.gov and 
-    supply chain standards.
+    This version implements a schema-driven metadata model where core escrow dynamics
+    are generic, and industry-specific contracted elements are validated via external JSON Schemas.
 
 paths:
   /escrows:
@@ -56,8 +56,9 @@ paths:
     post:
       summary: Oracle trigger for milestone approval
       description: |
-        Receives external events (e.g. shipping, service completion) to automatically
-        advance escrow milestones. Supports a flexible metadata vocabulary.
+        Receives external events to automatically advance escrow milestones.
+        Payloads include structured evidence and can be verified against the
+        contract's specific JSON Schema.
       operationId: oracleMilestoneTrigger
       tags:
         - oracles
@@ -90,7 +91,7 @@ components:
           type: string
         buyer:
           type: string
-          description: Optional for anonymous buyer scenarios (e.g. hashed identity)
+          description: Optional for anonymous buyer scenarios
         seller:
           type: string
           description: Optional for anonymous seller scenarios
@@ -108,7 +109,7 @@ components:
           items:
             $ref: '#/components/schemas/Milestone'
         metadata:
-          $ref: '#/components/schemas/MetadataMap'
+          $ref: '#/components/schemas/EscrowMetadata'
 
     Escrow:
       type: object
@@ -136,7 +137,7 @@ components:
           items:
             $ref: '#/components/schemas/Milestone'
         metadata:
-          $ref: '#/components/schemas/MetadataMap'
+          $ref: '#/components/schemas/EscrowMetadata'
 
     Milestone:
       type: object
@@ -162,41 +163,36 @@ components:
       properties:
         escrowId:
           type: string
-          description: The Daml Contract ID of the escrow
         milestoneIndex:
           type: integer
-          description: Index of the milestone to approve
         event:
           type: string
-          example: "DELIVERY_CONFIRMED"
         oracleProvider:
           type: string
-          description: Identity of the oracle sending the data
         evidence:
           type: string
-          description: URL or hash of the proof (e.g. BOL, signed PDF)
         metadata:
-          $ref: '#/components/schemas/MetadataMap'
+          type: object
+          description: Raw event metadata payload
+          additionalProperties: true
         signature:
           type: string
-          description: HMAC or Asymmetric signature for payload verification
 
-    MetadataMap:
+    EscrowMetadata:
       type: object
       description: |
-        A flexible map for "any:any" data. 
-        Recommended (Optional) Standard Vocabulary:
-        - `opportunityId`: Grants.gov funding opportunity number
-        - `assistanceListing`: Grants.gov ALN (formerly CFDA)
-        - `uei`: Unique Entity Identifier (SDE standard)
-        - `trackingNumber`: Logistics tracking ID
-        - `carrier`: Shipping provider (FedEx, UPS, etc.)
-        - `sku`: Product identifier
-        - `origin`: Source location
-        - `destination`: Target location
-      additionalProperties: true
-      example:
-        opportunityId: "O-ABC-123"
-        trackingNumber: "ZYX987"
-        carrier: "FedEx"
-        customField: "AnyValue"
+        A schema-driven data container. The 'payload' is an 'any:any' map
+        that should be marshalled according to the provided 'schemaUrl'.
+      properties:
+        schemaUrl:
+          type: string
+          description: URL to the JSON Schema for the payload (e.g., leasing.json, supply-chain.json)
+          example: "https://stablecoin-escrow.io/schemas/leasing.v1.json"
+        payload:
+          type: object
+          description: The actual metadata fields (Contracted Elements)
+          additionalProperties: true
+          example:
+            assetId: "SERIAL-123"
+            securityDepositAmount: 5000
+            assetType: "Machinery"

@@ -289,16 +289,18 @@ func TestLedgerIntegration(t *testing.T) {
 	})
 
 	t.Run("Metadata and Anonymous Counterparties", func(t *testing.T) {
-		// 1. Create Escrow with rich metadata and placeholder parties
-		metadata := map[string]interface{}{
-			"opportunityId":    "O-GRANT-999",
-			"trackingNumber":   "SHIP-12345",
-			"carrier":          "FedEx",
-			"customInternalId": "INT-777",
+		// 1. Create Escrow with schema-driven metadata and placeholder parties
+		metadata := EscrowMetadata{
+			SchemaURL: "https://stablecoin-escrow.io/schemas/leasing.v1.json",
+			Payload: map[string]interface{}{
+				"assetId":               "SERIAL-123",
+				"assetType":             "Machinery",
+				"securityDepositAmount": 5000.0,
+			},
 		}
 		
 		createReq := CreateEscrowRequest{
-			Buyer:      "AnonymousBuyer", // Opaque ID
+			Buyer:      "AnonymousBuyer",
 			Seller:     "AnonymousSeller",
 			Amount:     100.0,
 			Currency:   "USD",
@@ -308,13 +310,13 @@ func TestLedgerIntegration(t *testing.T) {
 		escrow, err := client.CreateEscrow(ctx, createReq)
 		require.NoError(t, err)
 		
-		// 2. Fetch and Verify Metadata
+		// 2. Fetch and Verify
 		fetched, err := client.GetEscrow(ctx, escrow.ID)
 		require.NoError(t, err)
-		require.Equal(t, "O-GRANT-999", fetched.Metadata["opportunityId"])
-		require.Equal(t, "FedEx", fetched.Metadata["carrier"])
-		require.Equal(t, "INT-777", fetched.Metadata["customInternalId"])
+		require.Equal(t, "https://stablecoin-escrow.io/schemas/leasing.v1.json", fetched.Metadata.SchemaURL)
+		require.Equal(t, "SERIAL-123", fetched.Metadata.Payload["assetId"])
+		require.Equal(t, 5000.0, fetched.Metadata.Payload["securityDepositAmount"])
 		
-		t.Logf("Verified rich metadata: %+v", fetched.Metadata)
+		t.Logf("Verified schema-driven metadata: %+v", fetched.Metadata)
 	})
 }
