@@ -1,0 +1,15 @@
+# Package 2: implementations
+# Depends on stablecoin-escrow-interfaces via data-dependencies.
+# This is the package you upgrade (0.0.1 -> 0.0.2 etc.) when business
+# logic changes. The interfaces package stays pinned at 1.0.0.
+sdk-version: 3.4.11
+name: stablecoin-escrow
+version: 0.0.1
+source: .
+dependencies:
+  - daml-prim
+  - daml-stdlib
+data-dependencies:
+  - ../stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar
+build-options:
+  - --target=2.1

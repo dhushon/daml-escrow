@@ -1,0 +1,7 @@
+# multi-package.yaml — place this at the root of your project
+# Run `dpm build --all` to build both packages in dependency order.
+# The interfaces package is always built first.
+packages:
+  - stablecoin-escrow-interfaces
+  - stablecoin-escrow
+  - stablecoin-escrow-tests
