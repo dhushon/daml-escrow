@@ -88,7 +88,11 @@ test:
 integration-test:
 	@echo "Running integration tests..."
 	go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
-		./internal/ledger/json_client.go \
+		./internal/ledger/json_base.go \
+		./internal/ledger/json_parser.go \
+		./internal/ledger/json_parties.go \
+		./internal/ledger/json_escrows.go \
+		./internal/ledger/json_settlements.go \
 		./internal/ledger/daml_client.go \
 		./internal/ledger/client.go \
 		./internal/ledger/stablecoin.go

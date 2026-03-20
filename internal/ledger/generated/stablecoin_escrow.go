@@ -1,89 +1,46 @@
 package generated
 
-import (
-	"fmt"
-
-	"github.com/smartcontractkit/go-daml/pkg/codec"
-	. "github.com/smartcontractkit/go-daml/pkg/types"
-)
-
 const (
-	PackageID = "ec35fce924adbefbae43d1f546879c29fdc42b9efac531f4de8eaeb39a5693c1"
+	PackageID          = "16c70b6dba04109abc3003b3877a641f38ae9ce9a6c72ecf68e2e8c0e1053756"
+	InterfacePackageID = "eeada456377e4287fabfe089057b419d54159c87f98da712fd543122fc7c39f3"
 )
 
-// Milestone is a Record type
 type Milestone struct {
-	Label     TEXT    `json:"label"`
-	Amount    NUMERIC `json:"amount"`
-	Completed BOOL    `json:"completed"`
+	Label     string  `json:"label"`
+	Amount    float64 `json:"amount"`
+	Completed bool    `json:"completed"`
 }
 
-// toMap converts Milestone to a map for DAML arguments
-func (m Milestone) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"label":     m.Label,
-		"amount":    m.Amount,
-		"completed": m.Completed,
-	}
-}
-
-// StablecoinEscrow is a Template type
 type StablecoinEscrow struct {
-	Issuer                PARTY       `json:"issuer"`
-	Buyer                 PARTY       `json:"buyer"`
-	Seller                PARTY       `json:"seller"`
-	Mediator              PARTY       `json:"mediator"`
-	TotalAmount           NUMERIC     `json:"totalAmount"`
-	Currency              TEXT        `json:"currency"`
-	Description           TEXT        `json:"description"`
+	Issuer                string      `json:"issuer"`
+	Buyer                 string      `json:"buyer"`
+	Seller                string      `json:"seller"`
+	Mediator              string      `json:"mediator"`
+	TotalAmount           float64     `json:"totalAmount"`
+	Currency              string      `json:"currency"`
+	Description           string      `json:"description"`
 	Milestones            []Milestone `json:"milestones"`
-	CurrentMilestoneIndex INT64       `json:"currentMilestoneIndex"`
+	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
+	Metadata              string      `json:"metadata"`
 }
 
-func (t StablecoinEscrow) GetTemplateID() string {
-	return fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "StablecoinEscrow")
+type StablecoinDisputedEscrow struct {
+	Issuer                string      `json:"issuer"`
+	Buyer                 string      `json:"buyer"`
+	Seller                string      `json:"seller"`
+	Mediator              string      `json:"mediator"`
+	TotalAmount           float64     `json:"totalAmount"`
+	Currency              string      `json:"currency"`
+	Description           string      `json:"description"`
+	Milestones            []Milestone `json:"milestones"`
+	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
+	Metadata              string      `json:"metadata"`
 }
 
-func (t StablecoinEscrow) MarshalJSON() ([]byte, error) {
-	return codec.NewJsonCodec().Marshal(t)
-}
-
-func (t *StablecoinEscrow) UnmarshalJSON(data []byte) error {
-	return codec.NewJsonCodec().Unmarshal(data, t)
-}
-
-// EscrowSettlement is a Template type
 type EscrowSettlement struct {
-	Issuer    PARTY   `json:"issuer"`
-	Recipient PARTY   `json:"recipient"`
-	Amount    NUMERIC `json:"amount"`
-	Currency  TEXT    `json:"currency"`
-	Status    TEXT    `json:"status"`
-}
-
-func (t EscrowSettlement) GetTemplateID() string {
-	return fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowSettlement")
-}
-
-// DisputedEscrow is a Template type
-type DisputedEscrow struct {
-	Escrow StablecoinEscrow `json:"escrow"`
-}
-
-func (t DisputedEscrow) GetTemplateID() string {
-	return fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "DisputedEscrow")
-}
-
-// Choice argument types
-
-type ResolveDispute struct {
-	PayoutToBuyer  NUMERIC `json:"payoutToBuyer"`
-	PayoutToSeller NUMERIC `json:"payoutToSeller"`
-}
-
-func (r ResolveDispute) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"payoutToBuyer":  string(r.PayoutToBuyer),
-		"payoutToSeller": string(r.PayoutToSeller),
-	}
+	Issuer    string  `json:"issuer"`
+	Recipient string  `json:"recipient"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Status    string  `json:"status"`
 }
