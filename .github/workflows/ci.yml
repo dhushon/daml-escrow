@@ -47,18 +47,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Install DAML SDK and DPM
         run: |
           # Install Daml SDK
           curl -sSL https://get.daml.com/ | sh -s 3.4.11
-          echo "$HOME/.daml/bin" >> $GITHUB_PATH
+          echo "/home/runner/.daml/bin" >> $GITHUB_PATH
           
           # Install DPM (Digital Asset Package Manager)
           curl -L https://dpm.daml.com/install.sh | sh
-          echo "$HOME/.dpm/bin" >> $GITHUB_PATH
+          echo "/home/runner/.dpm/bin" >> $GITHUB_PATH
 
       - name: Build and Test with DPM
         run: |
+          # Ensure paths are loaded in the current shell too for this step
+          export PATH="/home/runner/.daml/bin:/home/runner/.dpm/bin:$PATH"
           cd contracts
           dpm build --all
           cd stablecoin-escrow-tests
