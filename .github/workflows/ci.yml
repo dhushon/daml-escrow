@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - feat/phase3-oracle-integration
 
 jobs:
   lint:
@@ -48,10 +49,10 @@ jobs:
 
       - name: Install DAML SDK
         run: |
-          curl -sSL https://get.daml.com/ | sh -s 2.2.0
+          curl -sSL https://get.daml.com/ | sh -s 3.4.11
           echo "$HOME/.daml/bin" >> $GITHUB_PATH
 
       - name: Run DAML tests
         run: |
-          cd contracts
+          cd contracts/stablecoin-escrow-tests
           daml test
