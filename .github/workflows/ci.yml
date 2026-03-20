@@ -55,22 +55,19 @@ jobs:
 
       - name: Install and Run DPM
         run: |
-          # 1. Install Daml SDK
-          curl -sSL https://get.daml.com/ | sh -s 3.4.11
-          export PATH="/home/runner/.daml/bin:$PATH"
-          
-          # 2. Install DPM
+          # 1. Install DPM (Digital Asset Package Manager)
           curl -L https://dpm.daml.com/install.sh | sh
           export PATH="/home/runner/.dpm/bin:$PATH"
           
-          # 3. Verify installation
+          # 2. Verify DPM
           if ! command -v dpm &> /dev/null; then
-            echo "dpm not found in PATH, searching..."
-            find /home/runner -name dpm -type f
+            echo "dpm installation failed or not in PATH"
             exit 1
           fi
           
-          # 4. Build and Test
+          # 3. Build and Test
+          # dpm will automatically download the SDK version (3.4.11) 
+          # specified in the project's daml.yaml files.
           cd contracts
           dpm build --all
           cd stablecoin-escrow-tests
