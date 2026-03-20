@@ -53,20 +53,24 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install DAML SDK and DPM
+      - name: Install and Run DPM
         run: |
-          # Install Daml SDK
+          # 1. Install Daml SDK
           curl -sSL https://get.daml.com/ | sh -s 3.4.11
-          echo "/home/runner/.daml/bin" >> $GITHUB_PATH
+          export PATH="/home/runner/.daml/bin:$PATH"
           
-          # Install DPM (Digital Asset Package Manager)
+          # 2. Install DPM
           curl -L https://dpm.daml.com/install.sh | sh
-          echo "/home/runner/.dpm/bin" >> $GITHUB_PATH
-
-      - name: Build and Test with DPM
-        run: |
-          # Ensure paths are loaded in the current shell too for this step
-          export PATH="/home/runner/.daml/bin:/home/runner/.dpm/bin:$PATH"
+          export PATH="/home/runner/.dpm/bin:$PATH"
+          
+          # 3. Verify installation
+          if ! command -v dpm &> /dev/null; then
+            echo "dpm not found in PATH, searching..."
+            find /home/runner -name dpm -type f
+            exit 1
+          fi
+          
+          # 4. Build and Test
           cd contracts
           dpm build --all
           cd stablecoin-escrow-tests
