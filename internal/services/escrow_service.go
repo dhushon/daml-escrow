@@ -129,17 +129,34 @@ func (s *EscrowService) ProcessOracleWebhook(
 		zap.String("event", req.Event),
 		zap.String("provider", req.OracleProvider))
 
-	// Verify Signature
+	// 1. Verify Signature
 	if err := s.verifySignature(req); err != nil {
 		s.logger.Error("webhook signature verification failed", zap.Error(err))
 		return fmt.Errorf("unauthorized: %w", err)
 	}
 
-	// Ensure party map is fresh
-	_, _ = s.ledger.ListEscrows(ctx, ledger.BuyerUser)
+	// 2. Fetch current contract state to verify logical consistency
+	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID)
+	if err != nil {
+		s.logger.Error("failed to fetch escrow for webhook processing", zap.Error(err))
+		return fmt.Errorf("escrow not found: %w", err)
+	}
 
-	// For now, we map the webhook directly to an automated milestone approval.
-	// In Task 3.2 logic, we act as the 'Buyer' to approve since they are the controller in Daml.
+	// 3. Guards
+	if escrow.State == "Disputed" {
+		return fmt.Errorf("cannot automate approval for disputed escrow %s", req.EscrowID)
+	}
+
+	if req.MilestoneIndex != escrow.CurrentMilestoneIndex {
+		return fmt.Errorf("webhook milestone index %d does not match current escrow milestone index %d", 
+			req.MilestoneIndex, escrow.CurrentMilestoneIndex)
+	}
+
+	// 4. Execute Automated Choice
+	s.logger.Info("oracle automation triggered milestone approval", 
+		zap.String("escrowId", req.EscrowID), 
+		zap.Int("index", req.MilestoneIndex))
+		
 	return s.ledger.ReleaseFunds(ctx, req.EscrowID)
 }
 
