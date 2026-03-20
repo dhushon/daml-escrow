@@ -47,12 +47,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install DAML SDK
+      - name: Install DAML SDK and DPM
         run: |
+          # Install Daml SDK
           curl -sSL https://get.daml.com/ | sh -s 3.4.11
           echo "$HOME/.daml/bin" >> $GITHUB_PATH
+          
+          # Install DPM (Digital Asset Package Manager)
+          curl -L https://dpm.daml.com/install.sh | sh
+          echo "$HOME/.dpm/bin" >> $GITHUB_PATH
 
-      - name: Run DAML tests
+      - name: Build and Test with DPM
         run: |
-          cd contracts/stablecoin-escrow-tests
-          daml test
+          cd contracts
+          dpm build --all
+          cd stablecoin-escrow-tests
+          dpm test
