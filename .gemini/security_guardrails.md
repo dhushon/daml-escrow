@@ -59,6 +59,7 @@ Use:
 
 External triggers must be validated using:
 
--   signatures
--   whitelisted providers
--   replay protection
+-   **Cryptographic Signatures:** Every incoming webhook MUST include a signature (e.g., HMAC-SHA256) verified against a pre-shared secret or public key.
+-   **State Cross-Referencing:** Trigger logic MUST fetch the current ledger state of the target contract to verify logical consistency (e.g., matching milestone indices) before executing a choice.
+-   **Whitelisting:** Only registered oracle providers are permitted to trigger state changes.
+-   **Replay Protection:** Use nonces or timestamps within the signed payload to prevent replay attacks.
