@@ -56,7 +56,7 @@ jobs:
       - name: Install and Run DPM
         run: |
           # 1. Install DPM (Digital Asset Package Manager)
-          curl -L https://dpm.daml.com/install.sh | sh
+          curl -L https://get.digitalasset.com/install/install.sh | sh
           export PATH="/home/runner/.dpm/bin:$PATH"
           
           # 2. Verify DPM
