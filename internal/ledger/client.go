@@ -11,25 +11,33 @@ type Milestone struct {
 }
 
 type CreateEscrowRequest struct {
-	Buyer       string      `json:"buyer"`
-	Seller      string      `json:"seller"`
-	Amount      float64     `json:"amount"`
-	Currency    string      `json:"currency"`
-	Description string      `json:"description"`
-	Milestones  []Milestone `json:"milestones,omitempty"`
+	Buyer       string         `json:"buyer"`
+	Seller      string         `json:"seller"`
+	Amount      float64        `json:"amount"`
+	Currency    string         `json:"currency"`
+	Description string         `json:"description"`
+	Milestones  []Milestone    `json:"milestones,omitempty"`
+	Metadata    EscrowMetadata `json:"metadata,omitempty"`
+}
+
+type EscrowMetadata struct {
+	SchemaURL  string                 `json:"schemaUrl"`
+	Payload    map[string]interface{} `json:"payload"`
+	Exclusions map[string]interface{} `json:"exclusions,omitempty"` // Instructions for field redaction
 }
 
 type EscrowContract struct {
-	ID                    string      `json:"id"`
-	Buyer                 string      `json:"buyer"`
-	Seller                string      `json:"seller"`
-	Issuer                string      `json:"issuer"`
-	Mediator              string      `json:"mediator"`
-	Amount                float64     `json:"amount"`
-	Currency              string      `json:"currency"`
-	State                 string      `json:"state"` // "Active" or "Disputed"
-	Milestones            []Milestone `json:"milestones"`
-	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
+	ID                    string         `json:"id"`
+	Buyer                 string         `json:"buyer"`
+	Seller                string         `json:"seller"`
+	Issuer                string         `json:"issuer"`
+	Mediator              string         `json:"mediator"`
+	Amount                float64        `json:"amount"`
+	Currency              string         `json:"currency"`
+	State                 string         `json:"state"` // "Active" or "Disputed"
+	Milestones            []Milestone    `json:"milestones"`
+	CurrentMilestoneIndex int            `json:"currentMilestoneIndex"`
+	Metadata              EscrowMetadata `json:"metadata"`
 }
 
 type EscrowSettlement struct {
@@ -46,6 +54,16 @@ type LedgerMetrics struct {
 	TotalValueInEscrow    float64 `json:"totalValueInEscrow"`
 	PendingSettlements    int     `json:"pendingSettlements"`
 	PendingSettlementValue float64 `json:"pendingSettlementValue"`
+}
+
+type OracleWebhookRequest struct {
+	EscrowID       string                 `json:"escrowId"`
+	MilestoneIndex int                    `json:"milestoneIndex"`
+	Event          string                 `json:"event"`
+	OracleProvider string                 `json:"oracleProvider"`
+	Evidence       string                 `json:"evidence"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	Signature      string                 `json:"signature"`
 }
 
 type Client interface {

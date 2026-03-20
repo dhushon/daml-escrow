@@ -1,0 +1,12 @@
+# Package 1: interfaces only
+# This package is deployed once and never needs to change.
+# Implementations in stablecoin-escrow can be upgraded independently.
+sdk-version: 3.4.11
+name: stablecoin-escrow-interfaces
+version: 1.0.0
+source: daml
+dependencies:
+  - daml-prim
+  - daml-stdlib
+build-options:
+  - --target=2.1

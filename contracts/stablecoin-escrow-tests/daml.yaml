@@ -1,0 +1,15 @@
+sdk-version: 3.4.11
+name: stablecoin-escrow-tests
+version: 1.0.0
+source: .
+dependencies:
+  - daml-prim
+  - daml-stdlib
+  - daml-script
+data-dependencies:
+  - ../stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar
+  - ../stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.1.dar
+build-options:
+  - --target=2.1
+test-options:
+  - --files=Test/StablecoinEscrowTest.daml

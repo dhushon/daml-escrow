@@ -22,23 +22,30 @@ Goals: Create service layer to interact with the ledger.
 
 ------------------------------------------------------------------------
 
-## Phase 3 --- Oracle Integrations (CURRENT)
+## Phase 3 --- Oracle Integrations (COMPLETE)
 
 Goals: Automate milestone approvals via external triggers.
 
-### Tasks
-**Task 3.1: Webhook Ingestion Service**
-- Create endpoint to receive proof-of-delivery or milestone completion events.
-- Implement signature verification for trusted oracle providers.
-
-**Task 3.2: Automated Approval Logic**
-- Map webhook payloads to active Escrow contract IDs.
-- Authorize and execute `ApproveMilestone` choices on behalf of the Oracle/Buyer.
-
-**Task 3.3: External API Integration**
-- Mock external shipping/service APIs to trigger webhooks.
+### Achievements
+1. **Webhook Ingestion:** Secured endpoint with HMAC-SHA256 signature verification.
+2. **Automated Approval Logic:** Validates contract state and milestone indexing before executing automated approvals.
+3. **Modular Ledger Architecture:** Refactored Go JSON client into specialized modules for scalability and maintainability.
+4. **Daml 3.x Compatibility:** Fully aligned with SDK 3.4.x / Canton authorization and serialization requirements.
+5. **Oracle Simulation:** CLI utility for testing end-to-end automation flows.
 
 ------------------------------------------------------------------------
 
 ## Phase 4 --- Frontend & Finalization (NEXT)
-...
+
+Goals: Build user-facing dashboard and finalize production readiness.
+
+### Tasks
+**Task 4.1: Astro Dashboard**
+- Create overview of active escrows for Buyers and Sellers.
+- Implement "Raise Dispute" and "Approve Milestone" buttons.
+
+**Task 4.2: Settlement View**
+- List pending settlements for Central Bank payout.
+
+**Task 4.3: Real-time Updates**
+- Integrate WebSockets or polling for ledger state changes.

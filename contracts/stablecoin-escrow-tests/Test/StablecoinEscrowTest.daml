@@ -1,0 +1,142 @@
+-- Test/StablecoinEscrowTest.daml  —  package: stablecoin-escrow-tests 1.0.0
+--  Daml-LF 2.1  (SDK 3.4.x)
+--
+-- Tests live in a separate package so daml-script is never uploaded
+-- to the ledger alongside production templates.
+-- submitMulti replaced with submit (actAs [...]) per SDK 3.4 API.
+
+module Test.StablecoinEscrowTest where
+
+import Daml.Script
+import StablecoinEscrow
+import Escrow.Interface
+import DA.Optional (isSome, isNone)
+
+-- ---------------------------------------------------------------------------
+-- Setup
+-- ---------------------------------------------------------------------------
+
+setup : Script (Party, Party, Party, Party)
+setup = do
+  issuer   <- allocateParty "Issuer"
+  buyer    <- allocateParty "Buyer"
+  seller   <- allocateParty "Seller"
+  mediator <- allocateParty "Mediator"
+  return (issuer, buyer, seller, mediator)
+
+-- ---------------------------------------------------------------------------
+-- testEscrowFlow: happy path through two milestones
+-- ---------------------------------------------------------------------------
+
+testEscrowFlow : Script ()
+testEscrowFlow = do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let milestone1 = Milestone with label = "Design",         amount = 100.0, completed = False
+      milestone2 = Milestone with label = "Implementation", amount = 200.0, completed = False
+
+  escrowCid <- submit (actAs [buyer, issuer]) do
+    createCmd StablecoinEscrow with
+      issuer                = issuer
+      buyer                 = buyer
+      seller                = seller
+      mediator              = mediator
+      totalAmount           = 300.0
+      currency              = "USD"
+      description           = "Software project"
+      milestones            = [milestone1, milestone2]
+      currentMilestoneIndex = 0
+      metadata              = "{}"
+
+  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
+
+  -- Approve first milestone
+  (newEscrowIdOpt, settlementIfaceCid) <- submit (actAs [buyer]) do
+    exerciseCmd escrowIfaceCid ApproveMilestone with
+      payload = ApproveMilestoneArg
+
+  assert (isSome newEscrowIdOpt)
+  let Some newEscrowIfaceCid = newEscrowIdOpt
+
+  let settlementCid = fromInterfaceContractId @EscrowSettlement settlementIfaceCid
+  Some settlement <- queryContractId issuer settlementCid
+  assert (settlement.amount    == 100.0)
+  assert (settlement.recipient == seller)
+
+  -- Approve second (final) milestone
+  (finalEscrowIdOpt, settlementIfaceCid2) <- submit (actAs [buyer]) do
+    exerciseCmd newEscrowIfaceCid ApproveMilestone with
+      payload = ApproveMilestoneArg
+
+  assert (isNone finalEscrowIdOpt)
+
+  let settlementCid2 = fromInterfaceContractId @EscrowSettlement settlementIfaceCid2
+  Some settlement2 <- queryContractId issuer settlementCid2
+  assert (settlement2.amount    == 200.0)
+  assert (settlement2.recipient == seller)
+
+-- ---------------------------------------------------------------------------
+-- testDisputeFlow: raise and resolve a dispute
+-- ---------------------------------------------------------------------------
+
+testDisputeFlow : Script ()
+testDisputeFlow = do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
+
+  escrowCid <- submit (actAs [buyer, issuer]) do
+    createCmd StablecoinEscrow with
+      issuer                = issuer
+      buyer                 = buyer
+      seller                = seller
+      mediator              = mediator
+      totalAmount           = 100.0
+      currency              = "USD"
+      description           = "Disputed work"
+      milestones            = [milestone1]
+      currentMilestoneIndex = 0
+      metadata              = "{}"
+
+  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
+
+  disputeIfaceCid <- submit (actAs [buyer]) do
+    exerciseCmd escrowIfaceCid RaiseDispute with
+      payload = RaiseDisputeArg
+
+  settlementIfaceCids <- submit (actAs [mediator]) do
+    exerciseCmd disputeIfaceCid ResolveDispute with
+      payload = ResolveDisputeArg with
+        payoutToBuyer  = 50.0
+        payoutToSeller = 50.0
+
+  assert (length settlementIfaceCids == 2)
+
+-- ---------------------------------------------------------------------------
+-- testUnauthorizedApprove: seller cannot approve their own milestone
+-- ---------------------------------------------------------------------------
+
+testUnauthorizedApprove : Script ()
+testUnauthorizedApprove = do
+  (issuer, buyer, seller, mediator) <- setup
+
+  let milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
+
+  escrowCid <- submit (actAs [buyer, issuer]) do
+    createCmd StablecoinEscrow with
+      issuer                = issuer
+      buyer                 = buyer
+      seller                = seller
+      mediator              = mediator
+      totalAmount           = 100.0
+      currency              = "USD"
+      description           = "Unauthorized test"
+      milestones            = [milestone1]
+      currentMilestoneIndex = 0
+      metadata              = "{}"
+
+  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
+
+  submitMustFail (actAs [seller]) do
+    exerciseCmd escrowIfaceCid ApproveMilestone with
+      payload = ApproveMilestoneArg

@@ -24,12 +24,13 @@ func NewHandler(logger *zap.Logger, escrowService *services.EscrowService) *Hand
 }
 
 type CreateEscrowRequest struct {
-	Buyer       string             `json:"buyer" example:"Buyer"`
-	Seller      string             `json:"seller" example:"Seller"`
-	Amount      float64            `json:"amount" example:"100.0"`
-	Currency    string             `json:"currency" example:"USD"`
-	Description string             `json:"description" example:"Payment for goods"`
-	Milestones  []ledger.Milestone `json:"milestones,omitempty"`
+	Buyer       string                `json:"buyer" example:"Buyer"`
+	Seller      string                `json:"seller" example:"Seller"`
+	Amount      float64               `json:"amount" example:"100.0"`
+	Currency    string                `json:"currency" example:"USD"`
+	Description string                `json:"description" example:"Payment for goods"`
+	Milestones  []ledger.Milestone    `json:"milestones,omitempty"`
+	Metadata    ledger.EscrowMetadata `json:"metadata,omitempty"`
 }
 
 type ResolveDisputeRequest struct {
@@ -38,16 +39,17 @@ type ResolveDisputeRequest struct {
 }
 
 type EscrowResponse struct {
-	ID                    string             `json:"id"`
-	Buyer                 string             `json:"buyer"`
-	Seller                string             `json:"seller"`
-	Issuer                string             `json:"issuer"`
-	Mediator              string             `json:"mediator"`
-	Amount                float64            `json:"amount"`
-	Currency              string             `json:"currency"`
-	State                 string             `json:"state"`
-	Milestones            []ledger.Milestone `json:"milestones"`
-	CurrentMilestoneIndex int                `json:"currentMilestoneIndex"`
+	ID                    string                `json:"id"`
+	Buyer                 string                `json:"buyer"`
+	Seller                string                `json:"seller"`
+	Issuer                string                `json:"issuer"`
+	Mediator              string                `json:"mediator"`
+	Amount                float64               `json:"amount"`
+	Currency              string                `json:"currency"`
+	State                 string                `json:"state"`
+	Milestones            []ledger.Milestone    `json:"milestones"`
+	CurrentMilestoneIndex int                   `json:"currentMilestoneIndex"`
+	Metadata              ledger.EscrowMetadata `json:"metadata"`
 }
 
 type SettlementResponse struct {
@@ -60,16 +62,6 @@ type SettlementResponse struct {
 }
 
 // CreateEscrow handles POST /escrows
-// @Summary Create a new escrow contract
-// @Description Initiate a new escrow agreement between buyer and seller
-// @Tags escrows
-// @Accept json
-// @Produce json
-// @Param request body CreateEscrowRequest true "Escrow Creation Request"
-// @Success 201 {object} EscrowResponse
-// @Failure 400 {string} string "invalid request"
-// @Failure 500 {string} string "internal error"
-// @Router /escrows [post]
 func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 	var req CreateEscrowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,6 +79,7 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 		Currency:    req.Currency,
 		Description: req.Description,
 		Milestones:  req.Milestones,
+		Metadata:    req.Metadata,
 	})
 	if err != nil {
 		h.logger.Error("create escrow failed", zap.Error(err))
@@ -102,14 +95,6 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetEscrow handles GET /escrows/{id}
-// @Summary Get escrow details by ID
-// @Description Retrieve information about a specific escrow contract
-// @Tags escrows
-// @Produce json
-// @Param id path string true "Escrow ID"
-// @Success 200 {object} EscrowResponse
-// @Failure 404 {string} string "escrow not found"
-// @Router /escrows/{id} [get]
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	escrow, err := h.escrowService.GetEscrow(r.Context(), id)
@@ -126,13 +111,6 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListEscrows handles GET /escrows
-// @Summary List all active escrows
-// @Description Retrieve a list of active escrow contracts, optionally filtered by user
-// @Tags escrows
-// @Produce json
-// @Param user query string false "Filter by User ID (e.g., Buyer, Seller, CentralBank)"
-// @Success 200 {array} EscrowResponse
-// @Router /escrows [get]
 func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
@@ -158,13 +136,6 @@ func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 }
 
 // ReleaseFunds handles POST /escrows/{id}/release
-// @Summary Release funds for the current milestone
-// @Description Approve and release funds for the active milestone
-// @Tags escrows
-// @Param id path string true "Escrow ID"
-// @Success 200 {string} string "ok"
-// @Failure 500 {string} string "release failed"
-// @Router /escrows/{id}/release [post]
 func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := h.escrowService.ReleaseFunds(r.Context(), id)
@@ -178,13 +149,6 @@ func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefundBuyer handles POST /escrows/{id}/refund
-// @Summary Refund funds to the buyer (initiated by buyer)
-// @Description Cancel escrow and return funds (automates dispute+resolution)
-// @Tags escrows
-// @Param id path string true "Escrow ID"
-// @Success 200 {string} string "ok"
-// @Failure 500 {string} string "refund failed"
-// @Router /escrows/{id}/refund [post]
 func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := h.escrowService.RefundBuyer(r.Context(), id)
@@ -198,13 +162,6 @@ func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefundBySeller handles POST /escrows/{id}/refund-by-seller
-// @Summary Refund funds to the buyer (initiated by seller)
-// @Description Seller proactively returns all remaining funds to the buyer
-// @Tags escrows
-// @Param id path string true "Escrow ID"
-// @Success 200 {string} string "ok"
-// @Failure 500 {string} string "seller refund failed"
-// @Router /escrows/{id}/refund-by-seller [post]
 func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := h.escrowService.RefundBySeller(r.Context(), id)
@@ -218,16 +175,6 @@ func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
 }
 
 // ResolveDispute handles POST /escrows/{id}/resolve
-// @Summary Resolve a disputed escrow
-// @Description Mediator resolve dispute by splitting payout
-// @Tags escrows
-// @Accept json
-// @Param id path string true "Escrow ID"
-// @Param request body ResolveDisputeRequest true "Dispute Resolution Request"
-// @Success 200 {string} string "ok"
-// @Failure 400 {string} string "invalid request"
-// @Failure 500 {string} string "resolution failed"
-// @Router /escrows/{id}/resolve [post]
 func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req ResolveDisputeRequest
@@ -247,13 +194,6 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMetrics handles GET /metrics
-// @Summary Get aggregated ledger metrics
-// @Description Retrieve high-level awareness metrics for a specific user
-// @Tags analytics
-// @Produce json
-// @Param user query string false "User ID (e.g., CentralBank, Seller)"
-// @Success 200 {object} ledger.LedgerMetrics
-// @Router /metrics [get]
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
@@ -274,13 +214,6 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListSettlements handles GET /settlements
-// @Summary List all pending settlements
-// @Description Retrieve a list of pending settlement obligations
-// @Tags settlements
-// @Produce json
-// @Success 200 {array} SettlementResponse
-// @Failure 500 {string} string "internal error"
-// @Router /settlements [get]
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	settlements, err := h.escrowService.ListSettlements(r.Context())
 	if err != nil {
@@ -308,13 +241,6 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 }
 
 // SettlePayment handles POST /settlements/{id}/settle
-// @Summary Finalize a pending settlement
-// @Description Issuer (Central Bank) settles the obligation and releases stablecoins
-// @Tags settlements
-// @Param id path string true "Settlement ID"
-// @Success 200 {string} string "ok"
-// @Failure 500 {string} string "settlement failed"
-// @Router /settlements/{id}/settle [post]
 func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := h.escrowService.SettlePayment(r.Context(), id)
@@ -339,5 +265,30 @@ func mapToResponse(e *ledger.EscrowContract) EscrowResponse {
 		State:                 e.State,
 		Milestones:            e.Milestones,
 		CurrentMilestoneIndex: e.CurrentMilestoneIndex,
+		Metadata:              e.Metadata,
 	}
+}
+
+// OracleMilestoneTrigger handles POST /webhooks/milestone
+func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
+	var req ledger.OracleWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("failed to decode webhook", zap.Error(err))
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Any:Any metadata logging for visibility
+	if len(req.Metadata) > 0 {
+		h.logger.Info("webhook metadata received", zap.Any("metadata", req.Metadata))
+	}
+
+	if err := h.escrowService.ProcessOracleWebhook(r.Context(), req); err != nil {
+		h.logger.Error("webhook processing failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
 }

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - feat/phase3-oracle-integration
 
 jobs:
   lint:
@@ -46,12 +47,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install DAML SDK
-        run: |
-          curl -sSL https://get.daml.com/ | sh -s 2.2.0
-          echo "$HOME/.daml/bin" >> $GITHUB_PATH
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Run DAML tests
+      - name: Install and Run DPM
         run: |
+          # 1. Install DPM (Digital Asset Package Manager)
+          curl -L https://get.digitalasset.com/install/install.sh | sh
+          export PATH="/home/runner/.dpm/bin:$PATH"
+          
+          # 2. Verify DPM
+          if ! command -v dpm &> /dev/null; then
+            echo "dpm installation failed or not in PATH"
+            exit 1
+          fi
+          
+          # 3. Build and Test
+          # dpm will automatically download the SDK version (3.4.11) 
+          # specified in the project's daml.yaml files.
           cd contracts
-          daml test
+          dpm build --all
+          cd stablecoin-escrow-tests
+          dpm test

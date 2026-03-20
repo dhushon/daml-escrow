@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 
 	"daml-escrow/internal/ledger"
 
@@ -9,18 +13,21 @@ import (
 )
 
 type EscrowService struct {
-	logger *zap.Logger
-	ledger ledger.Client
+	logger        *zap.Logger
+	ledger        ledger.Client
+	webhookSecret string
 }
 
 func NewEscrowService(
 	logger *zap.Logger,
 	ledger ledger.Client,
+	webhookSecret string,
 ) *EscrowService {
 
 	return &EscrowService{
-		logger: logger,
-		ledger: ledger,
+		logger:        logger,
+		ledger:        ledger,
+		webhookSecret: webhookSecret,
 	}
 }
 
@@ -110,4 +117,69 @@ func (s *EscrowService) GetMetrics(
 ) (*ledger.LedgerMetrics, error) {
 	s.logger.Info("getting metrics for user", zap.String("userID", userID))
 	return s.ledger.GetMetrics(ctx, userID)
+}
+
+func (s *EscrowService) ProcessOracleWebhook(
+	ctx context.Context,
+	req ledger.OracleWebhookRequest,
+) error {
+	s.logger.Info("processing oracle webhook", 
+		zap.String("escrowId", req.EscrowID),
+		zap.Int("milestoneIndex", req.MilestoneIndex),
+		zap.String("event", req.Event),
+		zap.String("provider", req.OracleProvider))
+
+	// 1. Verify Signature
+	if err := s.verifySignature(req); err != nil {
+		s.logger.Error("webhook signature verification failed", zap.Error(err))
+		return fmt.Errorf("unauthorized: %w", err)
+	}
+
+	// 2. Fetch current contract state to verify logical consistency
+	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID)
+	if err != nil {
+		s.logger.Error("failed to fetch escrow for webhook processing", zap.Error(err))
+		return fmt.Errorf("escrow not found: %w", err)
+	}
+
+	// 3. Guards
+	if escrow.State == "Disputed" {
+		return fmt.Errorf("cannot automate approval for disputed escrow %s", req.EscrowID)
+	}
+
+	if req.MilestoneIndex != escrow.CurrentMilestoneIndex {
+		return fmt.Errorf("webhook milestone index %d does not match current escrow milestone index %d", 
+			req.MilestoneIndex, escrow.CurrentMilestoneIndex)
+	}
+
+	// 4. Execute Automated Choice
+	s.logger.Info("oracle automation triggered milestone approval", 
+		zap.String("escrowId", req.EscrowID), 
+		zap.Int("index", req.MilestoneIndex))
+		
+	return s.ledger.ReleaseFunds(ctx, req.EscrowID)
+}
+
+func (s *EscrowService) verifySignature(req ledger.OracleWebhookRequest) error {
+	if s.webhookSecret == "" {
+		s.logger.Warn("webhook secret not configured, skipping verification")
+		return nil
+	}
+
+	if req.Signature == "" {
+		return fmt.Errorf("missing signature")
+	}
+
+	// Payload for signature: escrowId|milestoneIndex|event|oracleProvider
+	payload := fmt.Sprintf("%s|%d|%s|%s", req.EscrowID, req.MilestoneIndex, req.Event, req.OracleProvider)
+	
+	h := hmac.New(sha256.New, []byte(s.webhookSecret))
+	h.Write([]byte(payload))
+	expected := hex.EncodeToString(h.Sum(nil))
+
+	if !hmac.Equal([]byte(expected), []byte(req.Signature)) {
+		return fmt.Errorf("invalid signature")
+	}
+
+	return nil
 }

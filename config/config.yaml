@@ -10,3 +10,5 @@ ledger:
     seller: "Seller"
     mediator: "EscrowMediator"
 
+oracle:
+  webhookSecret: "development-secret-key"

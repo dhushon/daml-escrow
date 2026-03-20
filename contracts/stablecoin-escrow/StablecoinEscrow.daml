@@ -1,0 +1,210 @@
+-- StablecoinEscrow.daml  —  Daml-LF 2.1  (SDK 3.4.x)
+--
+-- interface instance blocks contain ONLY:
+--   - view = ...
+--   - method implementations (matching method names declared on the interface)
+--
+-- The method name in the instance must exactly match the method name on the
+-- interface. No `choice` keyword is used inside interface instance blocks.
+
+module StablecoinEscrow where
+
+import Escrow.Interface
+import DA.Optional (catOptionals)
+import DA.List    ((!!))
+
+-- ---------------------------------------------------------------------------
+-- EscrowSettlement  (implements Settlement)
+-- ---------------------------------------------------------------------------
+-- Settlement has no methods, only a view and the Settle choice (no override).
+
+template EscrowSettlement
+  with
+    issuer    : Party
+    recipient : Party
+    amount    : Decimal
+    currency  : Text
+    status    : Text
+  where
+    signatory issuer
+    observer  recipient
+
+    interface instance Settlement for EscrowSettlement where
+      view = SettlementView with
+        issuer    = issuer
+        recipient = recipient
+        amount    = amount
+        currency  = currency
+        status    = status
+
+-- ---------------------------------------------------------------------------
+-- StablecoinEscrow  (implements Escrow)
+-- ---------------------------------------------------------------------------
+
+template StablecoinEscrow
+  with
+    issuer                : Party
+    buyer                 : Party
+    seller                : Party
+    mediator              : Party
+    totalAmount           : Decimal
+    currency              : Text
+    description           : Text
+    milestones            : [Milestone]
+    currentMilestoneIndex : Int
+    metadata              : Text
+  where
+    signatory buyer, issuer
+    observer  seller, mediator
+
+    ensure totalAmount == sum (map (.amount) milestones) && totalAmount > 0.0
+
+    interface instance Escrow for StablecoinEscrow where
+      view = View with
+        issuer                = issuer
+        buyer                 = buyer
+        seller                = seller
+        mediator              = mediator
+        totalAmount           = totalAmount
+        currency              = currency
+        description           = description
+        milestones            = milestones
+        currentMilestoneIndex = currentMilestoneIndex
+        metadata              = metadata
+
+      -- Method implementation: matches `approveMilestone` declared on Escrow
+      approveMilestone payload = do
+        assertMsg "No more milestones to approve"
+          (currentMilestoneIndex < length milestones)
+        let milestone = milestones !! currentMilestoneIndex
+        assertMsg "Milestone already completed" (not milestone.completed)
+
+        let numMilestones     = length milestones
+            updatedMilestones =
+              [ let m = milestones !! i
+                in if i == currentMilestoneIndex then m with completed = True else m
+              | i <- [0 .. numMilestones - 1] ]
+
+        settlementCid <- create EscrowSettlement with
+          issuer    = issuer
+          recipient = seller
+          amount    = milestone.amount
+          currency  = currency
+          status    = "Milestone Approved: " <> milestone.label
+
+        let settlementIfaceCid = toInterfaceContractId @Settlement settlementCid
+
+        if currentMilestoneIndex + 1 < numMilestones
+          then do
+            newEscrowCid <- create StablecoinEscrow with
+              issuer                = issuer
+              buyer                 = buyer
+              seller                = seller
+              mediator              = mediator
+              totalAmount           = totalAmount
+              currency              = currency
+              description           = description
+              milestones            = updatedMilestones
+              currentMilestoneIndex = currentMilestoneIndex + 1
+              metadata              = metadata
+            return (Some (toInterfaceContractId @Escrow newEscrowCid), settlementIfaceCid)
+          else
+            return (None, settlementIfaceCid)
+
+      -- Method implementation: matches `raiseDispute` declared on Escrow
+      raiseDispute payload = do
+        disputedCid <- create StablecoinDisputedEscrow with
+          issuer                = issuer
+          buyer                 = buyer
+          seller                = seller
+          mediator              = mediator
+          totalAmount           = totalAmount
+          currency              = currency
+          description           = description
+          milestones            = milestones
+          currentMilestoneIndex = currentMilestoneIndex
+          metadata              = metadata
+        return (toInterfaceContractId @DisputedEscrow disputedCid)
+
+    -- Template-level choice (not part of any interface)
+    choice SellerRefund : ContractId Settlement
+      controller seller
+      do
+        let remainingAmount =
+              sum [ m.amount | m <- milestones, not m.completed ]
+        assertMsg "No funds remaining to refund" (remainingAmount > 0.0)
+        cid <- create EscrowSettlement with
+          issuer    = issuer
+          recipient = buyer
+          amount    = remainingAmount
+          currency  = currency
+          status    = "Seller Refunded Escrow"
+        return (toInterfaceContractId @Settlement cid)
+
+-- ---------------------------------------------------------------------------
+-- StablecoinDisputedEscrow  (implements DisputedEscrow)
+-- ---------------------------------------------------------------------------
+
+template StablecoinDisputedEscrow
+  with
+    issuer                : Party
+    buyer                 : Party
+    seller                : Party
+    mediator              : Party
+    totalAmount           : Decimal
+    currency              : Text
+    description           : Text
+    milestones            : [Milestone]
+    currentMilestoneIndex : Int
+    metadata              : Text
+  where
+    signatory buyer, issuer
+    observer  seller, mediator
+
+    interface instance DisputedEscrow for StablecoinDisputedEscrow where
+      view = DisputedView with
+        escrowView = View with
+          issuer                = issuer
+          buyer                 = buyer
+          seller                = seller
+          mediator              = mediator
+          totalAmount           = totalAmount
+          currency              = currency
+          description           = description
+          milestones            = milestones
+          currentMilestoneIndex = currentMilestoneIndex
+          metadata              = metadata
+
+      -- Method implementation: matches `resolveDispute` declared on DisputedEscrow
+      resolveDispute payload = do
+        let payoutToBuyer  = payload.payoutToBuyer
+            payoutToSeller = payload.payoutToSeller
+            remainingAmount =
+              sum [ m.amount | m <- milestones, not m.completed ]
+        assertMsg
+          "Total payout must equal remaining escrow amount"
+          (payoutToBuyer + payoutToSeller == remainingAmount)
+
+        s1 <- if payoutToBuyer > 0.0
+                then do
+                  s <- create EscrowSettlement with
+                    issuer    = issuer
+                    recipient = buyer
+                    amount    = payoutToBuyer
+                    currency  = currency
+                    status    = "Dispute Resolved - Refund"
+                  return (Some (toInterfaceContractId @Settlement s))
+                else return None
+
+        s2 <- if payoutToSeller > 0.0
+                then do
+                  s <- create EscrowSettlement with
+                    issuer    = issuer
+                    recipient = seller
+                    amount    = payoutToSeller
+                    currency  = currency
+                    status    = "Dispute Resolved - Payment"
+                  return (Some (toInterfaceContractId @Settlement s))
+                else return None
+
+        return (catOptionals [s1, s2])

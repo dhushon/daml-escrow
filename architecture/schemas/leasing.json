@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stablecoin-escrow.io/schemas/leasing.v1.json",
+  "title": "Leasing & High-Value Asset Metadata",
+  "type": "object",
+  "properties": {
+    "assetId": { "type": "string", "description": "Serial number or Parcel ID" },
+    "assetType": { "enum": ["RealEstate", "Machinery", "Tool", "Vehicle"] },
+    "securityDepositAmount": { "type": "number", "minimum": 0 },
+    "leaseTermDays": { "type": "integer", "minimum": 1 },
+    "usageLimits": {
+      "type": "object",
+      "properties": {
+        "maxHours": { "type": "number" },
+        "mileageLimit": { "type": "number" }
+      }
+    },
+    "maintenanceRequirement": { "type": "string" },
+    "legalAgreementHash": { "type": "string" }
+  },
+  "required": ["assetId", "assetType", "securityDepositAmount"]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stablecoin-escrow.io/schemas/supply-chain.v1.json",
+  "title": "Supply Chain & Logistics Metadata",
+  "type": "object",
+  "properties": {
+    "trackingNumber": { "type": "string" },
+    "carrier": { "type": "string" },
+    "billOfLading": { "type": "string" },
+    "sku": { "type": "string" },
+    "origin": { "type": "string" },
+    "destination": { "type": "string" },
+    "incoterms": { "type": "string" },
+    "inspectionRequired": { "type": "boolean", "default": true }
+  },
+  "required": ["trackingNumber", "carrier"]
+}

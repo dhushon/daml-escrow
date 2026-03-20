@@ -24,7 +24,6 @@ waitReady("mediator",    medNode.health.status)
 // 2. Bootstrap the synchronizer
 println("Bootstrapping synchronizer...")
 ignore(bootstrap.synchronizer_local("mysynchronizer"))
-//ignore(bootstrap.synchronizer_local("mysynchronizer", Seq(seqNode), Seq(medNode)))
 Thread.sleep(3000)
 
 // 3. Connect participant
@@ -44,9 +43,10 @@ if (!connected) { println("Failed to connect"); sys.exit(1) }
 
 val syncId = participant.synchronizers.list_connected().head.physicalSynchronizerId
 
-// 4. Upload DAR
-println("Uploading DAR...")
-ignore(participant.dars.upload("/canton/contracts/.daml/dist/stablecoin-escrow-0.0.1.dar"))
+// 4. Upload DARs (Updated paths for v3 structure)
+println("Uploading DARs...")
+ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"))
+ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.1.dar"))
 
 // 5. Allocate Parties
 println("Allocating parties...")

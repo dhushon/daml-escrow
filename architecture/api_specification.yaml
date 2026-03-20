@@ -2,13 +2,18 @@ openapi: 3.0.0
 info:
   title: Stablecoin Escrow API
   version: 1.0.0
-  description: API for managing privacy-preserving stablecoin escrows on DAML.
+  description: |
+    API for managing privacy-preserving stablecoin escrows on DAML with Oracle integration.
+    This version implements a schema-driven metadata model where core escrow dynamics
+    are generic, and industry-specific contracted elements are validated via external JSON Schemas.
 
 paths:
   /escrows:
     post:
       summary: Create a new escrow contract
       operationId: createEscrow
+      tags:
+        - escrows
       requestBody:
         required: true
         content:
@@ -29,6 +34,8 @@ paths:
     get:
       summary: Get escrow details by ID
       operationId: getEscrow
+      tags:
+        - escrows
       parameters:
         - name: escrowID
           in: path
@@ -45,37 +52,29 @@ paths:
         '404':
           description: Escrow not found
 
-  /escrows/{escrowID}/release:
+  /webhooks/milestone:
     post:
-      summary: Release funds for the current milestone
-      operationId: releaseEscrow
-      parameters:
-        - name: escrowID
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Oracle trigger for milestone approval
+      description: |
+        Receives external events to automatically advance escrow milestones.
+        Payloads include structured evidence and can be verified against the
+        contract's specific JSON Schema.
+      operationId: oracleMilestoneTrigger
+      tags:
+        - oracles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OracleWebhookRequest'
       responses:
         '200':
-          description: Milestone funds released
+          description: Webhook processed and milestone approved
+        '401':
+          description: Invalid signature
         '404':
-          description: Escrow not found
-
-  /escrows/{escrowID}/refund:
-    post:
-      summary: Refund funds to the buyer (requires mediator or expiry)
-      operationId: refundEscrow
-      parameters:
-        - name: escrowID
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Funds refunded
-        '404':
-          description: Escrow not found
+          description: Escrow or Milestone not found
 
 components:
   schemas:
@@ -83,8 +82,6 @@ components:
       type: object
       required:
         - issuer
-        - buyer
-        - seller
         - mediator
         - totalAmount
         - currency
@@ -94,8 +91,10 @@ components:
           type: string
         buyer:
           type: string
+          description: Optional for anonymous buyer scenarios
         seller:
           type: string
+          description: Optional for anonymous seller scenarios
         mediator:
           type: string
         totalAmount:
@@ -109,6 +108,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Milestone'
+        metadata:
+          $ref: '#/components/schemas/EscrowMetadata'
 
     Escrow:
       type: object
@@ -135,6 +136,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Milestone'
+        metadata:
+          $ref: '#/components/schemas/EscrowMetadata'
 
     Milestone:
       type: object
@@ -149,3 +152,47 @@ components:
         completed:
           type: boolean
           default: false
+
+    OracleWebhookRequest:
+      type: object
+      required:
+        - escrowId
+        - milestoneIndex
+        - event
+        - signature
+      properties:
+        escrowId:
+          type: string
+        milestoneIndex:
+          type: integer
+        event:
+          type: string
+        oracleProvider:
+          type: string
+        evidence:
+          type: string
+        metadata:
+          type: object
+          description: Raw event metadata payload
+          additionalProperties: true
+        signature:
+          type: string
+
+    EscrowMetadata:
+      type: object
+      description: |
+        A schema-driven data container. The 'payload' is an 'any:any' map
+        that should be marshalled according to the provided 'schemaUrl'.
+      properties:
+        schemaUrl:
+          type: string
+          description: URL to the JSON Schema for the payload (e.g., leasing.json, supply-chain.json)
+          example: "https://stablecoin-escrow.io/schemas/leasing.v1.json"
+        payload:
+          type: object
+          description: The actual metadata fields (Contracted Elements)
+          additionalProperties: true
+          example:
+            assetId: "SERIAL-123"
+            securityDepositAmount: 5000
+            assetType: "Machinery"
