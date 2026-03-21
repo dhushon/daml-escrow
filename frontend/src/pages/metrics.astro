@@ -2,62 +2,205 @@
 import Layout from '../layouts/Layout.astro';
 import { fetchMetrics } from '../lib/api';
 
+const adminCookie = Astro.cookies.get('admin-mode');
+const isAdmin = adminCookie?.value === 'true';
+const targetUser = isAdmin ? 'CentralBank' : 'Buyer';
+
 let metrics = null;
 let error = null;
 
 try {
-	metrics = await fetchMetrics();
+	metrics = await fetchMetrics(targetUser);
 } catch (e) {
 	error = e.message;
 }
+
+// Simple SVG Graph Helper
+const generateGraphPoints = (history: any[]) => {
+	if (!history || history.length === 0) return "";
+	const max = Math.max(...history.map(h => h.count), 1);
+	const width = 400;
+	const height = 100;
+	return history.map((h, i) => {
+		const x = (i / (history.length - 1)) * width;
+		const y = height - (h.count / max) * height;
+		return `${x},${y}`;
+	}).join(" ");
+};
 ---
 
 <Layout title="Platform Metrics | Stablecoin Escrow">
 	<div class="mb-8">
-		<h2 class="text-3xl font-extrabold text-gray-900">Platform Metrics</h2>
-		<p class="text-gray-600 mt-1">Real-time overview of escrow activity and settlement liquidity.</p>
+		<div class="flex items-center space-x-2 mb-1">
+			<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
+			<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+				{isAdmin ? 'System-Wide Ledger Metrics' : 'Personal Escrow Analytics'}
+			</span>
+		</div>
+		<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+			{isAdmin ? 'Total Escrows & Oversight' : 'My Financial Activity'}
+		</h2>
 	</div>
 
 	{error && (
-		<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
-			<p class="text-sm text-red-700">Error loading metrics: {error}</p>
+		<div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-8 rounded-r-xl font-mono transition-colors">
+			<p class="text-sm font-bold text-red-700 dark:text-red-400">Error: {error}</p>
 		</div>
 	)}
 
 	{metrics && (
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Escrows</p>
-				<p class="text-3xl font-bold mt-2 text-indigo-600">{metrics.totalActiveEscrows}</p>
-			</div>
-			
-			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Value in Escrow</p>
-				<p class="text-3xl font-bold mt-2 text-gray-900">{metrics.totalValueInEscrow.toLocaleString()} <span class="text-sm font-normal text-gray-400">USD</span></p>
-			</div>
+		<div class="space-y-12 pb-12">
+			{/* Section 1: Escrow Metrics */}
+			<section>
+				<div class="flex justify-between items-center mb-6">
+					<h3 class="text-lg font-bold text-slate-800 dark:text-white">Escrow Metrics</h3>
+					<span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Real-Time Ledger</span>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+					<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+						<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Active Escrows</p>
+						<p class="text-4xl font-black mt-2 text-blue-600 dark:text-blue-400">{metrics.totalActiveEscrows}</p>
+					</div>
+					
+					<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+						<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Value in Escrow</p>
+						<p class="text-4xl font-black mt-2 text-slate-900 dark:text-white tracking-tighter">
+							{metrics.totalValueInEscrow.toLocaleString()} 
+							<span class="text-xs font-medium text-slate-400 italic">USD</span>
+						</p>
+					</div>
 
-			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Pending Settlements</p>
-				<p class="text-3xl font-bold mt-2 text-orange-600">{metrics.pendingSettlements}</p>
-			</div>
+					<div class="col-span-1 md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+						<div class="flex justify-between items-start mb-4">
+							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Activity Trend</p>
+							<div class="flex space-x-1">
+								{metrics.activityHistory.map((h: any) => (
+									<div class="w-1 bg-blue-500/20 h-4 rounded-full overflow-hidden flex flex-col justify-end">
+										<div class="w-full bg-blue-500" style={`height: ${(h.count / Math.max(...metrics.activityHistory.map((x:any)=>x.count))) * 100}%`}></div>
+									</div>
+								))}
+							</div>
+						</div>
+						<div class="h-16 w-full overflow-hidden">
+							<svg viewBox="0 0 400 100" class="w-full h-full overflow-visible">
+								<polyline
+									fill="none"
+									stroke="#3b82f6"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									points={generateGraphPoints(metrics.activityHistory)}
+								/>
+								<path
+									fill="url(#lineGradient)"
+									d={`M 0,100 L ${generateGraphPoints(metrics.activityHistory)} L 400,100 Z`}
+								/>
+							</svg>
+						</div>
+						<div class="flex justify-between mt-2">
+							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory[0].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory[metrics.activityHistory.length-1].date}</span>
+						</div>
+					</div>
+				</div>
+			</section>
 
-			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Settlement Volume</p>
-				<p class="text-3xl font-bold mt-2 text-gray-900">{metrics.pendingSettlementValue.toLocaleString()} <span class="text-sm font-normal text-gray-400">USD</span></p>
-			</div>
+			{/* Section 2: Latency & Reliability */}
+			<section>
+				<div class="flex justify-between items-center mb-6">
+					<h3 class="text-lg font-bold text-slate-800 dark:text-white">API Latency & Reliability</h3>
+					<span class="text-[10px] font-bold text-green-500 uppercase tracking-widest flex items-center">
+						<span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 animate-ping"></span>
+						Service Healthy
+					</span>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Latency</p>
+						<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">{metrics.systemPerformance.apiLatencyMs} <span class="text-xs font-normal text-slate-400 italic">ms</span></p>
+					</div>
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">P95 / P99</p>
+						<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">
+							{metrics.systemPerformance.p95LatencyMs} <span class="text-slate-300">/</span> {metrics.systemPerformance.p99LatencyMs}
+							<span class="text-xs font-normal text-slate-400 italic ml-1">ms</span>
+						</p>
+					</div>
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Success Rate</p>
+						<p class="text-2xl font-black mt-1 text-green-600 dark:text-green-400">{metrics.systemPerformance.successRate}%</p>
+					</div>
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Error Rate</p>
+						<p class="text-2xl font-black mt-1 text-red-600 dark:text-red-400">{metrics.systemPerformance.errorRate}%</p>
+					</div>
+				</div>
+			</section>
+
+			{/* Section 3: Infrastructure Oversight */}
+			<section>
+				<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Infrastructure Oversight</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<div class="flex justify-between items-center mb-3">
+							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
+							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.cpuUsage}%</span>
+						</div>
+						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+							<div class="bg-blue-500 h-full transition-all duration-1000" style={`width: ${metrics.systemPerformance.cpuUsage}%`}></div>
+						</div>
+					</div>
+
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<div class="flex justify-between items-center mb-3">
+							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Memory Usage</p>
+							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.memoryUsage} <span class="text-[8px] text-slate-400 uppercase">MB</span></span>
+						</div>
+						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+							<div class="bg-indigo-500 h-full transition-all duration-1000" style="width: 45%"></div>
+						</div>
+					</div>
+
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<div class="flex justify-between items-center mb-3">
+							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Disk I/O</p>
+							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.diskUsage}%</span>
+						</div>
+						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+							<div class="bg-slate-400 h-full transition-all duration-1000" style={`width: ${metrics.systemPerformance.diskUsage}%`}></div>
+						</div>
+					</div>
+
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Connections</p>
+						<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">{metrics.systemPerformance.activeConnections}</p>
+						<p class="text-[8px] font-bold text-slate-400 uppercase mt-1">Socket Concurrency</p>
+					</div>
+				</div>
+			</section>
 		</div>
 	)}
 
-	<div class="mt-12 bg-indigo-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
-		<div class="relative z-10">
-			<h3 class="text-2xl font-bold mb-4">Central Bank Oversight</h3>
-			<p class="text-indigo-100 max-w-2xl">
-				This dashboard provides a unified view of all stablecoin obligations currently held in escrow. 
-				As the issuer, the Central Bank maintains visibility into all transaction flows to ensure systemic liquidity and regulatory compliance.
-			</p>
+	{isAdmin && (
+		<div class="mt-12 bg-slate-900 dark:bg-blue-950 rounded-3xl p-10 text-white shadow-2xl relative overflow-hidden transition-colors duration-500 border border-slate-800 dark:border-blue-900">
+			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+				<div class="max-w-2xl">
+					<h3 class="text-3xl font-black mb-4 tracking-tight">Central Bank Oversight</h3>
+					<p class="text-slate-300 dark:text-blue-200 leading-relaxed font-medium">
+						This unified dashboard provides absolute visibility into stablecoin obligations. 
+						As the issuer, the Central Bank monitors systemic liquidity and ensures that every escrowed token is backed and settled with cryptographic certainty.
+					</p>
+				</div>
+				<div class="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 inline-block self-start md:self-center">
+					<div class="flex items-center space-x-4">
+						<div class="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(74,222,128,0.5)]"></div>
+						<span class="text-sm font-bold uppercase tracking-wider">System Status: Nominal</span>
+					</div>
+				</div>
+			</div>
+			<div class="absolute right-0 bottom-0 opacity-[0.03] dark:opacity-[0.05] translate-y-1/4 translate-x-1/4 scale-150 text-white">
+				<img src="/favicon.svg" alt="" class="w-96 h-96 invert" />
+			</div>
 		</div>
-		<div class="absolute right-0 bottom-0 opacity-10 translate-y-1/4 translate-x-1/4">
-			<svg width="400" height="400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-		</div>
-	</div>
+	)}
 </Layout>

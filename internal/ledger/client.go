@@ -49,11 +49,32 @@ type EscrowSettlement struct {
 	Status    string  `json:"status"`
 }
 
+type ActivityPoint struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+type SystemPerformance struct {
+	APILatencyMS      int     `json:"apiLatencyMs"`
+	P95LatencyMS      int     `json:"p95LatencyMs"`
+	P99LatencyMS      int     `json:"p99LatencyMs"`
+	ErrorRate         float64 `json:"errorRate"`
+	RequestCount      int     `json:"requestCount"`
+	SuccessRate       float64 `json:"successRate"`
+	Uptime            string  `json:"uptime"`
+	CPUUsage          float64 `json:"cpuUsage"`
+	MemoryUsage       float64 `json:"memoryUsage"`
+	DiskUsage         float64 `json:"diskUsage"`
+	ActiveConnections int     `json:"activeConnections"`
+}
+
 type LedgerMetrics struct {
-	TotalActiveEscrows    int     `json:"totalActiveEscrows"`
-	TotalValueInEscrow    float64 `json:"totalValueInEscrow"`
-	PendingSettlements    int     `json:"pendingSettlements"`
-	PendingSettlementValue float64 `json:"pendingSettlementValue"`
+	TotalActiveEscrows     int               `json:"totalActiveEscrows"`
+	TotalValueInEscrow     float64           `json:"totalValueInEscrow"`
+	PendingSettlements     int               `json:"pendingSettlements"`
+	PendingSettlementValue float64           `json:"pendingSettlementValue"`
+	ActivityHistory        []ActivityPoint   `json:"activityHistory"`
+	SystemPerformance      SystemPerformance `json:"systemPerformance"`
 }
 
 type OracleWebhookRequest struct {

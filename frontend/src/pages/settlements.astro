@@ -2,6 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 import { fetchSettlements } from '../lib/api';
 
+const adminCookie = Astro.cookies.get('admin-mode');
+const isAdmin = adminCookie?.value === 'true';
+
 let settlements = [];
 let error = null;
 
@@ -14,53 +17,67 @@ try {
 
 <Layout title="Pending Settlements | Stablecoin Escrow">
 	<div class="mb-8">
-		<h2 class="text-3xl font-extrabold text-gray-900">Pending Settlements</h2>
-		<p class="text-gray-600 mt-1">Finalize payments released from escrow to transfer funds.</p>
+		<div class="flex items-center space-x-2 mb-1">
+			<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500' : 'bg-slate-300'}`}></span>
+			<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+				{isAdmin ? 'Central Bank Queue' : 'Read-Only Settlement Registry'}
+			</span>
+		</div>
+		<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Pending Settlements</h2>
+		<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+			{isAdmin ? 'Authorize and finalize payments released from escrow.' : 'Review current liquidity settlements across the ledger.'}
+		</p>
 	</div>
 
 	{error && (
-		<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
-			<p class="text-sm text-red-700">Error loading settlements: {error}</p>
+		<div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-8 rounded-r-xl font-mono">
+			<p class="text-sm font-bold text-red-700 dark:text-red-400">Error: {error}</p>
 		</div>
 	)}
 
-	<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-		<table class="min-w-full divide-y divide-gray-200">
-			<thead class="bg-gray-50">
+	<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-colors">
+		<table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+			<thead class="bg-slate-50 dark:bg-slate-800/50">
 				<tr>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Settlement ID / Status</th>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
-					<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+					<th class="px-6 py-4 text-left text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">ID / Status</th>
+					<th class="px-6 py-4 text-left text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Amount</th>
+					<th class="px-6 py-4 text-left text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recipient</th>
+					<th class="px-6 py-4 text-right text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Action</th>
 				</tr>
 			</thead>
-			<tbody class="bg-white divide-y divide-gray-200">
+			<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
 				{settlements.length === 0 ? (
 					<tr>
-						<td colspan="4" class="px-6 py-10 text-center text-gray-500 italic">No pending settlements.</td>
+						<td colspan="4" class="px-6 py-16 text-center text-slate-400 dark:text-slate-600 font-medium italic">No pending settlements found on the ledger.</td>
 					</tr>
 				) : (
 					settlements.map(s => (
-						<tr>
-							<td class="px-6 py-4">
-								<div class="text-sm font-mono text-indigo-600 bg-indigo-50 inline-block px-2 py-0.5 rounded mb-1">{s.id.substring(0, 16)}...</div>
-								<div class="text-xs text-gray-500">{s.status}</div>
+						<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+							<td class="px-6 py-5">
+								<div class="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 inline-block px-2 py-0.5 rounded mb-1">{s.id.substring(0, 16)}...</div>
+								<div class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{s.status}</div>
 							</td>
-							<td class="px-6 py-4">
-								<div class="text-sm font-bold text-gray-900">{s.amount} {s.currency}</div>
+							<td class="px-6 py-5">
+								<div class="text-sm font-black text-slate-800 dark:text-white">{s.amount} <span class="text-[10px] text-slate-400">{s.currency}</span></div>
 							</td>
-							<td class="px-6 py-4">
-								<div class="text-sm text-gray-600">{s.recipient.split('::')[0]}</div>
-								<div class="text-[10px] text-gray-400 font-mono">{s.recipient.split('::')[1]}</div>
+							<td class="px-6 py-5">
+								<div class="text-sm font-bold text-slate-700 dark:text-slate-300">{s.recipient.split('::')[0]}</div>
+								<div class="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">{s.recipient.split('::')[1]}</div>
 							</td>
-							<td class="px-6 py-4 text-right">
-								<button 
-									data-action="settle" 
-									data-id={s.id}
-									class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
-								>
-									Finalize Payment
-								</button>
+							<td class="px-6 py-5 text-right">
+								{isAdmin ? (
+									<button 
+										data-action="settle" 
+										data-id={s.id}
+										class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-md shadow-blue-500/20"
+									>
+										Finalize Payment
+									</button>
+								) : (
+									<span class="text-[10px] font-bold text-slate-300 dark:text-slate-700 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+										Admin Locked
+									</span>
+								)}
 							</td>
 						</tr>
 					))

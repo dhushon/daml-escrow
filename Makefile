@@ -23,50 +23,17 @@ oracle-sim:
 .PHONY: daml-build
 daml-build:
 	@echo "Building Daml Contracts..."
-	cd contracts && $(DPM) build
+	cd contracts && $(DPM) build --all
 
 .PHONY: clean-db
 clean-db:
 	@echo "Wiping persistent ledger database..."
-	docker-compose exec -T postgres psql -U escrow -d postgres -c "DROP DATABASE IF EXISTS escrow;"
-	docker-compose exec -T postgres psql -U escrow -d postgres -c "CREATE DATABASE escrow;"
-
-.PHONY: clean-ledger
-clean-ledger:
-	@echo "Stopping local Canton processes..."
-	-pkill -f "canton"
-	rm -f contracts/sandbox.log
-
-.PHONY: sandbox-local
-sandbox-local: clean-ledger daml-build
-	@echo "Starting Canton Sandbox locally (background)..."
-	cd contracts && export JAVA_HOME="$(JAVA_HOME_17)" && \
-	nohup $(DPM) sandbox --config $(SANDBOX_CONF) > sandbox.log 2>&1 &
-
-.PHONY: sandbox-wait
-sandbox-wait:
-	@echo "Waiting for sandbox port 6865..."
-	@until lsof -i :6865 > /dev/null 2>&1; do sleep 1; done
-	@echo "Sandbox port is open. Waiting 5s for internal stability..."
-	@sleep 5
-
-.PHONY: sandbox-setup
-sandbox-setup:
-	@echo "Establishing topology and uploading DAR..."
-	cd contracts && export JAVA_HOME="$(JAVA_HOME_17)" && \
-	$(DPM) canton-console --port 6866 --bootstrap $(SANDBOX_INIT) --no-tty
-
-.PHONY: sandbox-up
-sandbox-up: clean-db sandbox-local sandbox-wait sandbox-setup
-	@echo "---------------------------------------"
-	@echo "Sandbox is UP and fully initialized."
-	@echo "JSON API: http://localhost:7575"
-	@echo "gRPC API: localhost:6865"
-	@echo "---------------------------------------"
+	docker-compose exec -T postgres psql -U escrow -d postgres -c "DROP DATABASE IF EXISTS escrow;" || true
+	docker-compose exec -T postgres psql -U escrow -d postgres -c "CREATE DATABASE escrow;" || true
 
 .PHONY: docker-up
 docker-up:
-	@echo "Starting Docker Compose stack..."
+	@echo "Starting Docker Compose stack (Ledger + DB)..."
 	docker-compose up -d --build
 	@echo "Monitoring ledger logs for readiness..."
 	@count=0; until docker-compose logs sandbox | grep -q "Setup complete." || [ $$count -eq 60 ]; do \
@@ -75,10 +42,35 @@ docker-up:
 	done
 	@docker-compose logs sandbox | grep -q "Setup complete." && echo "Ledger reports: Setup complete." || (echo "Timed out waiting for ledger setup"; exit 1)
 
-.PHONY: docker-down
-docker-down:
-	@echo "Stopping Docker Compose stack..."
-	docker-compose down -v
+.PHONY: api-up
+api-up: build
+	@echo "Starting Go API on port 8081 (background)..."
+	@nohup bin/$(APP_NAME) > api.log 2>&1 & echo $$! > api.pid
+	@echo "API started. PID: $$(cat api.pid). Logs: api.log"
+
+.PHONY: frontend-up
+frontend-up:
+	@echo "Starting Astro Frontend on port 8080 (background)..."
+	@cd frontend && nohup npm run dev > ../frontend.log 2>&1 & echo $$! > frontend.pid
+	@echo "Frontend started. PID: $$(cat frontend.pid). Logs: frontend.log"
+
+.PHONY: up
+up: docker-up api-up frontend-up
+	@echo "---------------------------------------"
+	@echo "Full stack is UP."
+	@echo "Web Dashboard: http://localhost:8080"
+	@echo "Backend API:   http://localhost:8081"
+	@echo "Ledger JSON:   http://localhost:7575"
+	@echo "---------------------------------------"
+
+.PHONY: down
+down:
+	@echo "Stopping all components..."
+	@-[ -f api.pid ] && kill $$(cat api.pid) && rm api.pid || true
+	@-[ -f frontend.pid ] && kill $$(cat frontend.pid) && rm frontend.pid || true
+	@pkill -f "npm run dev" || true
+	docker-compose down
+	@echo "Stack is down."
 
 .PHONY: test
 test:
@@ -99,4 +91,4 @@ integration-test:
 
 .PHONY: clean
 clean:
-	rm -rf bin *.log
+	rm -rf bin *.log *.pid
