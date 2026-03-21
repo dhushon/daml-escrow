@@ -72,7 +72,7 @@ const generateGraphPoints = (history: any[]) => {
 
 					<div class="col-span-1 md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
 						<div class="flex justify-between items-start mb-4">
-							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Activity Trend</p>
+							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Escrow Trend</p>
 							<div class="flex space-x-1">
 								{metrics.activityHistory.map((h: any) => (
 									<div class="w-1 bg-blue-500/20 h-4 rounded-full overflow-hidden flex flex-col justify-end">
@@ -92,9 +92,15 @@ const generateGraphPoints = (history: any[]) => {
 									points={generateGraphPoints(metrics.activityHistory)}
 								/>
 								<path
-									fill="url(#lineGradient)"
+									fill="url(#lineGradientBlue)"
 									d={`M 0,100 L ${generateGraphPoints(metrics.activityHistory)} L 400,100 Z`}
 								/>
+								<defs>
+									<linearGradient id="lineGradientBlue" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2" />
+										<stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
+									</linearGradient>
+								</defs>
 							</svg>
 						</div>
 						<div class="flex justify-between mt-2">
@@ -105,13 +111,64 @@ const generateGraphPoints = (history: any[]) => {
 				</div>
 			</section>
 
-			{/* Section 2: Latency & Reliability */}
+			{/* Section 2: Ledger Health & Throughput (Proxied) */}
+			<section>
+				<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Ledger Health & Throughput</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+					<div class="col-span-1 md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+						<div class="flex justify-between items-start mb-4">
+							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Transaction Throughput (TPS)</p>
+							<span class="text-[10px] font-black text-green-500">{metrics.ledgerHealth.tps} TPS</span>
+						</div>
+						<div class="h-16 w-full overflow-hidden">
+							<svg viewBox="0 0 400 100" class="w-full h-full overflow-visible">
+								<polyline
+									fill="none"
+									stroke="#10b981"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									points={generateGraphPoints(metrics.tpsHistory)}
+								/>
+								<path
+									fill="url(#lineGradientGreen)"
+									d={`M 0,100 L ${generateGraphPoints(metrics.tpsHistory)} L 400,100 Z`}
+								/>
+								<defs>
+									<linearGradient id="lineGradientGreen" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="0%" stop-color="#10b981" stop-opacity="0.2" />
+										<stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+									</linearGradient>
+								</defs>
+							</svg>
+						</div>
+						<div class="flex justify-between mt-2">
+							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory[0].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory[metrics.tpsHistory.length-1].date}</span>
+						</div>
+					</div>
+
+					<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+						<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Command Success</p>
+						<p class="text-4xl font-black mt-2 text-green-600 dark:text-green-400">{metrics.ledgerHealth.commandSuccessRate}%</p>
+						<p class="text-[8px] font-bold text-slate-400 uppercase mt-1">Submission Reliability</p>
+					</div>
+
+					<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-right">
+						<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total ACS Size</p>
+						<p class="text-4xl font-black mt-2 text-slate-900 dark:text-white">{metrics.ledgerHealth.activeContracts}</p>
+						<p class="text-[8px] font-bold text-slate-400 uppercase mt-1">Active Contract Set</p>
+					</div>
+				</div>
+			</section>
+
+			{/* Section 3: System Performance (API & Infra) */}
 			<section>
 				<div class="flex justify-between items-center mb-6">
-					<h3 class="text-lg font-bold text-slate-800 dark:text-white">API Latency & Reliability</h3>
+					<h3 class="text-lg font-bold text-slate-800 dark:text-white">API & System Performance</h3>
 					<span class="text-[10px] font-bold text-green-500 uppercase tracking-widest flex items-center">
-						<span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 animate-ping"></span>
-						Service Healthy
+						<span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 animate-ping shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+						Nodes Healthy
 					</span>
 				</div>
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -126,21 +183,6 @@ const generateGraphPoints = (history: any[]) => {
 							<span class="text-xs font-normal text-slate-400 italic ml-1">ms</span>
 						</p>
 					</div>
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Success Rate</p>
-						<p class="text-2xl font-black mt-1 text-green-600 dark:text-green-400">{metrics.systemPerformance.successRate}%</p>
-					</div>
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Error Rate</p>
-						<p class="text-2xl font-black mt-1 text-red-600 dark:text-red-400">{metrics.systemPerformance.errorRate}%</p>
-					</div>
-				</div>
-			</section>
-
-			{/* Section 3: Infrastructure Oversight */}
-			<section>
-				<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Infrastructure Oversight</h3>
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-blue-500/30">
 						<div class="flex justify-between items-center mb-3">
 							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
@@ -159,22 +201,6 @@ const generateGraphPoints = (history: any[]) => {
 						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
 							<div class="bg-indigo-500 h-full transition-all duration-1000" style="width: 45%"></div>
 						</div>
-					</div>
-
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-						<div class="flex justify-between items-center mb-3">
-							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Disk I/O</p>
-							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.diskUsage}%</span>
-						</div>
-						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-							<div class="bg-slate-400 h-full transition-all duration-1000" style={`width: ${metrics.systemPerformance.diskUsage}%`}></div>
-						</div>
-					</div>
-
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Connections</p>
-						<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">{metrics.systemPerformance.activeConnections}</p>
-						<p class="text-[8px] font-bold text-slate-400 uppercase mt-1">Socket Concurrency</p>
 					</div>
 				</div>
 			</section>

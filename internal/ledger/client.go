@@ -68,13 +68,22 @@ type SystemPerformance struct {
 	ActiveConnections int     `json:"activeConnections"`
 }
 
+type LedgerHealth struct {
+	TPS                float64 `json:"tps"`
+	CommandSuccessRate float64 `json:"commandSuccessRate"`
+	ActiveContracts    int     `json:"activeContracts"`
+	ParticipantUptime  string  `json:"participantUptime"`
+}
+
 type LedgerMetrics struct {
 	TotalActiveEscrows     int               `json:"totalActiveEscrows"`
 	TotalValueInEscrow     float64           `json:"totalValueInEscrow"`
 	PendingSettlements     int               `json:"pendingSettlements"`
 	PendingSettlementValue float64           `json:"pendingSettlementValue"`
 	ActivityHistory        []ActivityPoint   `json:"activityHistory"`
+	TPSHistory             []ActivityPoint   `json:"tpsHistory"`
 	SystemPerformance      SystemPerformance `json:"systemPerformance"`
+	LedgerHealth           LedgerHealth      `json:"ledgerHealth"`
 }
 
 type OracleWebhookRequest struct {

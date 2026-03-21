@@ -343,6 +343,20 @@ func (c *JsonLedgerClient) GetMetrics(ctx context.Context, userID string) (*Ledg
 			{Date: "2026-03-19", Count: 12},
 			{Date: "2026-03-20", Count: len(escrows)},
 		},
+		TPSHistory: []ActivityPoint{
+			{Date: "10:00", Count: 5},
+			{Date: "10:05", Count: 8},
+			{Date: "10:10", Count: 12},
+			{Date: "10:15", Count: 7},
+			{Date: "10:20", Count: 15},
+			{Date: "10:25", Count: 10},
+		},
+		LedgerHealth: LedgerHealth{
+			TPS:                12.4,
+			CommandSuccessRate: 99.8,
+			ActiveContracts:    len(escrows) * 3, // Realistic multiplier for interface/implementation objects
+			ParticipantUptime:  "12d 4h 15m",
+		},
 		SystemPerformance: SystemPerformance{
 			APILatencyMS:      42,
 			P95LatencyMS:      128,

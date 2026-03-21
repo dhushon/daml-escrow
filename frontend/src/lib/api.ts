@@ -33,11 +33,41 @@ export interface SettlementResponse {
   status: string;
 }
 
+export interface ActivityPoint {
+  date: string;
+  count: number;
+}
+
+export interface SystemPerformance {
+  apiLatencyMs: number;
+  p95LatencyMs: number;
+  p99LatencyMs: number;
+  errorRate: number;
+  requestCount: number;
+  successRate: number;
+  uptime: string;
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  activeConnections: number;
+}
+
+export interface LedgerHealth {
+  tps: number;
+  commandSuccessRate: number;
+  activeContracts: number;
+  participantUptime: string;
+}
+
 export interface LedgerMetrics {
   totalActiveEscrows: number;
   totalValueInEscrow: number;
   pendingSettlements: number;
   pendingSettlementValue: number;
+  activityHistory: ActivityPoint[];
+  tpsHistory: ActivityPoint[];
+  systemPerformance: SystemPerformance;
+  ledgerHealth: LedgerHealth;
 }
 
 const BASE_URL = "http://localhost:8081/api/v1";
