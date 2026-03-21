@@ -1,0 +1,88 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EscrowCard from '../components/EscrowCard.astro';
+import { fetchEscrows } from '../lib/api';
+
+let escrows = [];
+let error = null;
+
+try {
+	// In production, user context would come from auth/cookies
+	escrows = await fetchEscrows('Buyer');
+} catch (e) {
+	error = e.message;
+}
+---
+
+<Layout title="My Escrows | Stablecoin Escrow">
+	<div class="mb-8 flex justify-between items-end">
+		<div>
+			<h2 class="text-3xl font-extrabold text-gray-900">Active Escrows</h2>
+			<p class="text-gray-600 mt-1">Manage your pending payments and milestone approvals.</p>
+		</div>
+		<div class="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+			<button class="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-md shadow-sm">Buyer View</button>
+			<button class="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Seller View</button>
+		</div>
+	</div>
+
+	{error && (
+		<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+			<div class="flex">
+				<div class="ml-3">
+					<p class="text-sm text-red-700">
+						Error loading escrows: <span class="font-mono">{error}</span>. 
+						Ensure the Go backend is running at http://localhost:8080.
+					</p>
+				</div>
+			</div>
+		</div>
+	)}
+
+	{escrows.length === 0 && !error ? (
+		<div class="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-2xl">
+			<div class="mx-auto w-12 h-12 text-gray-400 mb-4">
+				<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+			</div>
+			<h3 class="text-lg font-medium text-gray-900">No active escrows found</h3>
+			<p class="text-gray-500 mt-1">Wait for a transaction or create a new one via the API.</p>
+		</div>
+	) : (
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+			{escrows.map(e => <EscrowCard escrow={e} />)}
+		</div>
+	)}
+</Layout>
+
+<script>
+	import { releaseFunds, raiseDispute } from '../lib/api';
+
+	// Handle actions
+	const buttons = document.querySelectorAll('button[data-action]');
+	buttons.forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLButtonElement;
+			const action = target.getAttribute('data-action');
+			const id = target.getAttribute('data-id');
+			
+			if (!id) return;
+
+			target.disabled = true;
+			target.textContent = 'Processing...';
+
+			try {
+				if (action === 'release') {
+					await releaseFunds(id);
+				} else if (action === 'dispute') {
+					await raiseDispute(id);
+				}
+				// Refresh page to show new state
+				window.location.reload();
+			} catch (err) {
+				alert('Action failed: ' + err.message);
+				target.disabled = false;
+				target.textContent = action === 'release' ? 'Approve' : 'Dispute';
+			}
+		});
+	});
+</script>

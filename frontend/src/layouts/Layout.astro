@@ -1,0 +1,39 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Stablecoin Escrow Dashboard" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body class="bg-gray-50 text-gray-900 min-h-screen">
+		<nav class="bg-indigo-700 text-white p-4 shadow-lg">
+			<div class="container mx-auto flex justify-between items-center">
+				<h1 class="text-xl font-bold tracking-tight">Stablecoin Escrow</h1>
+				<div class="flex space-x-6">
+					<a href="/" class="hover:text-indigo-200 transition-colors">My Escrows</a>
+					<a href="/settlements" class="hover:text-indigo-200 transition-colors">Settlements</a>
+					<a href="/metrics" class="hover:text-indigo-200 transition-colors">Metrics</a>
+				</div>
+			</div>
+		</nav>
+		<main class="container mx-auto p-6">
+			<slot />
+		</main>
+		<footer class="mt-auto p-8 border-t border-gray-200 text-center text-gray-500 text-sm">
+			Built with Daml 3.x + Astro + Go
+		</footer>
+	</body>
+</html>

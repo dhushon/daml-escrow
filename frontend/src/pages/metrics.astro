@@ -1,0 +1,63 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { fetchMetrics } from '../lib/api';
+
+let metrics = null;
+let error = null;
+
+try {
+	metrics = await fetchMetrics();
+} catch (e) {
+	error = e.message;
+}
+---
+
+<Layout title="Platform Metrics | Stablecoin Escrow">
+	<div class="mb-8">
+		<h2 class="text-3xl font-extrabold text-gray-900">Platform Metrics</h2>
+		<p class="text-gray-600 mt-1">Real-time overview of escrow activity and settlement liquidity.</p>
+	</div>
+
+	{error && (
+		<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+			<p class="text-sm text-red-700">Error loading metrics: {error}</p>
+		</div>
+	)}
+
+	{metrics && (
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Escrows</p>
+				<p class="text-3xl font-bold mt-2 text-indigo-600">{metrics.totalActiveEscrows}</p>
+			</div>
+			
+			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Value in Escrow</p>
+				<p class="text-3xl font-bold mt-2 text-gray-900">{metrics.totalValueInEscrow.toLocaleString()} <span class="text-sm font-normal text-gray-400">USD</span></p>
+			</div>
+
+			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Pending Settlements</p>
+				<p class="text-3xl font-bold mt-2 text-orange-600">{metrics.pendingSettlements}</p>
+			</div>
+
+			<div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+				<p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Settlement Volume</p>
+				<p class="text-3xl font-bold mt-2 text-gray-900">{metrics.pendingSettlementValue.toLocaleString()} <span class="text-sm font-normal text-gray-400">USD</span></p>
+			</div>
+		</div>
+	)}
+
+	<div class="mt-12 bg-indigo-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
+		<div class="relative z-10">
+			<h3 class="text-2xl font-bold mb-4">Central Bank Oversight</h3>
+			<p class="text-indigo-100 max-w-2xl">
+				This dashboard provides a unified view of all stablecoin obligations currently held in escrow. 
+				As the issuer, the Central Bank maintains visibility into all transaction flows to ensure systemic liquidity and regulatory compliance.
+			</p>
+		</div>
+		<div class="absolute right-0 bottom-0 opacity-10 translate-y-1/4 translate-x-1/4">
+			<svg width="400" height="400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+		</div>
+	</div>
+</Layout>
