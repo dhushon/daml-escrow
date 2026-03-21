@@ -12,14 +12,16 @@ import (
 )
 
 type Handler struct {
-	logger        *zap.Logger
-	escrowService *services.EscrowService
+	logger         *zap.Logger
+	escrowService  *services.EscrowService
+	metricsService *services.MetricsService
 }
 
-func NewHandler(logger *zap.Logger, escrowService *services.EscrowService) *Handler {
+func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService) *Handler {
 	return &Handler{
-		logger:        logger,
-		escrowService: escrowService,
+		logger:         logger,
+		escrowService:  escrowService,
+		metricsService: metricsService,
 	}
 }
 
@@ -205,6 +207,17 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("get metrics failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	// Override mock performance with real-time stats if we have the service
+	if h.metricsService != nil {
+		latency, reqs, errRate, mem, cpu, uptime := h.metricsService.GetSystemPerformance()
+		metrics.SystemPerformance.APILatencyMS = latency
+		metrics.SystemPerformance.RequestCount = reqs
+		metrics.SystemPerformance.ErrorRate = errRate
+		metrics.SystemPerformance.MemoryUsage = mem
+		metrics.SystemPerformance.CPUUsage = cpu
+		metrics.SystemPerformance.Uptime = uptime
 	}
 
 	w.Header().Set("Content-Type", "application/json")
