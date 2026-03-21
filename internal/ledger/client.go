@@ -10,20 +10,20 @@ type Milestone struct {
 	Completed bool    `json:"completed"`
 }
 
-type CreateEscrowRequest struct {
-	Buyer       string         `json:"buyer"`
-	Seller      string         `json:"seller"`
-	Amount      float64        `json:"amount"`
-	Currency    string         `json:"currency"`
-	Description string         `json:"description"`
-	Milestones  []Milestone    `json:"milestones,omitempty"`
-	Metadata    EscrowMetadata `json:"metadata,omitempty"`
-}
-
 type EscrowMetadata struct {
 	SchemaURL  string                 `json:"schemaUrl"`
 	Payload    map[string]interface{} `json:"payload"`
-	Exclusions map[string]interface{} `json:"exclusions,omitempty"` // Instructions for field redaction
+	Exclusions map[string]struct{}    `json:"-"` // Fields to exclude from ledger (privacy)
+}
+
+type CreateEscrowRequest struct {
+	Buyer       string                `json:"buyer"`
+	Seller      string                `json:"seller"`
+	Amount      float64               `json:"amount"`
+	Currency    string                `json:"currency"`
+	Description string                `json:"description"`
+	Milestones  []Milestone           `json:"milestones"`
+	Metadata    EscrowMetadata        `json:"metadata"`
 }
 
 type EscrowContract struct {
@@ -34,10 +34,23 @@ type EscrowContract struct {
 	Mediator              string         `json:"mediator"`
 	Amount                float64        `json:"amount"`
 	Currency              string         `json:"currency"`
-	State                 string         `json:"state"` // "Active" or "Disputed"
+	State                 string         `json:"state"`
 	Milestones            []Milestone    `json:"milestones"`
 	CurrentMilestoneIndex int            `json:"currentMilestoneIndex"`
 	Metadata              EscrowMetadata `json:"metadata"`
+}
+
+type EscrowProposal struct {
+	ID          string         `json:"id"`
+	Buyer       string         `json:"buyer"`
+	Seller      string         `json:"seller"`
+	Issuer      string         `json:"issuer"`
+	Mediator    string         `json:"mediator"`
+	Amount      float64        `json:"amount"`
+	Currency    string         `json:"currency"`
+	Description string         `json:"description"`
+	Milestones  []Milestone    `json:"milestones"`
+	Metadata    EscrowMetadata `json:"metadata"`
 }
 
 type EscrowSettlement struct {
@@ -86,35 +99,44 @@ type LedgerMetrics struct {
 	LedgerHealth           LedgerHealth      `json:"ledgerHealth"`
 }
 
+type Wallet struct {
+	ID       string  `json:"id"`
+	Owner    string  `json:"owner"`
+	Currency string  `json:"currency"`
+	Balance  float64 `json:"balance"`
+}
+
 type OracleWebhookRequest struct {
-	EscrowID       string                 `json:"escrowId"`
-	MilestoneIndex int                    `json:"milestoneIndex"`
-	Event          string                 `json:"event"`
-	OracleProvider string                 `json:"oracleProvider"`
-	Evidence       string                 `json:"evidence"`
-	Metadata       map[string]interface{} `json:"metadata"`
-	Signature      string                 `json:"signature"`
+	EscrowID       string `json:"escrowId"`
+	MilestoneIndex int    `json:"milestoneIndex"`
+	Event          string `json:"event"`
+	OracleProvider string `json:"oracleProvider"`
+	Signature      string `json:"signature"`
 }
 
 type Client interface {
+	// Escrow Lifecycle
+	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
+	AcceptProposal(ctx context.Context, id string, sellerID string) error
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
-	GetEscrow(ctx context.Context, id string) (*EscrowContract, error)
-	
-	// ListEscrows returns escrows visible to the given User ID
 	ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error)
-	
+	ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error)
+	GetEscrow(ctx context.Context, id string) (*EscrowContract, error)
 	ReleaseFunds(ctx context.Context, id string) error
 	RaiseDispute(ctx context.Context, id string) (string, error)
 	ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error
 	RefundBuyer(ctx context.Context, id string) error
 	RefundBySeller(ctx context.Context, id string) error
-	
-	// Aggregated Views
+
+	// Metrics & Observability
 	GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error)
-	
-	// Settlement interactions
+
+	// Settlements
 	ListSettlements(ctx context.Context) ([]*EscrowSettlement, error)
 	SettlePayment(ctx context.Context, settlementID string) error
+
+	// Wallet Management (Mockable)
+	ListWallets(ctx context.Context, userID string) ([]*Wallet, error)
 
 	// Internal helper for tests
 	getParty(user string) string

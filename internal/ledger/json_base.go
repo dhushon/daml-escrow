@@ -65,6 +65,13 @@ func (c *JsonLedgerClient) getOffset() interface{} {
 	return nil
 }
 
+func (c *JsonLedgerClient) ListWallets(ctx context.Context, userID string) ([]*Wallet, error) {
+	// Mock implementation for Phase 4
+	return []*Wallet{
+		{ID: "mock-wallet-usd", Owner: userID, Currency: "USD", Balance: 1000.0},
+	}, nil
+}
+
 func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
 	url := c.baseURL + path
 	var bodyReader io.Reader

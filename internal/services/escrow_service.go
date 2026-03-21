@@ -39,6 +39,31 @@ func (s *EscrowService) CreateEscrow(
 	return s.ledger.CreateEscrow(ctx, req)
 }
 
+func (s *EscrowService) ProposeEscrow(
+	ctx context.Context,
+	req ledger.CreateEscrowRequest,
+) (*ledger.EscrowProposal, error) {
+	s.logger.Info("proposing escrow", zap.Any("request", req))
+	return s.ledger.ProposeEscrow(ctx, req)
+}
+
+func (s *EscrowService) AcceptProposal(
+	ctx context.Context,
+	id string,
+	sellerID string,
+) error {
+	s.logger.Info("accepting proposal", zap.String("id", id), zap.String("seller", sellerID))
+	return s.ledger.AcceptProposal(ctx, id, sellerID)
+}
+
+func (s *EscrowService) ListProposals(
+	ctx context.Context,
+	userID string,
+) ([]*ledger.EscrowProposal, error) {
+	s.logger.Info("listing proposals for user", zap.String("userID", userID))
+	return s.ledger.ListProposals(ctx, userID)
+}
+
 func (s *EscrowService) GetEscrow(
 	ctx context.Context,
 	id string,
@@ -117,6 +142,14 @@ func (s *EscrowService) GetMetrics(
 ) (*ledger.LedgerMetrics, error) {
 	s.logger.Info("getting metrics for user", zap.String("userID", userID))
 	return s.ledger.GetMetrics(ctx, userID)
+}
+
+func (s *EscrowService) ListWallets(
+	ctx context.Context,
+	userID string,
+) ([]*ledger.Wallet, error) {
+	s.logger.Info("listing wallets for user", zap.String("userID", userID))
+	return s.ledger.ListWallets(ctx, userID)
 }
 
 func (s *EscrowService) ProcessOracleWebhook(

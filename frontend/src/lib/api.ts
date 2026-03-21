@@ -24,6 +24,17 @@ export interface EscrowResponse {
   metadata: EscrowMetadata;
 }
 
+export interface EscrowProposal {
+  id: string;
+  buyer: string;
+  seller: string;
+  issuer: string;
+  mediator: string;
+  amount: number;
+  currency: string;
+  description: string;
+}
+
 export interface SettlementResponse {
   id: string;
   issuer: string;
@@ -70,11 +81,39 @@ export interface LedgerMetrics {
   ledgerHealth: LedgerHealth;
 }
 
+export interface Wallet {
+  id: string;
+  owner: string;
+  currency: string;
+  balance: number;
+}
+
 const BASE_URL = "http://localhost:8081/api/v1";
 
 export async function fetchEscrows(user: string = "Buyer"): Promise<EscrowResponse[]> {
   const resp = await fetch(`${BASE_URL}/escrows?user=${user}`);
   if (!resp.ok) throw new Error(`Failed to fetch escrows: ${resp.statusText}`);
+  return resp.json();
+}
+
+export async function proposeEscrow(req: any): Promise<EscrowProposal> {
+  const resp = await fetch(`${BASE_URL}/escrows/propose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) throw new Error(`Failed to propose escrow: ${resp.statusText}`);
+  return resp.json();
+}
+
+export async function acceptProposal(id: string, user: string = "Seller"): Promise<void> {
+  const resp = await fetch(`${BASE_URL}/escrows/${id}/accept?user=${user}`, { method: "POST" });
+  if (!resp.ok) throw new Error(`Failed to accept proposal: ${resp.statusText}`);
+}
+
+export async function fetchProposals(user: string = "Buyer"): Promise<EscrowProposal[]> {
+  const resp = await fetch(`${BASE_URL}/escrows/proposals?user=${user}`);
+  if (!resp.ok) throw new Error(`Failed to fetch proposals: ${resp.statusText}`);
   return resp.json();
 }
 
@@ -87,6 +126,12 @@ export async function fetchSettlements(): Promise<SettlementResponse[]> {
 export async function fetchMetrics(user: string = "CentralBank"): Promise<LedgerMetrics> {
   const resp = await fetch(`${BASE_URL}/metrics?user=${user}`);
   if (!resp.ok) throw new Error(`Failed to fetch metrics: ${resp.statusText}`);
+  return resp.json();
+}
+
+export async function fetchWallets(user: string = "Buyer"): Promise<Wallet[]> {
+  const resp = await fetch(`${BASE_URL}/wallets?user=${user}`);
+  if (!resp.ok) throw new Error(`Failed to fetch wallets: ${resp.statusText}`);
   return resp.json();
 }
 

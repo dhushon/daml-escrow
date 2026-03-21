@@ -88,7 +88,10 @@ func main() {
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Post("/escrows", handler.CreateEscrow)
+		r.Post("/escrows/propose", handler.ProposeEscrow)
+		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)
 		r.Get("/escrows", handler.ListEscrows)
+		r.Get("/escrows/proposals", handler.ListProposals)
 		r.Get("/escrows/{escrowID}", handler.GetEscrow)
 		r.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
 		r.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
@@ -100,6 +103,7 @@ func main() {
 		r.Get("/metrics", handler.GetMetrics)
 		r.Get("/settlements", handler.ListSettlements)
 		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
+		r.Get("/wallets", handler.ListWallets)
 	})
 
 	server := &http.Server{

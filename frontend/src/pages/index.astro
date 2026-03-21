@@ -1,56 +1,66 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import EscrowCard from '../components/EscrowCard.astro';
-import { fetchEscrows } from '../lib/api';
+import { fetchEscrows, fetchProposals } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
 const isAdmin = adminCookie?.value === 'true';
 
-// Support view switching via query param
 const view = Astro.url.searchParams.get('view') || 'Buyer';
+const tab = Astro.url.searchParams.get('tab') || 'active';
 const targetUser = isAdmin ? 'EscrowMediator' : view;
 
 let escrows = [];
+let proposals = [];
 let error = null;
 
 try {
-	escrows = await fetchEscrows(targetUser);
+	if (tab === 'active') {
+		escrows = await fetchEscrows(targetUser);
+	} else {
+		proposals = await fetchProposals(targetUser);
+	}
 } catch (e) {
 	error = e.message;
 }
 ---
 
-<Layout title="My Escrows | Stablecoin Escrow">
+<Layout title="Dashboard | Stablecoin Escrow">
 	<div class="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
 		<div>
 			<div class="flex items-center space-x-2 mb-1">
-				<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500' : 'bg-green-500'}`}></span>
+				<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
 				<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
 					{isAdmin ? 'System-Wide Oversight' : `${view} Perspective`}
 				</span>
 			</div>
-			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Active Escrows</h2>
-			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">
-				{isAdmin ? 'Monitoring all active ledger obligations as Mediator.' : `Managing your pending payments as a ${view}.`}
-			</p>
+			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Escrow Dashboard</h2>
 		</div>
 		
-		{!isAdmin && (
-			<div class="inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-xs font-bold">
-				<a 
-					href="/?view=Buyer" 
-					class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-				>
-					Buyer
-				</a>
-				<a 
-					href="/?view=Seller" 
-					class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-				>
-					Seller
-				</a>
-			</div>
-		)}
+		<div class="flex items-center space-x-4">
+			{!isAdmin && (
+				<div class="inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-[10px] font-black uppercase tracking-widest">
+					<a href={`/?view=Buyer&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Buyer</a>
+					<a href={`/?view=Seller&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Seller</a>
+				</div>
+			)}
+		</div>
+	</div>
+
+	{/* Tab Navigation */}
+	<div class="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
+		<a 
+			href={`/?view=${view}&tab=active`} 
+			class={`pb-4 px-6 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${tab === 'active' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+		>
+			Active Contracts ({isAdmin ? 'Mediating' : 'Running'})
+		</a>
+		<a 
+			href={`/?view=${view}&tab=proposals`} 
+			class={`pb-4 px-6 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${tab === 'proposals' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+		>
+			Pending Proposals
+		</a>
 	</div>
 
 	{error && (
@@ -59,23 +69,78 @@ try {
 		</div>
 	)}
 
-	{escrows.length === 0 && !error ? (
-		<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-			<div class="mx-auto w-16 h-16 text-slate-300 dark:text-slate-700 mb-6">
-				<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"></path></svg>
+	{tab === 'active' ? (
+		escrows.length === 0 && !error ? (
+			<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl transition-all duration-300">
+				<div class="mx-auto w-16 h-16 text-slate-300 dark:text-slate-700 mb-6">
+					<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"></path></svg>
+				</div>
+				<h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">No active escrows</h3>
+				<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Agreements will appear here once proposals are accepted.</p>
 			</div>
-			<h3 class="text-xl font-bold text-slate-900 dark:text-white">No active escrows found</h3>
-			<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Try switching views or initializing a transaction via the ledger.</p>
-		</div>
+		) : (
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+				{escrows.map(e => <EscrowCard escrow={e} isAdmin={isAdmin} />)}
+			</div>
+		)
 	) : (
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-			{escrows.map(e => <EscrowCard escrow={e} isAdmin={isAdmin} />)}
-		</div>
+		proposals.length === 0 && !error ? (
+			<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl transition-all duration-300">
+				<h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">No pending proposals</h3>
+				<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Start a new draft agreement to begin the escrow process.</p>
+				<a href="/compose" class="inline-block mt-6 bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-xl shadow-blue-500/20">Compose Draft Agreement</a>
+			</div>
+		) : (
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+				{proposals.map(p => (
+					<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+						<div>
+							<div class="flex justify-between items-start mb-4">
+								<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded">Proposal</span>
+								<p class="text-xs font-bold text-blue-600">{p.amount} {p.currency}</p>
+							</div>
+							<h4 class="text-sm font-bold text-slate-800 dark:text-white mb-2">{p.description}</h4>
+							<p class="text-[10px] text-slate-400 font-mono truncate mb-4 italic">ID: {p.id.substring(0, 16)}...</p>
+							
+							<div class="space-y-2 mb-6">
+								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Parties</p>
+								<div class="flex justify-between text-[10px]">
+									<span class="text-slate-500">Buyer:</span>
+									<span class="font-bold dark:text-slate-300 text-slate-700">{p.buyer.split('::')[0]}</span>
+								</div>
+								<div class="flex justify-between text-[10px]">
+									<span class="text-slate-500">Seller:</span>
+									<span class="font-bold dark:text-slate-300 text-slate-700">{p.seller.split('::')[0]}</span>
+								</div>
+							</div>
+						</div>
+
+						{view === 'Seller' && (
+							<div class="flex gap-2">
+								<button 
+									data-action="accept" 
+									data-id={p.id}
+									class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-green-500/20"
+								>
+									Accept & Sign
+								</button>
+								<button class="bg-slate-100 dark:bg-slate-800 text-slate-400 px-3 py-2 rounded-xl text-[10px] hover:text-red-500 transition-colors">×</button>
+							</div>
+						)}
+						{view === 'Buyer' && (
+							<div class="text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800">
+								Awaiting Seller Signature
+							</div>
+						)}
+					</div>
+				))}
+			</div>
+		)
 	)}
 </Layout>
 
 <script>
-	import { releaseFunds, raiseDispute } from '../lib/api';
+	import { releaseFunds, raiseDispute, acceptProposal } from '../lib/api';
 
 	const buttons = document.querySelectorAll('button[data-action]');
 	buttons.forEach(btn => {
@@ -83,7 +148,6 @@ try {
 			const target = e.currentTarget as HTMLButtonElement;
 			const action = target.getAttribute('data-action');
 			const id = target.getAttribute('data-id');
-			
 			if (!id) return;
 
 			const originalText = target.textContent;
@@ -91,10 +155,13 @@ try {
 			target.textContent = 'Processing...';
 
 			try {
-				if (action === 'release') {
-					await releaseFunds(id);
-				} else if (action === 'dispute') {
-					await raiseDispute(id);
+				if (action === 'release') await releaseFunds(id);
+				else if (action === 'dispute') await raiseDispute(id);
+				else if (action === 'accept') {
+					// In a real app, user identity would be in context
+					const urlParams = new URLSearchParams(window.location.search);
+					const user = urlParams.get('view') || 'Seller';
+					await acceptProposal(id, user);
 				}
 				window.location.reload();
 			} catch (err) {

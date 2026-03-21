@@ -103,6 +103,121 @@ func (c *JsonLedgerClient) extractContract(events []map[string]interface{}, temp
 	return nil, fmt.Errorf("contract with template %s not found in transaction events", templateName)
 }
 
+func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error) {
+	if len(c.partyMap) == 0 {
+		_ = c.refreshPartyMap(ctx)
+	}
+
+	buyerParty := c.getParty(BuyerUser)
+	cbParty := c.getParty(CentralBankUser)
+	sellerParty := c.getParty(req.Seller) // Explicitly allow specifying seller
+	mediatorParty := c.getParty(EscrowMediatorUser)
+
+	amountStr := fmt.Sprintf("%.10f", req.Amount)
+
+	var milestones []interface{}
+	for _, m := range req.Milestones {
+		milestones = append(milestones, map[string]interface{}{
+			"label":     m.Label,
+			"amount":    fmt.Sprintf("%.10f", m.Amount),
+			"completed": m.Completed,
+		})
+	}
+
+	metadataJSON := "{}"
+	if req.Metadata.SchemaURL != "" || len(req.Metadata.Payload) > 0 {
+		b, _ := json.Marshal(req.Metadata)
+		metadataJSON = string(b)
+	}
+
+	payload := map[string]interface{}{
+		"issuer":      cbParty,
+		"buyer":       buyerParty,
+		"seller":      sellerParty,
+		"mediator":    mediatorParty,
+		"totalAmount": amountStr,
+		"currency":    req.Currency,
+		"description": req.Description,
+		"milestones":  milestones,
+		"metadata":    metadataJSON,
+	}
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("propose-escrow-%d", time.Now().UnixNano()),
+			"actAs":     []string{buyerParty, cbParty},
+			"userId":    BuyerUser,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"CreateCommand": map[string]interface{}{
+						"templateId":      fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowProposal"),
+						"createArguments": payload,
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var txResp v2TransactionResponse
+	if err := json.Unmarshal(respBody, &txResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction response: %w", err)
+	}
+
+	// Extract Proposal
+	for _, wrapper := range txResp.Transaction.Events {
+		var created map[string]interface{}
+		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+			created = ce
+		}
+		if created != nil && strings.Contains(created["templateId"].(string), "EscrowProposal") {
+			args := created["createArguments"].(map[string]interface{})
+			amount, _ := strconv.ParseFloat(fmt.Sprintf("%v", args["totalAmount"]), 64)
+			return &EscrowProposal{
+				ID:          created["contractId"].(string),
+				Buyer:       fmt.Sprintf("%v", args["buyer"]),
+				Seller:      fmt.Sprintf("%v", args["seller"]),
+				Issuer:      fmt.Sprintf("%v", args["issuer"]),
+				Mediator:    fmt.Sprintf("%v", args["mediator"]),
+				Amount:      amount,
+				Currency:    fmt.Sprintf("%v", args["currency"]),
+				Description: fmt.Sprintf("%v", args["description"]),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("proposal created but not found in response")
+}
+
+func (c *JsonLedgerClient) AcceptProposal(ctx context.Context, id string, sellerID string) error {
+	party := c.getParty(sellerID)
+	
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("accept-%d", time.Now().UnixNano()),
+			"actAs":     []string{party},
+			"userId":    sellerID,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowProposal"),
+						"contractId":     id,
+						"choice":         "Accept",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	return err
+}
+
 func (c *JsonLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error) {
 	if len(c.partyMap) == 0 {
 		_ = c.refreshPartyMap(ctx)
@@ -309,6 +424,66 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 		}
 	}
 	return escrows, nil
+}
+
+func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error) {
+	party := c.getParty(userID)
+	offset, err := c.getLedgerEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	body := map[string]interface{}{
+		"activeAtOffset": offset,
+		"eventFormat": map[string]interface{}{
+			"verbose": true,
+			"filtersByParty": map[string]interface{}{
+				party: map[string]interface{}{
+					"templateIds": []string{
+						fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowProposal"),
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := parseNDJSON(respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []*EscrowProposal
+	for _, wrapper := range result {
+		var created map[string]interface{}
+		if entry, ok := wrapper["contractEntry"].(map[string]interface{}); ok {
+			if active, ok := entry["JsActiveContract"].(map[string]interface{}); ok {
+				if ce, ok := active["createdEvent"].(map[string]interface{}); ok {
+					created = ce
+				}
+			}
+		}
+
+		if created != nil {
+			args := created["createArguments"].(map[string]interface{})
+			amount, _ := strconv.ParseFloat(fmt.Sprintf("%v", args["totalAmount"]), 64)
+			list = append(list, &EscrowProposal{
+				ID:          created["contractId"].(string),
+				Buyer:       fmt.Sprintf("%v", args["buyer"]),
+				Seller:      fmt.Sprintf("%v", args["seller"]),
+				Issuer:      fmt.Sprintf("%v", args["issuer"]),
+				Mediator:    fmt.Sprintf("%v", args["mediator"]),
+				Amount:      amount,
+				Currency:    fmt.Sprintf("%v", args["currency"]),
+				Description: fmt.Sprintf("%v", args["description"]),
+			})
+		}
+	}
+	return list, nil
 }
 
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {

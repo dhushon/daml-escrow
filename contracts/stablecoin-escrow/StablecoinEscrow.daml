@@ -142,6 +142,36 @@ template StablecoinEscrow
         return (toInterfaceContractId @Settlement cid)
 
 -- ---------------------------------------------------------------------------
+-- EscrowProposal (Phase 4 UX Extension)
+-- ---------------------------------------------------------------------------
+
+template EscrowProposal
+  with
+    issuer                : Party
+    buyer                 : Party
+    seller                : Party
+    mediator              : Party
+    totalAmount           : Decimal
+    currency              : Text
+    description           : Text
+    milestones            : [Milestone]
+    metadata              : Text
+  where
+    signatory buyer, issuer
+    observer  seller, mediator
+
+    choice Accept : ContractId StablecoinEscrow
+      controller seller
+      do
+        create StablecoinEscrow with
+          issuer, buyer, seller, mediator, totalAmount, currency, description, milestones, metadata
+          currentMilestoneIndex = 0
+
+    choice Reject : ()
+      controller seller
+      do return ()
+
+-- ---------------------------------------------------------------------------
 -- StablecoinDisputedEscrow  (implements DisputedEscrow)
 -- ---------------------------------------------------------------------------
 
