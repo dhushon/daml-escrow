@@ -141,20 +141,20 @@ const generateGraphPoints = (history: any[]) => {
 			<section>
 				<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Infrastructure Oversight</h3>
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-blue-500/30">
 						<div class="flex justify-between items-center mb-3">
 							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
-							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.cpuUsage}%</span>
+							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.cpuUsage.toFixed(1)}%</span>
 						</div>
 						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
 							<div class="bg-blue-500 h-full transition-all duration-1000" style={`width: ${metrics.systemPerformance.cpuUsage}%`}></div>
 						</div>
 					</div>
 
-					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+					<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-blue-500/30">
 						<div class="flex justify-between items-center mb-3">
 							<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Memory Usage</p>
-							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.memoryUsage} <span class="text-[8px] text-slate-400 uppercase">MB</span></span>
+							<span class="text-xs font-black text-slate-800 dark:text-white">{metrics.systemPerformance.memoryUsage.toFixed(1)} <span class="text-[8px] text-slate-400 uppercase">MB</span></span>
 						</div>
 						<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
 							<div class="bg-indigo-500 h-full transition-all duration-1000" style="width: 45%"></div>
