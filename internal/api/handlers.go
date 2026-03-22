@@ -165,7 +165,12 @@ func (h *Handler) ListProposals(w http.ResponseWriter, r *http.Request) {
 // GetEscrow handles GET /escrows/{escrowID}
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
-	escrow, err := h.escrowService.GetEscrow(r.Context(), id)
+	userID := r.URL.Query().Get("user")
+	if userID == "" {
+		userID = "Buyer"
+	}
+
+	escrow, err := h.escrowService.GetEscrow(r.Context(), id, userID)
 	if err != nil {
 		h.logger.Error("get escrow failed", zap.Error(err), zap.String("id", id))
 		http.Error(w, "escrow not found", http.StatusNotFound)

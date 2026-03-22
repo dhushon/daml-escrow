@@ -121,7 +121,7 @@ type Client interface {
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
 	ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error)
 	ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error)
-	GetEscrow(ctx context.Context, id string) (*EscrowContract, error)
+	GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error)
 	ReleaseFunds(ctx context.Context, id string) error
 	RaiseDispute(ctx context.Context, id string) (string, error)
 	ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error

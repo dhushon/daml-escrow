@@ -53,7 +53,7 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 2. Get Escrow (Read)
 		t.Log("Testing GetEscrow...")
-		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		fetched, err := client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 		require.Equal(t, escrow.ID, fetched.ID)
 		require.Equal(t, 500.0, fetched.Amount)
@@ -67,7 +67,7 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 4. Verify completion (Final Read)
 		t.Log("Testing GetEscrow after archive (should fail)...")
-		_, err = client.GetEscrow(ctx, escrow.ID)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified contract is archived")
 	})
@@ -90,7 +90,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Successfully exercised RefundBuyer")
 
 		// 3. Verify Original is gone
-		_, err = client.GetEscrow(ctx, escrow.ID)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after refund")
 	})
@@ -113,7 +113,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Successfully exercised RefundBySeller")
 
 		// 3. Verify Original is gone
-		_, err = client.GetEscrow(ctx, escrow.ID)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after seller refund")
 	})
@@ -140,7 +140,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NotNil(t, escrow)
 		
 		// 2. Fetch and Verify
-		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		fetched, err := client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(fetched.Milestones))
 		require.Equal(t, "Design", fetched.Milestones[0].Label)
@@ -192,7 +192,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Successfully exercised ResolveDispute")
 
 		// 4. Verify Original is gone
-		_, err = client.GetEscrow(ctx, escrow.ID)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after resolution")
 	})
@@ -318,7 +318,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 		
 		// 2. Fetch and Verify
-		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		fetched, err := client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 		require.Equal(t, "https://stablecoin-escrow.io/schemas/leasing.v1.json", fetched.Metadata.SchemaURL)
 		require.Equal(t, "SERIAL-123", fetched.Metadata.Payload["assetId"])
@@ -336,9 +336,9 @@ func TestLedgerIntegration(t *testing.T) {
 				"detailedLocation": "Secret Warehouse 9, Restricted Zone X", // Sensitive
 				"operatorPin":      "1234",                                  // Sensitive
 			},
-			Exclusions: map[string]interface{}{
-				"detailedLocation": "don't event",
-				"operatorPin":      "don't event",
+			Exclusions: map[string]struct{}{
+				"detailedLocation": {},
+				"operatorPin":      {},
 			},
 		}
 
@@ -355,7 +355,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// 3. Fetch and Verify Redaction
-		fetched, err := client.GetEscrow(ctx, escrow.ID)
+		fetched, err := client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 
 		// Asset ID should be present
@@ -398,14 +398,11 @@ func TestLedgerIntegration(t *testing.T) {
 			Event:          event,
 			OracleProvider: provider,
 			Signature:      signature,
-			Metadata: map[string]interface{}{
-				"test": "integration",
-			},
 		}
 
 		// 3. Send Webhook to the API
-		// Note: Tests run with the API active on localhost:8080
-		apiURL := "http://localhost:8080/webhooks/milestone"
+		// Note: Tests run with the API active on localhost:8081 with /api/v1 prefix
+		apiURL := "http://localhost:8081/api/v1/webhooks/milestone"
 		jsonBody, _ := json.Marshal(webhookReq)
 		
 		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBody))
@@ -413,8 +410,8 @@ func TestLedgerIntegration(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// 4. Verify Milestone was approved on the ledger
-		time.Sleep(2 * time.Second)
-		_, err = client.GetEscrow(ctx, escrow.ID)
+		time.Sleep(10 * time.Second) // High-assurance wait for indexing
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err, "Escrow should be archived after approval")
 		
 		t.Log("Oracle automated approval verified end-to-end")

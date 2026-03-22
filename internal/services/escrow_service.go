@@ -67,9 +67,10 @@ func (s *EscrowService) ListProposals(
 func (s *EscrowService) GetEscrow(
 	ctx context.Context,
 	id string,
+	userID string,
 ) (*ledger.EscrowContract, error) {
-	s.logger.Info("getting escrow", zap.String("id", id))
-	return s.ledger.GetEscrow(ctx, id)
+	s.logger.Info("getting escrow", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.GetEscrow(ctx, id, userID)
 }
 
 func (s *EscrowService) ListEscrows(
@@ -110,7 +111,29 @@ func (s *EscrowService) RefundBuyer(
 	id string,
 ) error {
 	s.logger.Info("refunding buyer", zap.String("id", id))
-	return s.ledger.RefundBuyer(ctx, id)
+	// Use Mediator role to ensure visibility for refund processing
+	escrow, err := s.ledger.GetEscrow(ctx, id, ledger.EscrowMediatorUser)
+	if err != nil {
+		return err
+	}
+
+	remaining := 0.0
+	for _, m := range escrow.Milestones {
+		if !m.Completed {
+			remaining += m.Amount
+		}
+	}
+
+	if remaining <= 0 {
+		return fmt.Errorf("no funds to refund")
+	}
+
+	disputeID, err := s.RaiseDispute(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return s.ResolveDispute(ctx, disputeID, remaining, 0.0)
 }
 
 func (s *EscrowService) RefundBySeller(
@@ -168,8 +191,8 @@ func (s *EscrowService) ProcessOracleWebhook(
 		return fmt.Errorf("unauthorized: %w", err)
 	}
 
-	// 2. Fetch current contract state to verify logical consistency
-	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID)
+	// 2. Fetch current contract state using Mediator role for full visibility
+	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID, ledger.EscrowMediatorUser)
 	if err != nil {
 		s.logger.Error("failed to fetch escrow for webhook processing", zap.Error(err))
 		return fmt.Errorf("escrow not found: %w", err)

@@ -486,9 +486,10 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 	return list, nil
 }
 
-func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
-	for retry := 0; retry < 5; retry++ {
-		contracts, err := c.ListEscrows(ctx, BuyerUser)
+func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error) {
+	// Increase retries to 10 with 1s delay for high-assurance retrieval
+	for retry := 0; retry < 10; retry++ {
+		contracts, err := c.ListEscrows(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -497,7 +498,7 @@ func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string) (*EscrowCon
 				return item, nil
 			}
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 	return nil, fmt.Errorf("escrow not found: %s", id)
 }
@@ -663,7 +664,7 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 }
 
 func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	escrow, err := c.GetEscrow(ctx, id)
+	escrow, err := c.GetEscrow(ctx, id, BuyerUser)
 	if err != nil {
 		return err
 	}

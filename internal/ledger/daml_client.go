@@ -39,7 +39,7 @@ func (c *DamlClient) ListProposals(ctx context.Context, userID string) ([]*Escro
 	return nil, nil
 }
 
-func (c *DamlClient) GetEscrow(ctx context.Context, id string) (*EscrowContract, error) {
+func (c *DamlClient) GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error) {
 	return nil, fmt.Errorf("not found")
 }
 
