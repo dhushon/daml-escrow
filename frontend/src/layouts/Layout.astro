@@ -1,0 +1,89 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+
+const adminCookie = Astro.cookies.get('admin-mode');
+const isAdmin = adminCookie?.value === 'true';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Stablecoin Escrow Dashboard" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
+		<nav class="bg-white border-b border-slate-200 p-4 shadow-sm dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-50">
+			<div class="container mx-auto flex justify-between items-center">
+				<div class="flex items-center space-x-3">
+					<img src="/favicon.svg" alt="Logo" class="w-10 h-10" />
+					<h1 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">Stablecoin Escrow</h1>
+				</div>
+				<div class="flex items-center space-x-6 text-sm font-semibold">
+					<a href="/" class="hover:text-blue-600 transition-colors">
+						{isAdmin ? 'Total Escrows' : 'My Escrows'}
+					</a>
+					<a href="/settlements" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">
+						{isAdmin ? 'Total Settlements' : 'Settlements'}
+					</a>
+					<a href="/metrics" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Metrics</a>
+					
+					{!isAdmin && (
+						<>
+							<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+							<a href="/compose" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all">Compose +</a>
+							<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Wallets</a>
+						</>
+					)}
+
+					<button id="admin-toggle" class="ml-4 px-3 py-1 rounded border border-slate-200 dark:border-slate-700 text-[10px] uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors cursor-pointer">
+						Admin: <span id="admin-status">OFF</span>
+					</button>
+				</div>
+			</div>
+		</nav>
+		<main class="container mx-auto p-6 flex-grow">
+			<slot />
+		</main>
+		<footer class="p-8 border-t border-slate-200 dark:border-slate-800 text-center text-slate-500 dark:text-slate-400 text-xs font-medium transition-colors">
+			Built with Daml 3.x + Astro + Go • Powered by DataCloud
+		</footer>
+		<script>
+			const toggle = document.getElementById('admin-toggle');
+			const status = document.getElementById('admin-status');
+			
+			function getCookie(name) {
+				const value = `; ${document.cookie}`;
+				const parts = value.split(`; ${name}=`);
+				if (parts.length === 2) return parts.pop().split(';').shift();
+			}
+
+			let isAdmin = getCookie('admin-mode') === 'true';
+			updateUI();
+
+			toggle?.addEventListener('click', () => {
+				isAdmin = !isAdmin;
+				document.cookie = `admin-mode=${isAdmin}; path=/; max-age=31536000`;
+				updateUI();
+				window.location.reload();
+			});
+
+			function updateUI() {
+				if (status) status.textContent = isAdmin ? 'ON' : 'OFF';
+				if (toggle) {
+					toggle.classList.toggle('border-blue-500', isAdmin);
+					toggle.classList.toggle('text-blue-500', isAdmin);
+				}
+			}
+		</script>
+	</body>
+</html>

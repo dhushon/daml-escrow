@@ -24,10 +24,9 @@ import (
 // @title Stablecoin Escrow API
 // @version 1.0
 // @description API for managing privacy-preserving stablecoin escrows on DAML.
-// @host localhost:8080
+// @host localhost:8081
 // @BasePath /
 func main() {
-
 	logger := logging.NewLogger()
 	defer func() {
 		_ = logger.Sync()
@@ -57,10 +56,18 @@ func main() {
 		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
 	} else {
-		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 	}
+
+	// Initialize core services
+	metricsService := services.NewMetricsService()
+	
+	configService, err := services.NewConfigService(cfg.UserConfig.DSN)
+	if err != nil {
+		logger.Fatal("failed to initialize config service", zap.Error(err))
+	}
+	defer configService.Close()
 
 	escrowService := services.NewEscrowService(
 		logger,
@@ -71,28 +78,43 @@ func main() {
 	handler := api.NewHandler(
 		logger,
 		escrowService,
+		metricsService,
+		configService,
 	)
 
 	router := chi.NewRouter()
+	
 	router.Use(api.LoggingMiddleware(logger))
+	router.Use(api.MetricsMiddleware(metricsService))
 
 	router.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
 	))
 
-	router.Post("/escrows", handler.CreateEscrow)
-	router.Get("/escrows", handler.ListEscrows)
-	router.Get("/escrows/{escrowID}", handler.GetEscrow)
-	router.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
-	router.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
-	router.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
-	router.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
+	// API Routes
+	router.Route("/api/v1", func(r chi.Router) {
+		r.Get("/health", handler.GetHealth)
+		r.Get("/config", handler.GetConfig)
+		r.Post("/config", handler.SaveConfig)
 
-	router.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
+		r.Post("/escrows", handler.CreateEscrow)
+		r.Post("/escrows/propose", handler.ProposeEscrow)
+		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)
+		r.Get("/escrows", handler.ListEscrows)
+		r.Get("/escrows/proposals", handler.ListProposals)
+		r.Get("/escrows/{escrowID}", handler.GetEscrow)
+		r.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
+		r.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
+		r.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
+		r.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
 
-	router.Get("/metrics", handler.GetMetrics)
-	router.Get("/settlements", handler.ListSettlements)
-	router.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
+		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
+
+		r.Get("/metrics", handler.GetMetrics)
+		r.Get("/settlements", handler.ListSettlements)
+		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
+		r.Get("/wallets", handler.ListWallets)
+	})
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
@@ -112,11 +134,8 @@ func main() {
 }
 
 func waitForShutdown(server *http.Server, logger *zap.Logger) {
-
 	stop := make(chan os.Signal, 1)
-
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
-
 	<-stop
 
 	logger.Info("shutdown signal received")

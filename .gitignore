@@ -16,6 +16,12 @@ escrow-api
 log/
 contracts/log/
 *.gz
+*.pid
+
+# Frontend
+frontend/dist
+frontend/node_modules
+.astro
 
 # Test artifacts
 *.test

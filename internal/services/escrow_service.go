@@ -39,12 +39,38 @@ func (s *EscrowService) CreateEscrow(
 	return s.ledger.CreateEscrow(ctx, req)
 }
 
+func (s *EscrowService) ProposeEscrow(
+	ctx context.Context,
+	req ledger.CreateEscrowRequest,
+) (*ledger.EscrowProposal, error) {
+	s.logger.Info("proposing escrow", zap.Any("request", req))
+	return s.ledger.ProposeEscrow(ctx, req)
+}
+
+func (s *EscrowService) AcceptProposal(
+	ctx context.Context,
+	id string,
+	sellerID string,
+) error {
+	s.logger.Info("accepting proposal", zap.String("id", id), zap.String("seller", sellerID))
+	return s.ledger.AcceptProposal(ctx, id, sellerID)
+}
+
+func (s *EscrowService) ListProposals(
+	ctx context.Context,
+	userID string,
+) ([]*ledger.EscrowProposal, error) {
+	s.logger.Info("listing proposals for user", zap.String("userID", userID))
+	return s.ledger.ListProposals(ctx, userID)
+}
+
 func (s *EscrowService) GetEscrow(
 	ctx context.Context,
 	id string,
+	userID string,
 ) (*ledger.EscrowContract, error) {
-	s.logger.Info("getting escrow", zap.String("id", id))
-	return s.ledger.GetEscrow(ctx, id)
+	s.logger.Info("getting escrow", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.GetEscrow(ctx, id, userID)
 }
 
 func (s *EscrowService) ListEscrows(
@@ -85,7 +111,29 @@ func (s *EscrowService) RefundBuyer(
 	id string,
 ) error {
 	s.logger.Info("refunding buyer", zap.String("id", id))
-	return s.ledger.RefundBuyer(ctx, id)
+	// Use Mediator role to ensure visibility for refund processing
+	escrow, err := s.ledger.GetEscrow(ctx, id, ledger.EscrowMediatorUser)
+	if err != nil {
+		return err
+	}
+
+	remaining := 0.0
+	for _, m := range escrow.Milestones {
+		if !m.Completed {
+			remaining += m.Amount
+		}
+	}
+
+	if remaining <= 0 {
+		return fmt.Errorf("no funds to refund")
+	}
+
+	disputeID, err := s.RaiseDispute(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return s.ResolveDispute(ctx, disputeID, remaining, 0.0)
 }
 
 func (s *EscrowService) RefundBySeller(
@@ -119,6 +167,14 @@ func (s *EscrowService) GetMetrics(
 	return s.ledger.GetMetrics(ctx, userID)
 }
 
+func (s *EscrowService) ListWallets(
+	ctx context.Context,
+	userID string,
+) ([]*ledger.Wallet, error) {
+	s.logger.Info("listing wallets for user", zap.String("userID", userID))
+	return s.ledger.ListWallets(ctx, userID)
+}
+
 func (s *EscrowService) ProcessOracleWebhook(
 	ctx context.Context,
 	req ledger.OracleWebhookRequest,
@@ -135,8 +191,8 @@ func (s *EscrowService) ProcessOracleWebhook(
 		return fmt.Errorf("unauthorized: %w", err)
 	}
 
-	// 2. Fetch current contract state to verify logical consistency
-	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID)
+	// 2. Fetch current contract state using Mediator role for full visibility
+	escrow, err := s.ledger.GetEscrow(ctx, req.EscrowID, ledger.EscrowMediatorUser)
 	if err != nil {
 		s.logger.Error("failed to fetch escrow for webhook processing", zap.Error(err))
 		return fmt.Errorf("escrow not found: %w", err)

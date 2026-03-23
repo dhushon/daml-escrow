@@ -20,7 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Ensure clean DB for ledger every time
+  # Ensure clean DB for ledger and user configs
   db-init:
     image: postgres:16
     depends_on:
@@ -29,8 +29,24 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        # Setup Ledger DB
         psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS escrow;"
         psql -h postgres -U escrow -d postgres -c "CREATE DATABASE escrow;"
+        
+        # Setup Isolated User Config DB
+        psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS user_config;"
+        psql -h postgres -U escrow -d postgres -c "CREATE DATABASE user_config;"
+        
+        # Initialize User Config Schema
+        psql -h postgres -U escrow -d user_config -c "
+          CREATE TABLE IF NOT EXISTS configs (
+            user_id TEXT NOT NULL,
+            config_key TEXT NOT NULL,
+            config_value JSONB NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, config_key)
+          );
+        "
     environment:
       PGPASSWORD: escrow
 
@@ -60,20 +76,6 @@ services:
       timeout: 5s
       retries: 30
       start_period: 60s
-
-  escrow-api:
-    build: .
-    container_name: escrow-api
-    ports:
-      - "8080:8080"
-    environment:
-      LOG_LEVEL: info
-      LEDGER_HOST: sandbox
-      LEDGER_PORT: 7575
-      LEDGER_TYPE: json
-    depends_on:
-      sandbox:
-        condition: service_healthy
 
 volumes:
   postgres_data:

@@ -22,7 +22,7 @@ const (
 
 // Package-level constants for Daml 3.x integration
 const (
-	PackageID          = "16c70b6dba04109abc3003b3877a641f38ae9ce9a6c72ecf68e2e8c0e1053756"
+	PackageID          = "6c43548c421c1e66eb3911379a64d57de18dfe320b679ccb3f84bc7c4028e541"
 	InterfacePackageID = "eeada456377e4287fabfe089057b419d54159c87f98da712fd543122fc7c39f3"
 )
 
@@ -63,6 +63,13 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 
 func (c *JsonLedgerClient) getOffset() interface{} {
 	return nil
+}
+
+func (c *JsonLedgerClient) ListWallets(ctx context.Context, userID string) ([]*Wallet, error) {
+	// Mock implementation for Phase 4
+	return []*Wallet{
+		{ID: "mock-wallet-usd", Owner: userID, Currency: "USD", Balance: 1000.0},
+	}, nil
 }
 
 func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {

@@ -5,13 +5,13 @@ autonomy without losing safety**.
 
 ------------------------------------------------------------------------
 
-# 1. Provide Architecture Context
+## 1. Provide Architecture Context
 
 Agents perform best when they know:
 
--   system architecture
--   repo structure
--   constraints
+- system architecture
+- repo structure
+- constraints
 
 Example:
 
@@ -20,7 +20,7 @@ service_templates.md pattern."
 
 ------------------------------------------------------------------------
 
-# 2. Always Specify Boundaries
+## 2. Always Specify Boundaries
 
 Example:
 
@@ -30,7 +30,7 @@ Not allowed: - escrow contract modifications
 
 ------------------------------------------------------------------------
 
-# 3. Require Deterministic Outputs
+## 3. Require Deterministic Outputs
 
 Example prompt:
 
@@ -39,7 +39,7 @@ repo guardrails."
 
 ------------------------------------------------------------------------
 
-# 4. Encourage Small Changes
+## 4. Encourage Small Changes
 
 Large prompts cause unstable outputs.
 
@@ -53,18 +53,17 @@ instead of
 
 ------------------------------------------------------------------------
 
-# 5. Require Tests
+## 5. Require Tests
 
 Always request:
 
--   unit tests
--   edge cases
--   failure conditions
+- unit tests
+- edge cases
+- failure conditions
 
 ------------------------------------------------------------------------
 
-# 6. Require Explanation
+## 6. Require Explanation
 
 Example:
-
 "Explain design decisions and reference guardrails used."

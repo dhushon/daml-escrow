@@ -1,0 +1,166 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const schemas = [
+	{ id: 'grants', name: 'Research Grant', url: 'https://stablecoin-escrow.io/schemas/grants.v1.json' },
+	{ id: 'leasing', name: 'Equipment Leasing', url: 'https://stablecoin-escrow.io/schemas/leasing.v1.json' },
+	{ id: 'supply-chain', name: 'Supply Chain', url: 'https://stablecoin-escrow.io/schemas/supply-chain.v1.json' },
+];
+---
+
+<Layout title="Compose Agreement | Stablecoin Escrow">
+	<div class="max-w-4xl mx-auto">
+		<div class="mb-8">
+			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Draft Escrow Agreement</h2>
+			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">Propose new terms and milestones to your counterparty.</p>
+		</div>
+
+		<form id="compose-form" class="space-y-8">
+			{/* Section 1: Parties */}
+			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
+				<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-6">1. Agreement Parties</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+					<div>
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Counterparty (Seller)</label>
+						<input type="text" name="seller" required placeholder="e.g. Seller" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white" />
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Currency</label>
+						<select name="currency" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
+							<option value="USD">USD - Digital Dollar</option>
+							<option value="EUR">EUR - Digital Euro</option>
+							<option value="GBP">GBP - Digital Sterling</option>
+						</select>
+					</div>
+				</div>
+			</div>
+
+			{/* Section 2: Milestones */}
+			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
+				<div class="flex justify-between items-center mb-6">
+					<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">2. Payment Milestones</h3>
+					<button type="button" id="add-milestone" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">Add Row +</button>
+				</div>
+				<div id="milestone-container" class="space-y-4">
+					<div class="milestone-row grid grid-cols-12 gap-4 items-end">
+						<div class="col-span-7">
+							<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Label</label>
+							<input type="text" name="m-label" required placeholder="e.g. Project Inception" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs dark:text-white" />
+						</div>
+						<div class="col-span-4">
+							<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Amount</label>
+							<input type="number" name="m-amount" required step="0.01" placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs dark:text-white" />
+						</div>
+						<div class="col-span-1 py-2 text-center">
+							<button type="button" class="remove-milestone text-slate-300 hover:text-red-500 cursor-pointer">×</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Section 3: Domain Metadata */}
+			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
+				<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-6">3. Technical Metadata</h3>
+				<div class="space-y-6">
+					<div>
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Schema Protocol</label>
+						<select name="schemaUrl" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
+							{schemas.map(s => <option value={s.url}>{s.name}</option>)}
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Metadata Payload (JSON)</label>
+						<textarea name="payload" rows="4" placeholder="{}" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">{'{\n  "description": "Standard escrow protocol"\n}'}</textarea>
+					</div>
+				</div>
+			</div>
+
+			<div class="flex items-center justify-end space-x-4 pb-12">
+				<a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cancel</a>
+				<button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+					Propose Agreement
+				</button>
+			</div>
+		</form>
+	</div>
+</Layout>
+
+<script>
+	import { proposeEscrow } from '../lib/api';
+
+	const form = document.getElementById('compose-form') as HTMLFormElement;
+	const addBtn = document.getElementById('add-milestone');
+	const container = document.getElementById('milestone-container');
+
+	// Dynamic milestones
+	addBtn?.addEventListener('click', () => {
+		const row = container?.firstElementChild?.cloneNode(true) as HTMLElement;
+		const inputs = row.querySelectorAll('input');
+		inputs.forEach(i => i.value = '');
+		container?.appendChild(row);
+		attachRemoveEvent(row);
+	});
+
+	function attachRemoveEvent(row: HTMLElement) {
+		row.querySelector('.remove-milestone')?.addEventListener('click', () => {
+			if (container?.children.length && container.children.length > 1) {
+				row.remove();
+			}
+		});
+	}
+
+	attachRemoveEvent(container?.firstElementChild as HTMLElement);
+
+	// Form Submission
+	form?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const formData = new FormData(form);
+		
+		// Build structured milestones
+		const labels = formData.getAll('m-label');
+		const amounts = formData.getAll('m-amount');
+		const milestones = labels.map((l, i) => ({
+			label: l.toString(),
+			amount: parseFloat(amounts[i].toString()),
+			completed: false
+		}));
+
+		const totalAmount = milestones.reduce((sum, m) => sum + m.amount, 0);
+
+		// Parse metadata payload
+		let payload = {};
+		try {
+			payload = JSON.parse(formData.get('payload')?.toString() || '{}');
+		} catch (err) {
+			alert('Invalid JSON in payload');
+			return;
+		}
+
+		const req = {
+			buyer: 'Buyer', // Mocked user context
+			seller: formData.get('seller'),
+			amount: totalAmount,
+			currency: formData.get('currency'),
+			description: 'Escrow proposed via Dashboard',
+			milestones: milestones,
+			metadata: {
+				schemaUrl: formData.get('schemaUrl'),
+				payload: payload
+			}
+		};
+
+		try {
+			const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+			btn.disabled = true;
+			btn.textContent = 'Proposing...';
+			
+			await proposeEscrow(req);
+			window.location.href = '/';
+		} catch (err) {
+			alert('Proposal failed: ' + err.message);
+			const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+			btn.disabled = false;
+			btn.textContent = 'Propose Agreement';
+		}
+	});
+</script>

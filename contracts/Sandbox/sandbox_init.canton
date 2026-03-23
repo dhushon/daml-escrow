@@ -86,7 +86,7 @@ ignore(participant.ledger_api.users.create("EscrowMediator", primaryParty = Some
 println("Granting rights...")
 ignore(participant.ledger_api.users.rights.grant("Buyer",          actAs = Set(buyerId, cbId)))
 ignore(participant.ledger_api.users.rights.grant("Seller",         actAs = Set(sellerId)))
-ignore(participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId)))
+ignore(participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId, buyerId, sellerId)))
 ignore(participant.ledger_api.users.rights.grant("CentralBank",    actAs = Set(cbId)))
 
 println("Setup complete.")

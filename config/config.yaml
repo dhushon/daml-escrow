@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
 
 ledger:
   host: "127.0.0.1"
@@ -9,6 +9,9 @@ ledger:
     buyer: "Buyer"
     seller: "Seller"
     mediator: "EscrowMediator"
+
+userConfig:
+  dsn: "postgres://escrow:escrow@127.0.0.1:5432/user_config?sslmode=disable"
 
 oracle:
   webhookSecret: "development-secret-key"
