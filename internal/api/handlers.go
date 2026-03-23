@@ -15,14 +15,67 @@ type Handler struct {
 	logger         *zap.Logger
 	escrowService  *services.EscrowService
 	metricsService *services.MetricsService
+	configService  *services.ConfigService
 }
 
-func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService) *Handler {
+func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService) *Handler {
 	return &Handler{
 		logger:         logger,
 		escrowService:  escrowService,
 		metricsService: metricsService,
+		configService:  configService,
 	}
+}
+
+// GetConfig handles GET /config?user={id}&key={key}
+func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user")
+	key := r.URL.Query().Get("key")
+	if userID == "" || key == "" {
+		http.Error(w, "missing user or key", http.StatusBadRequest)
+		return
+	}
+
+	val, err := h.configService.GetConfig(userID, key)
+	if err != nil {
+		h.logger.Error("get config failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if val == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(val); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
+}
+
+// SaveConfig handles POST /config?user={id}&key={key}
+func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user")
+	key := r.URL.Query().Get("key")
+	if userID == "" || key == "" {
+		http.Error(w, "missing user or key", http.StatusBadRequest)
+		return
+	}
+
+	var val json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&val); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.configService.SaveConfig(userID, key, val); err != nil {
+		h.logger.Error("save config failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 type CreateEscrowRequest struct {
@@ -103,7 +156,9 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(proposal)
+	if err := json.NewEncoder(w).Encode(proposal); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // AcceptProposal handles POST /escrows/{id}/accept
@@ -121,7 +176,9 @@ func (h *Handler) AcceptProposal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"accepted"}`))
+	if _, err := w.Write([]byte(`{"status":"accepted"}`)); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // ListEscrows handles GET /escrows
@@ -159,7 +216,9 @@ func (h *Handler) ListProposals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(proposals)
+	if err := json.NewEncoder(w).Encode(proposals); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // GetEscrow handles GET /escrows/{escrowID}
@@ -193,7 +252,9 @@ func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // RefundBuyer handles POST /escrows/{escrowID}/refund
@@ -206,7 +267,9 @@ func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // RefundBySeller handles POST /escrows/{escrowID}/refund-by-seller
@@ -219,7 +282,9 @@ func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // ResolveDispute handles POST /escrows/{escrowID}/resolve
@@ -241,7 +306,9 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // GetHealth handles GET /health
@@ -309,7 +376,9 @@ func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 // ListWallets handles GET /wallets (Mocked for Phase 4)
@@ -327,7 +396,9 @@ func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(wallets)
+	if err := json.NewEncoder(w).Encode(wallets); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
 }
 
 // OracleMilestoneTrigger handles POST /webhooks/milestone
@@ -345,5 +416,7 @@ func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
