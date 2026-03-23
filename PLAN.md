@@ -49,17 +49,50 @@ Goals: Build user-facing dashboard and finalize production readiness.
 
 ------------------------------------------------------------------------
 
-## Phase 5 --- Scaling & Distribution (NEXT)
+## Phase 5 --- Identity & Onboarding (IN PROGRESS)
+
+Goals: Establish a production-grade identity bridge between Okta and Daml.
+
+### Tasks
+**Task 5.1: Okta OIDC Integration**
+- Integrate Okta authentication into Astro (Client-side) and Go (Bearer token verification).
+
+**Task 5.2: JIT Party Provisioning**
+- Build `IdentityService` to automatically map Okta `sub` IDs to unique Daml Party IDs.
+- Implement automated User creation via Daml User Management API.
+
+**Task 5.3: Invitation Lifecycle**
+- Implement `EscrowInvitation` Daml template for inviting external emails to a contract.
+- Secure token-based "Claim" flow to link anonymous invitations to authenticated Okta users.
+
+**Task 5.4: Hyperlink UX**
+- Secure signed-URL generation for email invitations.
+- Onboarding landing page for "Unclaimed" participants.
+
+------------------------------------------------------------------------
+
+## Phase 6 --- Scaling & Distribution (NEXT)
 
 Goals: Move to multi-participant topology and real stablecoin integration.
 
 ### Tasks
-**Task 5.1: Multi-Participant Setup**
+**Task 6.1: Multi-Participant Setup**
 - Distributed Canton topology with separate participant nodes for Buyer, Seller, and Bank.
 
-**Task 5.2: Real Stablecoin Integration**
+**Task 6.2: Real Stablecoin Integration**
 - Integrate with a real stablecoin contract (e.g. Daml Finance or ERC-20 bridge).
 
-**Task 5.3: Production Hardening**
+------------------------------------------------------------------------
+
+## Phase 7 --- Production Hardening
+
+Goals: Final security and observability sweep.
+
+### Tasks
+**Task 7.1: TLS & Key Management**
 - TLS 1.3+ configuration for all endpoints.
+- HSM/KMS integration for ledger and API signing keys.
+
+**Task 7.2: Full Observability**
+- OpenTelemetry (OTEL) integration for cross-service tracing.
 - Prometheus/Grafana metrics export.
