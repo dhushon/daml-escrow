@@ -56,13 +56,19 @@ func main() {
 		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
 	} else {
-		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 	}
 
 	// Initialize core services
 	metricsService := services.NewMetricsService()
+	
+	configService, err := services.NewConfigService(cfg.UserConfig.DSN)
+	if err != nil {
+		logger.Fatal("failed to initialize config service", zap.Error(err))
+	}
+	defer configService.Close()
+
 	escrowService := services.NewEscrowService(
 		logger,
 		ledgerClient,
@@ -73,11 +79,11 @@ func main() {
 		logger,
 		escrowService,
 		metricsService,
+		configService,
 	)
 
 	router := chi.NewRouter()
 	
-	// Middleware
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
 
@@ -88,6 +94,9 @@ func main() {
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
+		r.Get("/config", handler.GetConfig)
+		r.Post("/config", handler.SaveConfig)
+
 		r.Post("/escrows", handler.CreateEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)
 		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)

@@ -33,12 +33,12 @@ const statusColors = {
 			</div>
 			<div class="text-right">
 				<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Milestones</p>
-				<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{escrow.currentMilestoneIndex + 1} <span class="text-slate-400">/</span> {(escrow.milestones || []).length}</p>
+				<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{escrow.currentMilestoneIndex + 1} <span class="text-slate-400">/</span> {escrow.milestones ? escrow.milestones.length : 0}</p>
 			</div>
 		</div>
 
 		<div class="space-y-2.5">
-			{(escrow.milestones || []).map((m, i) => (
+			{escrow.milestones && escrow.milestones.map((m, i) => (
 				<div class="flex items-center space-x-3 text-xs">
 					<div class={`w-2 h-2 rounded-full transition-all duration-500 ${m.completed ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : (i === escrow.currentMilestoneIndex ? 'bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-700')}`}></div>
 					<span class={`font-medium ${m.completed ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-600 dark:text-slate-300'}`}>{m.label}</span>

@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { fetchMetrics } from '../lib/api';
+import RefreshSlider from '../components/RefreshSlider.astro';
+import { fetchMetrics, fetchConfig } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
 const isAdmin = adminCookie?.value === 'true';
@@ -8,9 +9,14 @@ const targetUser = isAdmin ? 'CentralBank' : 'Buyer';
 
 let metrics = null;
 let error = null;
+let initialInterval = 8; // Default 8s
 
 try {
 	metrics = await fetchMetrics(targetUser);
+	const config = await fetchConfig(targetUser, 'refreshIntervalExp');
+	if (config && typeof config.value === 'number') {
+		initialInterval = Math.pow(2, config.value);
+	}
 } catch (e) {
 	error = e.message;
 }
@@ -31,16 +37,21 @@ const generateGraphPoints = (history: any[]) => {
 ---
 
 <Layout title="Platform Metrics | Stablecoin Escrow">
-	<div class="mb-8">
-		<div class="flex items-center space-x-2 mb-1">
-			<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
-			<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-				{isAdmin ? 'System-Wide Ledger Metrics' : 'Personal Escrow Analytics'}
-			</span>
+	<div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+		<div>
+			<div class="flex items-center space-x-2 mb-1">
+				<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
+				<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+					{isAdmin ? 'System-Wide Ledger Metrics' : 'Personal Escrow Analytics'}
+				</span>
+			</div>
+			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+				{isAdmin ? 'Total Escrows & Oversight' : 'My Financial Activity'}
+			</h2>
 		</div>
-		<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-			{isAdmin ? 'Total Escrows & Oversight' : 'My Financial Activity'}
-		</h2>
+		<div class="w-full md:w-64">
+			<RefreshSlider />
+		</div>
 	</div>
 
 	{error && (
@@ -75,11 +86,11 @@ const generateGraphPoints = (history: any[]) => {
 						<div class="flex justify-between items-start mb-4">
 							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Escrow Trend</p>
 							<div class="flex space-x-1">
-								{(metrics.activityHistory || []).map((h: any) => (
+								{metrics.activityHistory ? metrics.activityHistory.map((h: any) => (
 									<div class="w-1 bg-blue-500/20 h-4 rounded-full overflow-hidden flex flex-col justify-end">
-										<div class="w-full bg-blue-500" style={`height: ${(h.count / Math.max(...(metrics.activityHistory || []).map((x:any)=>x.count), 1)) * 100}%`}></div>
+										<div class="w-full bg-blue-500" style={`height: ${(h.count / Math.max(...metrics.activityHistory.map((x:any)=>x.count), 1)) * 100}%`}></div>
 									</div>
-								))}
+								)) : null}
 							</div>
 						</div>
 						<div class="h-16 w-full overflow-hidden">
@@ -105,14 +116,14 @@ const generateGraphPoints = (history: any[]) => {
 							</svg>
 						</div>
 						<div class="flex justify-between mt-2">
-							<span class="text-[8px] font-bold text-slate-400">{(metrics.activityHistory || [{date:''}] )[0].date}</span>
-							<span class="text-[8px] font-bold text-slate-400">{(metrics.activityHistory || [{date:''}] )[(metrics.activityHistory?.length || 1)-1].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory && metrics.activityHistory.length > 0 ? metrics.activityHistory[0].date : ''}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory && metrics.activityHistory.length > 0 ? metrics.activityHistory[metrics.activityHistory.length-1].date : ''}</span>
 						</div>
 					</div>
 				</div>
 			</section>
 
-			{/* Section 2: Ledger Health & Throughput (Proxied) */}
+			{/* Section 2: Ledger Health & Throughput */}
 			<section>
 				<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Ledger Health & Throughput</h3>
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -144,8 +155,8 @@ const generateGraphPoints = (history: any[]) => {
 							</svg>
 						</div>
 						<div class="flex justify-between mt-2">
-							<span class="text-[8px] font-bold text-slate-400">{(metrics.tpsHistory || [{date:''}] )[0].date}</span>
-							<span class="text-[8px] font-bold text-slate-400">{(metrics.tpsHistory || [{date:''}] )[(metrics.tpsHistory?.length || 1)-1].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory && metrics.tpsHistory.length > 0 ? metrics.tpsHistory[0].date : ''}</span>
+							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory && metrics.tpsHistory.length > 0 ? metrics.tpsHistory[metrics.tpsHistory.length-1].date : ''}</span>
 						</div>
 					</div>
 
@@ -163,7 +174,7 @@ const generateGraphPoints = (history: any[]) => {
 				</div>
 			</section>
 
-			{/* Section 3: System Performance (API & Infra) */}
+			{/* Section 3: API & System Performance */}
 			<section>
 				<div class="flex justify-between items-center mb-6">
 					<h3 class="text-lg font-bold text-slate-800 dark:text-white">API & System Performance</h3>
@@ -232,25 +243,27 @@ const generateGraphPoints = (history: any[]) => {
 	)}
 </Layout>
 
-<script>
-	// Auto-refresh metrics every 10 seconds to show "Live" pulse
-	let interval: any;
-	
+<script is:inline define:vars={{ initialInterval }}>
+	let intervalTime = initialInterval * 1000;
+	let pulseInterval;
+
 	function startPulse() {
-		interval = setInterval(() => {
-			// Only reload if the tab is visible to save resources
+		if (pulseInterval) clearInterval(pulseInterval);
+		pulseInterval = setInterval(() => {
 			if (!document.hidden) {
 				window.location.reload();
 			}
-		}, 10000);
+		}, intervalTime);
 	}
 
-	function stopPulse() {
-		if (interval) clearInterval(interval);
-	}
+	window.addEventListener('refresh-interval-change', (e) => {
+		intervalTime = e.detail.seconds * 1000;
+		console.log('Refresh pulse adjusted to:', intervalTime, 'ms');
+		startPulse();
+	});
 
 	document.addEventListener('visibilitychange', () => {
-		if (document.hidden) stopPulse();
+		if (document.hidden) clearInterval(pulseInterval);
 		else startPulse();
 	});
 

@@ -20,6 +20,9 @@ type Config struct {
 			Mediator string `yaml:"mediator"`
 		} `yaml:"parties"`
 	} `yaml:"ledger"`
+	UserConfig struct {
+		DSN string `yaml:"dsn"`
+	} `yaml:"userConfig"`
 	Oracle struct {
 		WebhookSecret string `yaml:"webhookSecret"`
 	} `yaml:"oracle"`

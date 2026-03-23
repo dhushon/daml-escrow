@@ -129,6 +129,22 @@ export async function fetchMetrics(user: string = "CentralBank"): Promise<Ledger
   return resp.json();
 }
 
+export async function fetchConfig(user: string, key: string): Promise<any> {
+  const resp = await fetch(`${BASE_URL}/config?user=${user}&key=${key}`);
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`Failed to fetch config: ${resp.statusText}`);
+  return resp.json();
+}
+
+export async function saveConfig(user: string, key: string, value: any): Promise<void> {
+  const resp = await fetch(`${BASE_URL}/config?user=${user}&key=${key}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!resp.ok) throw new Error(`Failed to save config: ${resp.statusText}`);
+}
+
 export async function fetchWallets(user: string = "Buyer"): Promise<Wallet[]> {
   const resp = await fetch(`${BASE_URL}/wallets?user=${user}`);
   if (!resp.ok) throw new Error(`Failed to fetch wallets: ${resp.statusText}`);

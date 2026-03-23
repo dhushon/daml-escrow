@@ -1,0 +1,77 @@
+---
+import { fetchConfig } from '../lib/api';
+
+const adminCookie = Astro.cookies.get('admin-mode');
+const isAdmin = adminCookie?.value === 'true';
+const user = isAdmin ? 'CentralBank' : 'Buyer';
+
+// Default to value 3 (8 seconds) if no config found
+let currentVal = 3; 
+try {
+	const config = await fetchConfig(user, 'refreshIntervalExp');
+	if (config && typeof config.value === 'number') {
+		currentVal = config.value;
+	}
+} catch (e) {
+	console.error('Failed to load refresh config:', e);
+}
+
+const interval = Math.pow(2, currentVal);
+---
+
+<div class="flex flex-col space-y-2 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+	<div class="flex justify-between items-center">
+		<span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Refresh Pulse</span>
+		<span id="interval-display" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">
+			{interval}s
+		</span>
+	</div>
+	<input 
+		type="range" 
+		id="refresh-slider" 
+		min="0" 
+		max="8" 
+		step="1" 
+		value={currentVal}
+		class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+	/>
+	<div class="flex justify-between text-[8px] font-bold text-slate-400 uppercase tracking-tight">
+		<span>Fast (1s)</span>
+		<span>Slow (256s)</span>
+	</div>
+</div>
+
+<script>
+	import { saveConfig } from '../lib/api';
+
+	const slider = document.getElementById('refresh-slider') as HTMLInputElement;
+	const display = document.getElementById('interval-display');
+	
+	function getCookie(name: string) {
+		const value = `; ${document.cookie}`;
+		const parts = value.split(`; ${name}=`);
+		if (parts.length === 2) return parts.pop()?.split(';').shift();
+	}
+
+	slider?.addEventListener('input', (e) => {
+		const val = parseInt((e.target as HTMLInputElement).value);
+		const seconds = Math.pow(2, val);
+		if (display) display.textContent = `${seconds}s`;
+	});
+
+	slider?.addEventListener('change', async (e) => {
+		const val = parseInt((e.target as HTMLInputElement).value);
+		const isAdmin = getCookie('admin-mode') === 'true';
+		const user = isAdmin ? 'CentralBank' : 'Buyer';
+
+		try {
+			await saveConfig(user, 'refreshIntervalExp', { value: val });
+			// Dispatch event so metrics.astro can update its interval immediately
+			window.dispatchEvent(new CustomEvent('refresh-interval-change', { 
+				detail: { seconds: Math.pow(2, val) } 
+			}));
+		} catch (err) {
+			console.error('Failed to save refresh config:', err);
+		}
+	});
+</script>
