@@ -349,7 +349,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 		return nil, fmt.Errorf("failed to parse active contracts: %w", err)
 	}
 
-	var escrows []*EscrowContract
+	var escrows = []*EscrowContract{}
 	for _, wrapper := range result {
 		var created map[string]interface{}
 		contractState := "Active"
@@ -457,7 +457,7 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 		return nil, err
 	}
 
-	var list []*EscrowProposal
+	var list = []*EscrowProposal{}
 	for _, wrapper := range result {
 		var created map[string]interface{}
 		if entry, ok := wrapper["contractEntry"].(map[string]interface{}); ok {

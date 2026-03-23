@@ -244,6 +244,15 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+// GetHealth handles GET /health
+func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	health := h.metricsService.GetHealth()
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(health); err != nil {
+		h.logger.Error("failed to encode health response", zap.Error(err))
+	}
+}
+
 // GetMetrics handles GET /metrics
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")

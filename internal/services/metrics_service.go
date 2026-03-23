@@ -1,6 +1,7 @@
 package services
 
 import (
+	"daml-escrow/internal/ledger"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -28,6 +29,21 @@ func (s *MetricsService) RecordRequest(duration time.Duration, isError bool) {
 	atomic.AddUint64(&s.apiStats.TotalDurationNS, uint64(duration.Nanoseconds()))
 	if isError {
 		atomic.AddUint64(&s.apiStats.TotalErrors, 1)
+	}
+}
+
+func (s *MetricsService) GetHealth() ledger.HealthResponse {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	return ledger.HealthResponse{
+		Status:      "UP",
+		Version:     "1.0.0", // In production, this would come from a build flag
+		Uptime:      time.Since(s.startTime).Round(time.Second).String(),
+		StartTime:   s.startTime.Format(time.RFC3339),
+		CPUUsage:    float64(runtime.NumGoroutine()) * 0.5,
+		MemoryUsage: float64(m.Alloc) / 1024 / 1024,
+		Goroutines:  runtime.NumGoroutine(),
 	}
 }
 

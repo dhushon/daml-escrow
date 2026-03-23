@@ -61,19 +61,5 @@ services:
       retries: 30
       start_period: 60s
 
-  escrow-api:
-    build: .
-    container_name: escrow-api
-    ports:
-      - "8080:8080"
-    environment:
-      LOG_LEVEL: info
-      LEDGER_HOST: sandbox
-      LEDGER_PORT: 7575
-      LEDGER_TYPE: json
-    depends_on:
-      sandbox:
-        condition: service_healthy
-
 volumes:
   postgres_data:

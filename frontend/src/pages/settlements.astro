@@ -46,12 +46,12 @@ try {
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-				{settlements.length === 0 ? (
+				{(settlements || []).length === 0 ? (
 					<tr>
 						<td colspan="4" class="px-6 py-16 text-center text-slate-400 dark:text-slate-600 font-medium italic">No pending settlements found on the ledger.</td>
 					</tr>
 				) : (
-					settlements.map(s => (
+					(settlements || []).map(s => (
 						<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
 							<td class="px-6 py-5">
 								<div class="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 inline-block px-2 py-0.5 rounded mb-1">{s.id.substring(0, 16)}...</div>

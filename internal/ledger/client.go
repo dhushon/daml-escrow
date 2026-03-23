@@ -114,6 +114,16 @@ type OracleWebhookRequest struct {
 	Signature      string `json:"signature"`
 }
 
+type HealthResponse struct {
+	Status      string  `json:"status"`
+	Version     string  `json:"version"`
+	Uptime      string  `json:"uptime"`
+	StartTime   string  `json:"startTime"`
+	CPUUsage    float64 `json:"cpuUsage"`
+	MemoryUsage float64 `json:"memoryUsage"`
+	Goroutines  int     `json:"goroutines"`
+}
+
 type Client interface {
 	// Escrow Lifecycle
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)

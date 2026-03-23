@@ -17,12 +17,13 @@ try {
 
 // Simple SVG Graph Helper
 const generateGraphPoints = (history: any[]) => {
-	if (!history || history.length === 0) return "";
-	const max = Math.max(...history.map(h => h.count), 1);
+	const data = history || [];
+	if (data.length === 0) return "";
+	const max = Math.max(...data.map(h => h.count), 1);
 	const width = 400;
 	const height = 100;
-	return history.map((h, i) => {
-		const x = (i / (history.length - 1)) * width;
+	return data.map((h, i) => {
+		const x = (i / (data.length - 1)) * width;
 		const y = height - (h.count / max) * height;
 		return `${x},${y}`;
 	}).join(" ");
@@ -74,9 +75,9 @@ const generateGraphPoints = (history: any[]) => {
 						<div class="flex justify-between items-start mb-4">
 							<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap">Escrow Trend</p>
 							<div class="flex space-x-1">
-								{metrics.activityHistory.map((h: any) => (
+								{(metrics.activityHistory || []).map((h: any) => (
 									<div class="w-1 bg-blue-500/20 h-4 rounded-full overflow-hidden flex flex-col justify-end">
-										<div class="w-full bg-blue-500" style={`height: ${(h.count / Math.max(...metrics.activityHistory.map((x:any)=>x.count))) * 100}%`}></div>
+										<div class="w-full bg-blue-500" style={`height: ${(h.count / Math.max(...(metrics.activityHistory || []).map((x:any)=>x.count), 1)) * 100}%`}></div>
 									</div>
 								))}
 							</div>
@@ -104,8 +105,8 @@ const generateGraphPoints = (history: any[]) => {
 							</svg>
 						</div>
 						<div class="flex justify-between mt-2">
-							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory[0].date}</span>
-							<span class="text-[8px] font-bold text-slate-400">{metrics.activityHistory[metrics.activityHistory.length-1].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{(metrics.activityHistory || [{date:''}] )[0].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{(metrics.activityHistory || [{date:''}] )[(metrics.activityHistory?.length || 1)-1].date}</span>
 						</div>
 					</div>
 				</div>
@@ -143,8 +144,8 @@ const generateGraphPoints = (history: any[]) => {
 							</svg>
 						</div>
 						<div class="flex justify-between mt-2">
-							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory[0].date}</span>
-							<span class="text-[8px] font-bold text-slate-400">{metrics.tpsHistory[metrics.tpsHistory.length-1].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{(metrics.tpsHistory || [{date:''}] )[0].date}</span>
+							<span class="text-[8px] font-bold text-slate-400">{(metrics.tpsHistory || [{date:''}] )[(metrics.tpsHistory?.length || 1)-1].date}</span>
 						</div>
 					</div>
 
@@ -230,3 +231,28 @@ const generateGraphPoints = (history: any[]) => {
 		</div>
 	)}
 </Layout>
+
+<script>
+	// Auto-refresh metrics every 10 seconds to show "Live" pulse
+	let interval: any;
+	
+	function startPulse() {
+		interval = setInterval(() => {
+			// Only reload if the tab is visible to save resources
+			if (!document.hidden) {
+				window.location.reload();
+			}
+		}, 10000);
+	}
+
+	function stopPulse() {
+		if (interval) clearInterval(interval);
+	}
+
+	document.addEventListener('visibilitychange', () => {
+		if (document.hidden) stopPulse();
+		else startPulse();
+	});
+
+	startPulse();
+</script>

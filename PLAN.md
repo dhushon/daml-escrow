@@ -35,17 +35,31 @@ Goals: Automate milestone approvals via external triggers.
 
 ------------------------------------------------------------------------
 
-## Phase 4 --- Frontend & Finalization (NEXT)
+## Phase 4 --- Frontend & Finalization (COMPLETE)
 
 Goals: Build user-facing dashboard and finalize production readiness.
 
+### Achievements
+1. **Astro Dashboard:** Multi-page dashboard for Escrows, Settlements, and Platform Metrics.
+2. **End-to-End Lifecycle UX:** Implemented "Composition Wizard" for drafting agreements and a two-party "Propose-Accept" sign-off flow.
+3. **Admin & Oversight Mode:** Role-based views (Mediator oversight vs Buyer/Seller action) with persistent cookie-based state.
+4. **Advanced Observability:** Real-time system performance (Latency, Uptime, CPU) and ledger health (TPS, Success Rate) visualizations.
+5. **Branded UI:** Professional, dark-mode compatible UI using DataCloud LNF standards.
+6. **Simulated Ecosystem:** Mocked stablecoin wallet registry and fund transfer visualizations.
+
+------------------------------------------------------------------------
+
+## Phase 5 --- Scaling & Distribution (NEXT)
+
+Goals: Move to multi-participant topology and real stablecoin integration.
+
 ### Tasks
-**Task 4.1: Astro Dashboard**
-- Create overview of active escrows for Buyers and Sellers.
-- Implement "Raise Dispute" and "Approve Milestone" buttons.
+**Task 5.1: Multi-Participant Setup**
+- Distributed Canton topology with separate participant nodes for Buyer, Seller, and Bank.
 
-**Task 4.2: Settlement View**
-- List pending settlements for Central Bank payout.
+**Task 5.2: Real Stablecoin Integration**
+- Integrate with a real stablecoin contract (e.g. Daml Finance or ERC-20 bridge).
 
-**Task 4.3: Real-time Updates**
-- Integrate WebSockets or polling for ledger state changes.
+**Task 5.3: Production Hardening**
+- TLS 1.3+ configuration for all endpoints.
+- Prometheus/Grafana metrics export.

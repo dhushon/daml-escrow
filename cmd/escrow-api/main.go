@@ -87,6 +87,7 @@ func main() {
 
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
+		r.Get("/health", handler.GetHealth)
 		r.Post("/escrows", handler.CreateEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)
 		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)

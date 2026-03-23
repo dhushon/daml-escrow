@@ -13,3 +13,12 @@
 ## Response Handling
 - **Flexible JSON Parsing:** The `/v2/state/active-contracts` endpoint may return either a JSON Array or Newline Delimited JSON (NDJSON) depending on the environment. Parsers MUST handle both formats gracefully.
 - **Transaction Events:** When extracting contracts from a transaction response, check both `CreatedEvent` and `createdEvent` (case sensitivity varies).
+
+## DAR Update & Ledger Reset Process
+When modifying contract logic (Daml source) or adding new templates, the ledger environment MUST be synchronized:
+
+1.  **Build All:** Execute `make daml-build` (uses `dpm build --all`) to ensure all interfaces, implementations, and test packages are compiled and Package IDs are updated.
+2.  **Verify Backend IDs:** Inspect the built implementation DAR using `~/.dpm/bin/dpm inspect-dar <file>` to extract the new Package ID. Update `PackageID` and `InterfacePackageID` in `internal/ledger/json_base.go`.
+3.  **Wipe State:** Execute `docker-compose down -v` to definitively clear persistent database schemas and ledger state.
+4.  **Re-upload & Bootstrap:** Execute `make up` to restart the stack. This triggers the `db-init` container and the `escrow-ledger` bootstrap script (`sandbox_init.canton`), ensuring fresh DARs are uploaded and topology is re-mapped.
+5.  **Integration Pass:** Run `make integration-test` to verify that the backend client correctly interacts with the new contract logic.

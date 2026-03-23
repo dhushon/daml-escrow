@@ -1,254 +1,234 @@
-basePath: /
-definitions:
-  api.CreateEscrowRequest:
-    properties:
-      amount:
-        example: 100
-        type: number
-      buyer:
-        example: Buyer
-        type: string
-      currency:
-        example: USD
-        type: string
-      description:
-        example: Payment for goods
-        type: string
-      milestones:
-        items:
-          $ref: '#/definitions/ledger.Milestone'
-        type: array
-      seller:
-        example: Seller
-        type: string
-    type: object
-  api.EscrowResponse:
-    properties:
-      amount:
-        type: number
-      buyer:
-        type: string
-      currency:
-        type: string
-      currentMilestoneIndex:
-        type: integer
-      id:
-        type: string
-      milestones:
-        items:
-          $ref: '#/definitions/ledger.Milestone'
-        type: array
-      seller:
-        type: string
-      state:
-        type: string
-    type: object
-  api.ResolveDisputeRequest:
-    properties:
-      payoutToBuyer:
-        example: 50
-        type: number
-      payoutToSeller:
-        example: 50
-        type: number
-    type: object
-  api.SettlementResponse:
-    properties:
-      amount:
-        type: number
-      currency:
-        type: string
-      id:
-        type: string
-      issuer:
-        type: string
-      recipient:
-        type: string
-      status:
-        type: string
-    type: object
-  ledger.Milestone:
-    properties:
-      amount:
-        type: number
-      completed:
-        type: boolean
-      label:
-        type: string
-    type: object
-host: localhost:8080
+swagger: "2.0"
 info:
-  contact: {}
-  description: API for managing privacy-preserving stablecoin escrows on DAML.
   title: Stablecoin Escrow API
+  description: API for managing privacy-preserving stablecoin escrows on DAML.
   version: "1.0"
+host: localhost:8081
+basePath: /api/v1
+schemes:
+  - http
+consumes:
+  - application/json
+produces:
+  - application/json
+
 paths:
-  /escrows:
-    post:
-      consumes:
-      - application/json
-      description: Initiate a new escrow agreement between buyer and seller
-      parameters:
-      - description: Escrow Creation Request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.CreateEscrowRequest'
-      produces:
-      - application/json
+  /health:
+    get:
+      summary: Get system health and uptime
+      tags:
+        - system
       responses:
-        "201":
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+
+  /escrows:
+    get:
+      summary: List active escrows
+      parameters:
+        - name: user
+          in: query
+          description: User ID context
+          type: string
+      tags:
+        - escrows
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/api.EscrowResponse'
+    post:
+      summary: Create a new active escrow
+      tags:
+        - escrows
+      parameters:
+        - in: body
+          name: request
+          schema:
+            $ref: '#/definitions/api.CreateEscrowRequest'
+      responses:
+        201:
           description: Created
           schema:
             $ref: '#/definitions/api.EscrowResponse'
-        "400":
-          description: invalid request
-          schema:
-            type: string
-        "500":
-          description: internal error
-          schema:
-            type: string
-      summary: Create a new escrow contract
+
+  /escrows/propose:
+    post:
+      summary: Propose a new escrow agreement
+      description: Create a draft agreement awaiting counterparty signature.
       tags:
-      - escrows
-  /escrows/{id}:
-    get:
-      description: Retrieve information about a specific escrow contract
+        - escrows
       parameters:
-      - description: Escrow ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
+        - in: body
+          name: request
+          schema:
+            $ref: '#/definitions/api.CreateEscrowRequest'
       responses:
-        "200":
+        201:
+          description: Created
+          schema:
+            $ref: '#/definitions/api.EscrowProposal'
+
+  /escrows/proposals:
+    get:
+      summary: List pending agreement proposals
+      tags:
+        - escrows
+      parameters:
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/api.EscrowProposal'
+
+  /escrows/{escrowID}:
+    get:
+      summary: Get escrow details
+      tags:
+        - escrows
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          type: string
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
           description: OK
           schema:
             $ref: '#/definitions/api.EscrowResponse'
-        "404":
-          description: escrow not found
-          schema:
-            type: string
-      summary: Get escrow details by ID
-      tags:
-      - escrows
-  /escrows/{id}/refund:
+
+  /escrows/{escrowID}/accept:
     post:
-      description: Cancel escrow and return funds (requires mediator)
-      parameters:
-      - description: Escrow ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "200":
-          description: ok
-          schema:
-            type: string
-        "500":
-          description: refund failed
-          schema:
-            type: string
-      summary: Refund funds to the buyer
+      summary: Accept and sign a proposed agreement
       tags:
-      - escrows
-  /escrows/{id}/release:
-    post:
-      description: Approve and release funds for the active milestone
+        - escrows
       parameters:
-      - description: Escrow ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - name: escrowID
+          in: path
+          required: true
+          type: string
+        - name: user
+          in: query
+          type: string
       responses:
-        "200":
-          description: ok
-          schema:
-            type: string
-        "500":
-          description: release failed
-          schema:
-            type: string
-      summary: Release funds for the current milestone
-      tags:
-      - escrows
-  /escrows/{id}/resolve:
-    post:
-      consumes:
-      - application/json
-      description: Mediator resolve dispute by splitting payout
-      parameters:
-      - description: Escrow ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Dispute Resolution Request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.ResolveDisputeRequest'
-      responses:
-        "200":
-          description: ok
-          schema:
-            type: string
-        "400":
-          description: invalid request
-          schema:
-            type: string
-        "500":
-          description: resolution failed
-          schema:
-            type: string
-      summary: Resolve a disputed escrow
-      tags:
-      - escrows
-  /settlements:
+        200:
+          description: Accepted
+
+  /metrics:
     get:
-      description: Retrieve a list of pending settlement obligations
-      produces:
-      - application/json
+      summary: Fetch platform and system performance metrics
+      tags:
+        - system
+      parameters:
+        - name: user
+          in: query
+          type: string
       responses:
-        "200":
+        200:
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/api.SettlementResponse'
-            type: array
-        "500":
-          description: internal error
-          schema:
-            type: string
-      summary: List all pending settlements
+            $ref: '#/definitions/api.LedgerMetrics'
+
+  /wallets:
+    get:
+      summary: List mocked stablecoin accounts
       tags:
-      - settlements
-  /settlements/{id}/settle:
-    post:
-      description: Issuer (Central Bank) settles the obligation and releases stablecoins
+        - wallets
       parameters:
-      - description: Settlement ID
-        in: path
-        name: id
-        required: true
-        type: string
+        - name: user
+          in: query
+          type: string
       responses:
-        "200":
-          description: ok
+        200:
+          description: OK
           schema:
-            type: string
-        "500":
-          description: settlement failed
-          schema:
-            type: string
-      summary: Finalize a pending settlement
-      tags:
-      - settlements
-swagger: "2.0"
+            type: array
+            items:
+              $ref: '#/definitions/api.Wallet'
+
+definitions:
+  api.HealthResponse:
+    type: object
+    properties:
+      status: { type: string }
+      version: { type: string }
+      uptime: { type: string }
+      startTime: { type: string }
+      cpuUsage: { type: number }
+      memoryUsage: { type: number }
+
+  api.CreateEscrowRequest:
+    type: object
+    properties:
+      buyer: { type: string, example: "Buyer" }
+      seller: { type: string, example: "Seller" }
+      amount: { type: number, example: 500.0 }
+      currency: { type: string, example: "USD" }
+      description: { type: string }
+      milestones:
+        type: array
+        items: { $ref: '#/definitions/ledger.Milestone' }
+
+  api.EscrowResponse:
+    type: object
+    properties:
+      id: { type: string }
+      buyer: { type: string }
+      seller: { type: string }
+      amount: { type: number }
+      currency: { type: string }      state: { type: string }
+      currentMilestoneIndex: { type: integer }
+      milestones:
+        type: array
+        items: { $ref: '#/definitions/ledger.Milestone' }
+
+  api.EscrowProposal:
+    type: object
+    properties:
+      id: { type: string }
+      buyer: { type: string }
+      seller: { type: string }
+      amount: { type: number }
+      currency: { type: string }
+      description: { type: string }
+
+  api.LedgerMetrics:
+    type: object
+    properties:
+      totalActiveEscrows: { type: integer }
+      totalValueInEscrow: { type: number }
+      systemPerformance: { $ref: '#/definitions/api.SystemPerformance' }
+
+  api.SystemPerformance:
+    type: object
+    properties:
+      apiLatencyMs: { type: integer }
+      requestCount: { type: integer }
+      errorRate: { type: number }
+
+  api.Wallet:
+    type: object
+    properties:
+      id: { type: string }
+      owner: { type: string }
+      currency: { type: string }
+      balance: { type: number }
+
+  ledger.Milestone:
+    type: object
+    properties:
+      label: { type: string }
+      amount: { type: number }
+      completed: { type: boolean }
