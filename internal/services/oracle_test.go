@@ -25,8 +25,8 @@ func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) GetEscrow(ctx context.Context, id string) (*ledger.EscrowContract, error) {
-	args := m.Called(ctx, id)
+func (m *MockLedgerClient) GetEscrow(ctx context.Context, id string, userID string) (*ledger.EscrowContract, error) {
+	args := m.Called(ctx, id, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -54,8 +54,8 @@ func TestProcessOracleWebhook(t *testing.T) {
 		h.Write([]byte(payload))
 		req.Signature = hex.EncodeToString(h.Sum(nil))
 		
-		// Setup mock expectations
-		mockLedger.On("GetEscrow", mock.Anything, "escrow-123").Return(&ledger.EscrowContract{
+		// Setup mock expectations - Oracle uses EscrowMediatorUser for lookups
+		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
 			State:                 "Active",
@@ -99,7 +99,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 		req.Signature = hex.EncodeToString(h.Sum(nil))
 		
 		// Contract is still at index 0
-		mockLedger.On("GetEscrow", mock.Anything, "escrow-123").Return(&ledger.EscrowContract{
+		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
 			State:                 "Active",
