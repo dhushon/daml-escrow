@@ -16,6 +16,7 @@ escrow-api
 log/
 contracts/log/
 *.gz
+*.pid
 
 # Frontend
 frontend/dist
