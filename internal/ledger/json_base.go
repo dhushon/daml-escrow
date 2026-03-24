@@ -22,7 +22,7 @@ const (
 
 // Package-level constants for Daml 3.x integration
 const (
-	PackageID          = "4a1d3b2bc1a0c5141bd83bcc2228189e5398cf7484e47afc2e8ccaeafadef7a7"
+	PackageID          = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
 	InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
 )
 

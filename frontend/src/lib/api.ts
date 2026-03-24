@@ -132,3 +132,17 @@ export async function authenticateIdentity(jwt: string) {
     }
     return response.json();
 }
+
+export async function fetchInvitationByToken(token: string) {
+    const response = await fetch(`${API_BASE}/invites/token/${token}`);
+    if (!response.ok) throw new Error('Invitation not found or expired');
+    return response.json();
+}
+
+export async function claimInvitation(inviteId: string, userId: string) {
+    const response = await fetch(`${API_BASE}/invites/${inviteId}/claim?user=${userId}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to claim invitation');
+    return response.json();
+}

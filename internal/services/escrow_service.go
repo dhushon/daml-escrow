@@ -173,6 +173,14 @@ func (s *EscrowService) ListInvitations(
 	return s.ledger.ListInvitations(ctx, userID)
 }
 
+func (s *EscrowService) GetInvitationByToken(
+	ctx context.Context,
+	tokenHash string,
+) (*ledger.EscrowInvitation, error) {
+	s.logger.Info("fetching invitation by token", zap.String("token", tokenHash))
+	return s.ledger.GetInvitationByToken(ctx, tokenHash)
+}
+
 func (s *EscrowService) ListSettlements(
 	ctx context.Context,
 ) ([]*ledger.EscrowSettlement, error) {

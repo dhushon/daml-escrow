@@ -70,8 +70,10 @@ func MetricsMiddleware(metrics *services.MetricsService) func(http.Handler) http
 func AuthMiddleware(issuer, clientId, audience string, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Bypass auth for health and swagger
-			if strings.HasPrefix(r.URL.Path, "/api/v1/health") || strings.HasPrefix(r.URL.Path, "/swagger") {
+			// Bypass auth for health, swagger, and anonymous token lookup
+			if strings.HasPrefix(r.URL.Path, "/api/v1/health") || 
+			   strings.HasPrefix(r.URL.Path, "/swagger") ||
+			   strings.HasPrefix(r.URL.Path, "/api/v1/invites/token/") {
 				next.ServeHTTP(w, r)
 				return
 			}

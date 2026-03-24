@@ -181,6 +181,8 @@ template EscrowInvitation
     mediator     : Party
     issuer       : Party
     inviteeEmail : Text
+    inviteeRole  : Text -- "Buyer" or "Seller"
+    inviteeType  : Text -- "Residential" or "Company"
     tokenHash    : Text
     terms        : EscrowTerms
   where
@@ -191,12 +193,11 @@ template EscrowInvitation
         claimingParty : Party
       controller claimingParty
       do
-        -- In a real app, the backend would verify the tokenHash matches 
-        -- the email of the claimingParty before submitting this command.
+        let isInviteeBuyer = inviteeRole == "Buyer"
         create EscrowProposal with
           issuer   = issuer
-          buyer    = inviter
-          seller   = claimingParty
+          buyer    = if isInviteeBuyer then claimingParty else inviter
+          seller   = if isInviteeBuyer then inviter else claimingParty
           mediator = mediator
           totalAmount = terms.totalAmount
           currency    = terms.currency

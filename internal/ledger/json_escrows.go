@@ -72,11 +72,12 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 	// Extract Invitation
 	for _, wrapper := range txResp.Transaction.Events {
 		var created map[string]interface{}
-		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+		if ce, ok := wrapper["CreatedEvent"].(map[string]interface{}); ok {
 			created = ce
 		}
+
 		if created != nil && strings.Contains(created["templateId"].(string), "EscrowInvitation") {
-			args := created["createArguments"].(map[string]interface{})
+			args := created["createArgument"].(map[string]interface{})
 			return &EscrowInvitation{
 				ID:           created["contractId"].(string),
 				Inviter:      fmt.Sprintf("%v", args["inviter"]),
@@ -129,11 +130,11 @@ func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string,
 	// Extract resulting Proposal
 	for _, wrapper := range txResp.Transaction.Events {
 		var created map[string]interface{}
-		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+		if ce, ok := wrapper["CreatedEvent"].(map[string]interface{}); ok {
 			created = ce
 		}
 		if created != nil && strings.Contains(created["templateId"].(string), "EscrowProposal") {
-			args := created["createArguments"].(map[string]interface{})
+			args := created["createArgument"].(map[string]interface{})
 			amount, _ := strconv.ParseFloat(fmt.Sprintf("%v", args["totalAmount"]), 64)
 			return &EscrowProposal{
 				ID:          created["contractId"].(string),
@@ -370,11 +371,11 @@ func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRe
 	// Extract Proposal
 	for _, wrapper := range txResp.Transaction.Events {
 		var created map[string]interface{}
-		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+		if ce, ok := wrapper["CreatedEvent"].(map[string]interface{}); ok {
 			created = ce
 		}
 		if created != nil && strings.Contains(created["templateId"].(string), "EscrowProposal") {
-			args := created["createArguments"].(map[string]interface{})
+			args := created["createArgument"].(map[string]interface{})
 			amount, _ := strconv.ParseFloat(fmt.Sprintf("%v", args["totalAmount"]), 64)
 			return &EscrowProposal{
 				ID:          created["contractId"].(string),
@@ -685,6 +686,67 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 	return list, nil
 }
 
+func (c *JsonLedgerClient) GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error) {
+	// Use Mediator role to search for invitations globally (anonymous lookup via token)
+	party := c.getParty(EscrowMediatorUser)
+	offset, err := c.getLedgerEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	body := map[string]interface{}{
+		"activeAtOffset": offset,
+		"eventFormat": map[string]interface{}{
+			"verbose": true,
+			"filtersByParty": map[string]interface{}{
+				party: map[string]interface{}{
+					"templateIds": []string{
+						fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowInvitation"),
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := parseNDJSON(respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, wrapper := range result {
+		var created map[string]interface{}
+		if entry, ok := wrapper["contractEntry"].(map[string]interface{}); ok {
+			if active, ok := entry["JsActiveContract"].(map[string]interface{}); ok {
+				if ce, ok := active["CreatedEvent"].(map[string]interface{}); ok {
+					created = ce
+				}
+			}
+		}
+
+		if created != nil {
+			args, ok := created["createArgument"].(map[string]interface{})
+			if ok && fmt.Sprintf("%v", args["tokenHash"]) == tokenHash {
+				return &EscrowInvitation{
+					ID:           created["contractId"].(string),
+					Inviter:      fmt.Sprintf("%v", args["inviter"]),
+					Mediator:     fmt.Sprintf("%v", args["mediator"]),
+					Issuer:       fmt.Sprintf("%v", args["issuer"]),
+					InviteeEmail: fmt.Sprintf("%v", args["inviteeEmail"]),
+					InviteeRole:  fmt.Sprintf("%v", args["inviteeRole"]),
+					InviteeType:  fmt.Sprintf("%v", args["inviteeType"]),
+					TokenHash:    tokenHash,
+				}, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("invitation not found for token")
+}
+
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error) {
 	// Increase retries to 15 with 2s delay for extreme reliability in automation
 	for retry := 0; retry < 15; retry++ {
@@ -843,9 +905,9 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId":  fmt.Sprintf("%s:%s:%s", InterfacePackageID, "Escrow.Interface", "DisputedEscrow"),
-						"contractId":  id,
-						"choice":      "ResolveDispute",
+						"templateId": fmt.Sprintf("%s:%s:%s", InterfacePackageID, "Escrow.Interface", "DisputedEscrow"),
+						"contractId": id,
+						"choice":     "ResolveDispute",
 						"choiceArgument": map[string]interface{}{
 							"payload": map[string]interface{}{
 								"payoutToBuyer":  fmt.Sprintf("%.10f", payoutToBuyer),

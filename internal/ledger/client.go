@@ -170,6 +170,7 @@ type Client interface {
 	CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, terms EscrowTerms) (*EscrowInvitation, error)
 	ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error)
 	ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error)
+	GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error)
 
 	// Metrics & Observability
 	GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error)

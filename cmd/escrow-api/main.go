@@ -101,6 +101,7 @@ func main() {
 		r.Post("/config", handler.SaveConfig)
 
 		r.Get("/invites", handler.ListInvitations)
+		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
 		r.Post("/invites", handler.CreateInvitation)
 		r.Post("/invites/{inviteID}/claim", handler.ClaimInvitation)
 

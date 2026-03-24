@@ -296,6 +296,27 @@ func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetInvitationByToken handles GET /invites/token/{token} (Anonymous)
+func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "missing token", http.StatusBadRequest)
+		return
+	}
+
+	invitation, err := h.escrowService.GetInvitationByToken(r.Context(), token)
+	if err != nil {
+		h.logger.Error("get invitation by token failed", zap.Error(err))
+		http.Error(w, "invitation not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(invitation); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
+}
+
 // ListEscrows handles GET /escrows
 func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 	if !RequireScope(r.Context(), ScopeEscrowRead) {

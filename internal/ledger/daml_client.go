@@ -91,6 +91,10 @@ func (c *DamlClient) ListWallets(ctx context.Context, userID string) ([]*Wallet,
 	return nil, nil
 }
 
+func (c *DamlClient) GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error) { 
+	return nil, fmt.Errorf("gRPC not implemented") 
+} 
+
 func (c *DamlClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
 	return nil, nil
 }
