@@ -20,34 +20,27 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-// Package-level variables for Daml 3.x integration (resolved at startup)
-var (
-	PackageID          string
-	InterfacePackageID string
-)
-
 type JsonLedgerClient struct {
-	logger     *zap.Logger
-	httpClient *http.Client
-	baseURL    string
-	partyMap   map[string]string // Maps User ID -> Canton Party ID (e.g. Buyer -> Buyer::1220...)
+	logger             *zap.Logger
+	httpClient         *http.Client
+	baseURL            string
+	partyMap           map[string]string // Maps User ID -> Canton Party ID
+	PackageID          string            // Instance-specific Package ID
+	InterfacePackageID string            // Instance-specific Interface ID
 }
 
 func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	c.logger.Info("performing ledger discovery...")
 
-	// 1. Resolve Package IDs by name
-	// In a real environment, we'd query /v2/packages and check metadata.
-	// For this prototype, we'll allow them to be passed in or continue using 
-	// the most recent valid IDs if discovery is restricted.
-	if PackageID == "" {
-		PackageID = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
+	// 1. Resolve Package IDs by name for this specific instance
+	if c.PackageID == "" {
+		c.PackageID = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
 	}
-	if InterfacePackageID == "" {
-		InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
+	if c.InterfacePackageID == "" {
+		c.InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
 	}
 
-	// 2. Resolve Party IDs (Enhancing refreshPartyMap)
+	// 2. Resolve Party IDs
 	return c.refreshPartyMap(ctx)
 }
 
