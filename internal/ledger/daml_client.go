@@ -63,6 +63,18 @@ func (c *DamlClient) RefundBySeller(ctx context.Context, id string) error {
 	return nil
 }
 
+func (c *DamlClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, terms EscrowTerms) (*EscrowInvitation, error) {
+	return nil, fmt.Errorf("gRPC not implemented")
+}
+
+func (c *DamlClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error) {
+	return nil, fmt.Errorf("gRPC not implemented")
+}
+
+func (c *DamlClient) ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error) {
+	return nil, nil
+}
+
 func (c *DamlClient) GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error) {
 	return &LedgerMetrics{}, nil
 }
@@ -76,6 +88,14 @@ func (c *DamlClient) SettlePayment(ctx context.Context, settlementID string) err
 }
 
 func (c *DamlClient) ListWallets(ctx context.Context, userID string) ([]*Wallet, error) {
+	return nil, nil
+}
+
+func (c *DamlClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
+	return nil, nil
+}
+
+func (c *DamlClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
 	return nil, nil
 }
 

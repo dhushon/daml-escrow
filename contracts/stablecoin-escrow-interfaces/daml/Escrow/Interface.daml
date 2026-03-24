@@ -16,6 +16,14 @@ data Milestone = Milestone with
   completed : Bool
     deriving (Eq, Show)
 
+data EscrowTerms = EscrowTerms with
+  totalAmount : Decimal
+  currency    : Text
+  description : Text
+  milestones  : [Milestone]
+  metadata    : Text
+    deriving (Eq, Show)
+
 data View = View with
   issuer                : Party
   buyer                 : Party

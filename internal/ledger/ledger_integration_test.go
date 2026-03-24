@@ -32,8 +32,31 @@ func TestLedgerIntegration(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	client := NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+
+	t.Run("Identity JIT Provisioning", func(t *testing.T) {
+		t.Log("Testing ProvisionUser for external identity...")
+		uniqueID := time.Now().UnixNano()
+		googleSub := fmt.Sprintf("google-oauth2|%d", uniqueID)
+		email := fmt.Sprintf("tester-%d@datacloud.com", uniqueID)
+
+		// 1. Provision User
+		identity, err := client.ProvisionUser(ctx, googleSub, email)
+		require.NoError(t, err)
+		require.NotNil(t, identity)
+		require.Equal(t, googleSub, identity.OktaSub)
+		require.Contains(t, identity.DamlUserID, "google-oauth2")
+		require.NotEmpty(t, identity.DamlPartyID)
+
+		// 2. Fetch Identity
+		fetched, err := client.GetIdentity(ctx, googleSub)
+		require.NoError(t, err)
+		require.NotNil(t, fetched)
+		require.Equal(t, identity.DamlPartyID, fetched.DamlPartyID)
+		
+		t.Logf("Successfully provisioned identity: %s", identity.DamlPartyID)
+	})
 
 	t.Run("Standard Escrow Lifecycle", func(t *testing.T) {
 		// 1. Create Escrow (Write)

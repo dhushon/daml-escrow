@@ -91,6 +91,23 @@ clean-db: ## Wipe the persistent ledger database (Postgres)
 clean: ## Remove binaries, logs, and PID files
 	rm -rf bin *.log *.pid
 
+.PHONY: clean-frontend
+clean-frontend: ## Clean Astro frontend build artifacts
+	cd frontend && rm -rf dist .astro node_modules
+
+## -- GCP Identity Management --
+
+.PHONY: gcp-identity-up
+gcp-identity-up: ## Initialize Google Cloud Identity Platform and enable APIs
+	@chmod +x scripts/setup_gcp_identity.sh
+	./scripts/setup_gcp_identity.sh
+
+.PHONY: gcp-identity-down
+gcp-identity-down: ## Disable Identity Platform APIs (Clean)
+	@echo "Disabling Identity Platform APIs..."
+	gcloud services disable identitytoolkit.googleapis.com identityplatform.googleapis.com
+	@echo "GCP Identity services disabled."
+
 ## -- Testing --
 
 .PHONY: test

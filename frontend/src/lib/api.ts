@@ -1,167 +1,134 @@
-export interface Milestone {
-  label: string;
-  amount: number;
-  completed: boolean;
+const API_BASE = 'http://localhost:8081/api/v1';
+
+export async function fetchEscrows(user: string = 'Buyer') {
+    const response = await fetch(`${API_BASE}/escrows?user=${user}`);
+    if (!response.ok) throw new Error('Failed to fetch escrows');
+    return response.json();
 }
 
-export interface EscrowMetadata {
-  schemaUrl: string;
-  payload: Record<string, any>;
-  exclusions?: Record<string, any>;
+export async function fetchProposals(user: string = 'Buyer') {
+    const response = await fetch(`${API_BASE}/escrows/proposals?user=${user}`);
+    if (!response.ok) throw new Error('Failed to fetch proposals');
+    return response.json();
 }
 
-export interface EscrowResponse {
-  id: string;
-  buyer: string;
-  seller: string;
-  issuer: string;
-  mediator: string;
-  amount: number;
-  currency: string;
-  state: "Active" | "Disputed";
-  milestones: Milestone[];
-  currentMilestoneIndex: number;
-  metadata: EscrowMetadata;
+export async function fetchSettlements() {
+    const response = await fetch(`${API_BASE}/settlements`);
+    if (!response.ok) throw new Error('Failed to fetch settlements');
+    return response.json();
 }
 
-export interface EscrowProposal {
-  id: string;
-  buyer: string;
-  seller: string;
-  issuer: string;
-  mediator: string;
-  amount: number;
-  currency: string;
-  description: string;
+export async function fetchWallets(user: string = 'Buyer') {
+    const response = await fetch(`${API_BASE}/wallets?user=${user}`);
+    if (!response.ok) throw new Error('Failed to fetch wallets');
+    return response.json();
 }
 
-export interface SettlementResponse {
-  id: string;
-  issuer: string;
-  recipient: string;
-  amount: number;
-  currency: string;
-  status: string;
+export async function fetchMetrics(user: string = 'CentralBank') {
+    const response = await fetch(`${API_BASE}/metrics?user=${user}`);
+    if (!response.ok) throw new Error('Failed to fetch metrics');
+    return response.json();
 }
 
-export interface ActivityPoint {
-  date: string;
-  count: number;
+export async function fetchConfig(user: string, key: string) {
+    const response = await fetch(`${API_BASE}/config?user=${user}&key=${key}`);
+    if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch config');
+    }
+    return response.json();
 }
 
-export interface SystemPerformance {
-  apiLatencyMs: number;
-  p95LatencyMs: number;
-  p99LatencyMs: number;
-  errorRate: number;
-  requestCount: number;
-  successRate: number;
-  uptime: string;
-  cpuUsage: number;
-  memoryUsage: number;
-  diskUsage: number;
-  activeConnections: number;
+export async function saveConfig(user: string, key: string, value: any) {
+    const response = await fetch(`${API_BASE}/config?user=${user}&key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(value)
+    });
+    if (!response.ok) throw new Error('Failed to save config');
 }
 
-export interface LedgerHealth {
-  tps: number;
-  commandSuccessRate: number;
-  activeContracts: number;
-  participantUptime: string;
+export async function createEscrow(req: any) {
+    const response = await fetch(`${API_BASE}/escrows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+    });
+    if (!response.ok) throw new Error('Failed to create escrow');
+    return response.json();
 }
 
-export interface LedgerMetrics {
-  totalActiveEscrows: number;
-  totalValueInEscrow: number;
-  pendingSettlements: number;
-  pendingSettlementValue: number;
-  activityHistory: ActivityPoint[];
-  tpsHistory: ActivityPoint[];
-  systemPerformance: SystemPerformance;
-  ledgerHealth: LedgerHealth;
+export async function proposeEscrow(req: any) {
+    const response = await fetch(`${API_BASE}/escrows/propose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+    });
+    if (!response.ok) throw new Error('Failed to propose escrow');
+    return response.json();
 }
 
-export interface Wallet {
-  id: string;
-  owner: string;
-  currency: string;
-  balance: number;
+export async function acceptProposal(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/accept?user=${user}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to accept proposal');
+    return response.json();
 }
 
-const BASE_URL = "http://localhost:8081/api/v1";
-
-export async function fetchEscrows(user: string = "Buyer"): Promise<EscrowResponse[]> {
-  const resp = await fetch(`${BASE_URL}/escrows?user=${user}`);
-  if (!resp.ok) throw new Error(`Failed to fetch escrows: ${resp.statusText}`);
-  return resp.json();
+export async function releaseFunds(id: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/release`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to release funds');
 }
 
-export async function proposeEscrow(req: any): Promise<EscrowProposal> {
-  const resp = await fetch(`${BASE_URL}/escrows/propose`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
-  if (!resp.ok) throw new Error(`Failed to propose escrow: ${resp.statusText}`);
-  return resp.json();
+export async function raiseDispute(id: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payoutToBuyer: 0, payoutToSeller: 0 }) // Mock dispute start
+    });
+    if (!response.ok) throw new Error('Failed to raise dispute');
 }
 
-export async function acceptProposal(id: string, user: string = "Seller"): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/escrows/${id}/accept?user=${user}`, { method: "POST" });
-  if (!resp.ok) throw new Error(`Failed to accept proposal: ${resp.statusText}`);
+export async function settlePayment(id: string) {
+    const response = await fetch(`${API_BASE}/settlements/${id}/settle`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to settle payment');
 }
 
-export async function fetchProposals(user: string = "Buyer"): Promise<EscrowProposal[]> {
-  const resp = await fetch(`${BASE_URL}/escrows/proposals?user=${user}`);
-  if (!resp.ok) throw new Error(`Failed to fetch proposals: ${resp.statusText}`);
-  return resp.json();
+export async function createInvitation(inviterId: string, email: string, role: string, inviteeType: string, terms: any) {
+    const response = await fetch(`${API_BASE}/invites?user=${inviterId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            inviterId,
+            inviteeEmail: email,
+            inviteeRole: role,
+            inviteeType,
+            terms
+        })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to create invitation');
+    }
+    return response.json();
 }
 
-export async function fetchSettlements(): Promise<SettlementResponse[]> {
-  const resp = await fetch(`${BASE_URL}/settlements`);
-  if (!resp.ok) throw new Error(`Failed to fetch settlements: ${resp.statusText}`);
-  return resp.json();
-}
-
-export async function fetchMetrics(user: string = "CentralBank"): Promise<LedgerMetrics> {
-  const resp = await fetch(`${BASE_URL}/metrics?user=${user}`);
-  if (!resp.ok) throw new Error(`Failed to fetch metrics: ${resp.statusText}`);
-  return resp.json();
-}
-
-export async function fetchConfig(user: string, key: string): Promise<any> {
-  const resp = await fetch(`${BASE_URL}/config?user=${user}&key=${key}`);
-  if (resp.status === 404) return null;
-  if (!resp.ok) throw new Error(`Failed to fetch config: ${resp.statusText}`);
-  return resp.json();
-}
-
-export async function saveConfig(user: string, key: string, value: any): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/config?user=${user}&key=${key}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(value),
-  });
-  if (!resp.ok) throw new Error(`Failed to save config: ${resp.statusText}`);
-}
-
-export async function fetchWallets(user: string = "Buyer"): Promise<Wallet[]> {
-  const resp = await fetch(`${BASE_URL}/wallets?user=${user}`);
-  if (!resp.ok) throw new Error(`Failed to fetch wallets: ${resp.statusText}`);
-  return resp.json();
-}
-
-export async function releaseFunds(id: string): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/escrows/${id}/release`, { method: "POST" });
-  if (!resp.ok) throw new Error(`Failed to release funds: ${resp.statusText}`);
-}
-
-export async function raiseDispute(id: string): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/escrows/${id}/refund`, { method: "POST" });
-  if (!resp.ok) throw new Error(`Failed to raise dispute: ${resp.statusText}`);
-}
-
-export async function settlePayment(id: string): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/settlements/${id}/settle`, { method: "POST" });
-  if (!resp.ok) throw new Error(`Failed to settle payment: ${resp.statusText}`);
+export async function authenticateIdentity(jwt: string) {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+        method: 'GET',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to authenticate and provision identity');
+    }
+    return response.json();
 }

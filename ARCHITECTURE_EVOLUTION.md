@@ -1,56 +1,70 @@
-# Architecture Evolution: Modular & Professional Escrow
+# Architecture Evolution: Multi-Actor Lifecycle
 
-This document outlines the plan for evolving the Stablecoin Escrow platform into a modular, production-grade system using Daml Interfaces and Daml Finance primitives.
+This document elaborates on the detailed roles and state transitions within the Stablecoin Escrow platform.
 
----
+## 1. Role-Based Workflow Matrix
 
-## 1. Modular Interface Strategy
-To support multiple business domains (Leasing, Supply Chain, Grants) without a monolithic contract, we will move to an **Interface-First** model.
+The following diagram illustrates the granular interactions between Buyer, Seller, and Mediator roles across the contract lifecycle.
 
-### Core Interface: `interface Escrow`
-Instead of domain-specific fields, the core interface will define the **capabilities** required for any escrow:
-*   **Choice `ApproveMilestone`**: Signals completion of a phase.
-*   **Choice `RaiseDispute`**: Freezes funds for mediation.
-*   **Method `getMetadata`**: Returns the `EscrowMetadata` (SchemaURL + Payload).
-*   **Method `getAmount`**: Returns the financial obligation.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant BC as Buyer (Preparer/Legal)
+    participant BA as Buyer (Approver/Payer)
+    participant L as Daml Ledger
+    participant SA as Seller (Approver/Legal)
+    participant SR as Seller (Refunder)
+    participant ML as Mediator (Process Lead)
+    participant MS as Mediator (Settler/Bank)
 
-### Benefits
-The Go API can then interact with the `Escrow` interface ID. It doesn't need to know if it's dealing with a `LeaseContract` or a `GrantContract`, as long as they both implement the `Escrow` interface.
+    Note over BC, BA: Phase 1: Drafting & Internal Review
+    BC->>L: Create Escrow Draft (Proposal/Invite)
+    L-->>BA: Notify for Internal Approval
+    BA->>L: Approve for External Dispatch
+    
+    Note over L, SA: Phase 2: Counterparty Acceptance
+    L-->>SA: Notify (External Offer)
+    alt Positive Path: Acceptance
+        SA->>L: Accept Terms (Choice: Accept)
+        L->>L: Transition to ACTIVE Escrow
+    else Negative Path: Rejection
+        SA->>L: Reject Terms
+        L->>L: Archive Proposal (OFFER_REJECTED)
+    end
 
----
+    Note over BA, SA: Phase 3: Execution & Milestone Approval
+    SA->>L: Submit Evidence / Milestone Work
+    L-->>BA: Notify for Review
+    alt Positive Path: Approval
+        BA->>L: Approve Milestone (Choice: ApproveMilestone)
+        L->>MS: Trigger Settlement Request
+        MS->>L: Execute Payment (Choice: Settle)
+        L-->>SA: Funds Received
+    else Negative Path: Dispute
+        BA->>L: Reject Milestone / Raise Dispute
+        L->>ML: Assign Mediator Process Lead
+        ML->>L: Investigate & Resolve (Choice: ResolveDispute)
+        L->>MS: Settled based on Resolution
+    end
 
-## 2. Professional Asset Layer (Daml Finance)
-Currently, "Stablecoin" is represented by a `Text` field. To mature this, we plan to integrate specific `daml-finance` modules compatible with SDK 3.4.11.
+    Note over SA, SR: Phase 4: Termination & Refunds
+    alt Seller Initiated Refund
+        SR->>L: Return Funds (Choice: SellerRefund)
+        L-->>BA: Funds Returned to Payer
+    end
+```
 
-### Target Dependencies
-*   `daml-finance-interface-holding`: Standard interface for owning assets.
-*   `daml-finance-interface-settlement`: Standard for multi-party atomic swaps.
-*   `daml-finance-interface-lifecycle`: For managing the "event" clock of milestones.
+## 2. Decision Logic & Branching
 
-### Evolution Path
-1.  **Phase 3.5 (Internal):** Replace `EscrowSettlement` text fields with a `daml-finance` Instruction.
-2.  **Phase 4.0 (Integration):** Use real Stablecoin holdings (e.g., ERC-20 mirrors) as the underlying value.
+### A. The Preparer-Approver Loop (Internal Governance)
+By separating the **Contract Preparer** from the **Buyer Approver**, we enforce a "four-eyes" principle. A preparer (typically a procurement officer) can define terms, but only an authorized officer (Payer) can commit funds to the ledger.
 
----
+### B. Business Email Logic (Onboarding)
+When an invitation is issued to `user@datacloud.com`, the platform:
+1.  **Extracts Domain:** Validates the suffix `datacloud.com`.
+2.  **Associates Organization:** Automatically tags the invitation with the "DataCloud LLC" metadata.
+3.  **Applies Corporate Policy:** Can enforce that only an `@datacloud.com` authenticated Okta user can claim the role of "Seller Approver."
 
-## 3. Deployment & Packaging
-To maintain simplicity while supporting extensions, we will move to a multi-package structure:
-
-1.  **`escrow-core`**:
-    *   Contains the `interface Escrow`.
-    *   Contains generic `EscrowMetadata` types.
-    *   *No business logic.*
-2.  **`escrow-common`**:
-    *   Standard implementations of the interface for simple use cases.
-3.  **`escrow-extensions`**:
-    *   Domain-specific packages (e.g., `escrow-leasing`) that depend on `escrow-core`.
-
----
-
-## 4. Summary of Change impact
-*   **Daml Code:** Logic moves from `StablecoinEscrow.daml` into an `Interface` definition + implementation templates.
-*   **Go Code:** The `JsonLedgerClient` will query the interface name (`Escrow`) instead of the template name (`StablecoinEscrow`).
-*   **Metadata:** Stays exactly as implemented in Phase 3 (JSON Schema driven), as this is already highly decoupled.
-
----
-**Status:** PROPOSAL ONLY. No changes have been made to the codebase.
+### C. Negative Outcomes & Resolution
+- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived. The system tracks this as a "Lost Opportunity" in metrics.
+- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work but Seller refuses to redo it, the **Mediator Process Lead** (`ML`) uses the Evidence metadata stored on-ledger to determine a fair payout ratio.

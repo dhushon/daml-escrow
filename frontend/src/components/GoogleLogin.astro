@@ -1,0 +1,48 @@
+---
+// Placeholder for Google Client ID until updated in config
+const GOOGLE_CLIENT_ID = "1234567890-abc123def.apps.googleusercontent.com";
+---
+
+<div id="google-auth-container" class="flex flex-col items-center">
+    <div id="g_id_onload"
+         data-client_id={GOOGLE_CLIENT_ID}
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="handleGoogleCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="outline"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left">
+    </div>
+</div>
+
+<script>
+    import { authenticateIdentity } from '../lib/api';
+
+    // Need to attach to window so the Google script can find it
+    window.handleGoogleCredentialResponse = async (response) => {
+        try {
+            console.log("Encoded JWT ID token: " + response.credential);
+            
+            // Trigger JIT Provisioning on the Backend
+            const identity = await authenticateIdentity(response.credential);
+            
+            // Set session state (cookie) for the Astro frontend
+            document.cookie = `auth_token=${response.credential}; path=/; max-age=86400`;
+            document.cookie = `daml_party=${identity.damlPartyId}; path=/; max-age=86400`;
+            document.cookie = `user_email=${identity.email}; path=/; max-age=86400`;
+            
+            // Reload to apply authenticated state
+            window.location.reload();
+        } catch (error) {
+            console.error("Authentication failed:", error);
+            alert("Login failed. Check console for details.");
+        }
+    };
+</script>

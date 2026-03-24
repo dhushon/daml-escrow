@@ -144,6 +144,35 @@ func (s *EscrowService) RefundBySeller(
 	return s.ledger.RefundBySeller(ctx, id)
 }
 
+func (s *EscrowService) CreateInvitation(
+	ctx context.Context,
+	inviterID string,
+	inviteeEmail string,
+	role string,
+	inviteeType string,
+	terms ledger.EscrowTerms,
+) (*ledger.EscrowInvitation, error) {
+	s.logger.Info("creating invitation", zap.String("inviter", inviterID), zap.String("invitee", inviteeEmail))
+	return s.ledger.CreateInvitation(ctx, inviterID, inviteeEmail, role, inviteeType, terms)
+}
+
+func (s *EscrowService) ClaimInvitation(
+	ctx context.Context,
+	inviteID string,
+	claimantID string,
+) (*ledger.EscrowProposal, error) {
+	s.logger.Info("claiming invitation", zap.String("id", inviteID), zap.String("claimant", claimantID))
+	return s.ledger.ClaimInvitation(ctx, inviteID, claimantID)
+}
+
+func (s *EscrowService) ListInvitations(
+	ctx context.Context,
+	userID string,
+) ([]*ledger.EscrowInvitation, error) {
+	s.logger.Info("listing invitations for user", zap.String("userID", userID))
+	return s.ledger.ListInvitations(ctx, userID)
+}
+
 func (s *EscrowService) ListSettlements(
 	ctx context.Context,
 ) ([]*ledger.EscrowSettlement, error) {
@@ -214,6 +243,23 @@ func (s *EscrowService) ProcessOracleWebhook(
 		zap.Int("index", req.MilestoneIndex))
 		
 	return s.ledger.ReleaseFunds(ctx, req.EscrowID)
+}
+
+func (s *EscrowService) GetIdentity(
+	ctx context.Context,
+	oktaSub string,
+) (*ledger.UserIdentity, error) {
+	s.logger.Info("getting identity", zap.String("sub", oktaSub))
+	return s.ledger.GetIdentity(ctx, oktaSub)
+}
+
+func (s *EscrowService) ProvisionUser(
+	ctx context.Context,
+	oktaSub string,
+	email string,
+) (*ledger.UserIdentity, error) {
+	s.logger.Info("provisioning user", zap.String("sub", oktaSub), zap.String("email", email))
+	return s.ledger.ProvisionUser(ctx, oktaSub, email)
 }
 
 func (s *EscrowService) verifySignature(req ledger.OracleWebhookRequest) error {

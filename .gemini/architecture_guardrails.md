@@ -1,75 +1,33 @@
 # Architecture Guardrails
 
-These guardrails define the **core architectural principles** for the
-escrow platform.
+These guardrails define the **core architectural principles** for the escrow platform.
 
 ## 1. Contract-First Design
-
-All business logic involving funds MUST live in DAML contracts.
-
-Backend services:
-
-- orchestrate
-- validate inputs
-- relay transactions
-
-They must NEVER implement financial logic.
+All business logic involving funds MUST live in DAML contracts. Backend services orchestrate, validate inputs, and relay transactions. They must NEVER implement financial logic.
 
 ## 2. Ledger as Source of Truth
-
-The distributed ledger is the **single source of truth**.
-
-Applications must treat the ledger as authoritative.
-
-No off-ledger balance tracking is allowed.
+The distributed ledger is the **single source of truth**. Applications must treat the ledger as authoritative. No off-ledger balance tracking is allowed.
 
 ## 3. Privacy by Default
+Escrow contracts must restrict visibility to: **Buyer, Seller, Mediator, Issuer**. No escrow information should leak to unrelated parties.
 
-Escrow contracts must restrict visibility to:
+## 4. Identity Bridge & JIT Provisioning (Phase 5+)
+- **Identity Source:** Google Cloud Identity (GCIP) is the authoritative IdP. 
+- **Mapping:** External Subject IDs (`sub`) MUST be mapped to Daml User IDs via a deterministic sanitization process.
+- **JIT Allocation:** New users must be provisioned on-ledger at first-login via the Daml User Management API, allocating a unique cryptographic Party ID.
+- **Principle of Least Privilege:** Users must only be granted `actAs` rights for their own primary party.
 
-- buyer
-- seller
-- mediator
-- issuer
+## 5. Stateless Services
+All Go services must be stateless. Persistent state must reside in the ledger or authorized external stores (e.g. `user_config` database).
 
-No escrow information should leak to unrelated parties.
-
-## 4. Stateless Services
-
-All Go services must be stateless.
-
-State must reside in:
-
-- the ledger
-- durable event streams
-
-## 5. Event-Driven Architecture
-
-Services should subscribe to ledger events rather than polling.
-
-Preferred technologies:
-
-- Kafka
-- NATS
-- Cloud PubSub
-
-## 6. Deterministic Escrow Flows
-
-Escrow state transitions must always follow deterministic rules:
-
-Created → Locked → Delivered → Released/Refunded
+## 6. Namespaced Configuration
+Module-specific configuration variables MUST be prefixed with the module name (e.g., `AUTH_ISSUER`, `LEDGER_HOST`) to prevent global collision and improve discoverability.
 
 ## 7. Metadata & Oracle Guardrails
-
 - **Schema Maturity:** Every business domain must provide a versioned JSON Schema in `/architecture/schemas`.
 - **Minimalist Ledger:** Only data required for settlement or audit-linkage should be persisted to the ledger.
-- **Privacy Redaction:** Sensitive operational data (detailed locations, PII, operator codes) MUST use the `exclusions` ("don't event") pattern to prevent leakage to the immutable record.
-- **Oracle Trust:** Webhooks must be authenticated using HMAC or asymmetric signatures verified against a pre-shared secret or public key.
+- **Privacy Redaction:** Sensitive operational data MUST use the `exclusions` pattern to prevent leakage to the immutable record.
+- **Oracle Trust:** Webhooks must be authenticated using HMAC-SHA256 signatures verified against `ORACLE_WEBHOOK_SECRET`.
 
 ## 8. Modular Integration Pattern
-
-Large ledger clients or complex integration layers MUST be refactored into modular files to prevent monolithic corruption and improve maintainability.
-
-- **Specialization:** Separate logic into files by concern: `base`, `parser`, `parties`, and domain-specific entities (e.g., `escrows`, `settlements`).
-- **Shared State:** Shared structs and constants must reside in the `base` file or a `generated` package.
-- **AI Tooling Safety:** Modularization ensures that automated surgical edits remain high-signal and low-risk.
+Large ledger clients MUST be refactored into modular files (`base`, `parser`, `parties`, `escrows`). Shared structs must reside in `base` or `generated` packages.

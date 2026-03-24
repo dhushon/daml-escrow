@@ -13,5 +13,10 @@ ledger:
 userConfig:
   dsn: "postgres://escrow:escrow@127.0.0.1:5432/user_config?sslmode=disable"
 
+auth:
+  issuer: "https://accounts.google.com"
+  clientId: "1234567890-abc123def.apps.googleusercontent.com"
+  audience: "1234567890-abc123def.apps.googleusercontent.com"
+
 oracle:
   webhookSecret: "development-secret-key"

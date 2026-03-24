@@ -56,6 +56,7 @@ func main() {
 		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
 	} else {
+		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 	}
@@ -86,6 +87,7 @@ func main() {
 	
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
+	router.Use(api.AuthMiddleware(cfg.Auth.Issuer, cfg.Auth.ClientID, cfg.Auth.Audience, logger))
 
 	router.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
@@ -94,8 +96,13 @@ func main() {
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
+		r.Get("/auth/me", handler.GetIdentity)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)
+
+		r.Get("/invites", handler.ListInvitations)
+		r.Post("/invites", handler.CreateInvitation)
+		r.Post("/invites/{inviteID}/claim", handler.ClaimInvitation)
 
 		r.Post("/escrows", handler.CreateEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)

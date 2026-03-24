@@ -29,6 +29,11 @@ func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metri
 
 // GetConfig handles GET /config?user={id}&key={key}
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	key := r.URL.Query().Get("key")
 	if userID == "" || key == "" {
@@ -56,6 +61,11 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 // SaveConfig handles POST /config?user={id}&key={key}
 func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	key := r.URL.Query().Get("key")
 	if userID == "" || key == "" {
@@ -76,6 +86,9 @@ func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte("ok")); err != nil {
+		h.logger.Error("failed to write response", zap.Error(err))
+	}
 }
 
 type CreateEscrowRequest struct {
@@ -86,6 +99,14 @@ type CreateEscrowRequest struct {
 	Description string                `json:"description" example:"Software Project"`
 	Milestones  []ledger.Milestone    `json:"milestones"`
 	Metadata    ledger.EscrowMetadata `json:"metadata"`
+}
+
+type CreateInvitationRequest struct {
+	InviterID    string             `json:"inviterId"`
+	InviteeEmail string             `json:"inviteeEmail"`
+	InviteeRole  string             `json:"inviteeRole"` // Buyer, Seller, Mediator
+	InviteeType  string             `json:"inviteeType"` // Residential, Company
+	Terms        ledger.EscrowTerms `json:"terms"`
 }
 
 type EscrowResponse struct {
@@ -102,6 +123,11 @@ type EscrowResponse struct {
 
 // CreateEscrow handles POST /escrows
 func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	var req CreateEscrowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("failed to decode request", zap.Error(err))
@@ -133,6 +159,11 @@ func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
 
 // ProposeEscrow handles POST /escrows/propose
 func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	var req CreateEscrowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
@@ -163,6 +194,11 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 
 // AcceptProposal handles POST /escrows/{id}/accept
 func (h *Handler) AcceptProposal(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowAccept) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	sellerID := r.URL.Query().Get("user")
 	if sellerID == "" {
@@ -181,8 +217,92 @@ func (h *Handler) AcceptProposal(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CreateInvitation handles POST /invites
+func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
+	var req CreateInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	invitation, err := h.escrowService.CreateInvitation(r.Context(), req.InviterID, req.InviteeEmail, req.InviteeRole, req.InviteeType, req.Terms)
+	if err != nil {
+		h.logger.Error("create invitation failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(invitation); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
+}
+
+// ClaimInvitation handles POST /invites/{inviteID}/claim
+func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowAccept) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
+	id := chi.URLParam(r, "inviteID")
+	claimantID := r.URL.Query().Get("user")
+	if claimantID == "" {
+		http.Error(w, "missing user parameter", http.StatusBadRequest)
+		return
+	}
+
+	proposal, err := h.escrowService.ClaimInvitation(r.Context(), id, claimantID)
+	if err != nil {
+		h.logger.Error("claim invitation failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(proposal); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
+}
+
+// ListInvitations handles GET /invites
+func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
+	userID := r.URL.Query().Get("user")
+	if userID == "" {
+		userID = "Buyer"
+	}
+
+	invitations, err := h.escrowService.ListInvitations(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("list invitations failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(invitations); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
+}
+
 // ListEscrows handles GET /escrows
 func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
 		userID = "Buyer"
@@ -203,6 +323,11 @@ func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 
 // ListProposals handles GET /escrows/proposals
 func (h *Handler) ListProposals(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
 		userID = "Buyer"
@@ -223,6 +348,11 @@ func (h *Handler) ListProposals(w http.ResponseWriter, r *http.Request) {
 
 // GetEscrow handles GET /escrows/{escrowID}
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
@@ -244,6 +374,11 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 
 // ReleaseFunds handles POST /escrows/{escrowID}/release
 func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowAccept) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	if err := h.escrowService.ReleaseFunds(r.Context(), id); err != nil {
 		h.logger.Error("release funds failed", zap.Error(err))
@@ -259,6 +394,11 @@ func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 
 // RefundBuyer handles POST /escrows/{escrowID}/refund
 func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	if err := h.escrowService.RefundBuyer(r.Context(), id); err != nil {
 		h.logger.Error("refund buyer failed", zap.Error(err))
@@ -274,6 +414,11 @@ func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
 
 // RefundBySeller handles POST /escrows/{escrowID}/refund-by-seller
 func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	if err := h.escrowService.RefundBySeller(r.Context(), id); err != nil {
 		h.logger.Error("seller refund failed", zap.Error(err))
@@ -289,6 +434,11 @@ func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
 
 // ResolveDispute handles POST /escrows/{escrowID}/resolve
 func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "escrowID")
 	var req struct {
 		PayoutToBuyer  float64 `json:"payoutToBuyer"`
@@ -320,8 +470,48 @@ func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetIdentity handles GET /auth/me for JIT provisioning
+func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
+	sub, ok := r.Context().Value(AuthSubKey).(string)
+	if !ok || sub == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	email, _ := r.Context().Value(EmailKey).(string)
+
+	// Attempt to get existing identity
+	identity, err := h.escrowService.GetIdentity(r.Context(), sub)
+	if err != nil {
+		h.logger.Error("failed to fetch identity", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// If identity doesn't exist, JIT provision
+	if identity == nil {
+		h.logger.Info("identity not found, triggering JIT provisioning", zap.String("sub", sub))
+		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email)
+		if err != nil {
+			h.logger.Error("JIT provisioning failed", zap.Error(err))
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(identity); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
+	}
+}
+
 // GetMetrics handles GET /metrics
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) && !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
 		userID = ledger.CentralBankUser
@@ -353,6 +543,11 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 // ListSettlements handles GET /settlements
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) && !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	settlements, err := h.escrowService.ListSettlements(r.Context())
 	if err != nil {
 		h.logger.Error("list settlements failed", zap.Error(err))
@@ -368,6 +563,11 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 
 // SettlePayment handles POST /settlements/{settlementID}/settle
 func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	id := chi.URLParam(r, "settlementID")
 	if err := h.escrowService.SettlePayment(r.Context(), id); err != nil {
 		h.logger.Error("settle payment failed", zap.Error(err))
@@ -383,6 +583,11 @@ func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
 
 // ListWallets handles GET /wallets (Mocked for Phase 4)
 func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowRead) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
 		userID = "Buyer"
@@ -403,6 +608,7 @@ func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
 
 // OracleMilestoneTrigger handles POST /webhooks/milestone
 func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
+	// Webhooks typically use their own secret verification instead of OIDC
 	var req ledger.OracleWebhookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)

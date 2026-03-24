@@ -10,6 +10,14 @@ type Milestone struct {
 	Completed bool    `json:"completed"`
 }
 
+type EscrowTerms struct {
+	TotalAmount float64     `json:"totalAmount"`
+	Currency    string      `json:"currency"`
+	Description string      `json:"description"`
+	Milestones  []Milestone `json:"milestones"`
+	Metadata    string      `json:"metadata"`
+}
+
 type EscrowMetadata struct {
 	SchemaURL  string                 `json:"schemaUrl"`
 	Payload    map[string]interface{} `json:"payload"`
@@ -46,11 +54,23 @@ type EscrowProposal struct {
 	Seller      string         `json:"seller"`
 	Issuer      string         `json:"issuer"`
 	Mediator    string         `json:"mediator"`
-	Amount      float64        `json:"amount"`
-	Currency    string         `json:"currency"`
+	Amount                float64        `json:"amount"`
+	Currency              string         `json:"currency"`
 	Description string         `json:"description"`
-	Milestones  []Milestone    `json:"milestones"`
-	Metadata    EscrowMetadata `json:"metadata"`
+	Milestones            []Milestone    `json:"milestones"`
+	Metadata              EscrowMetadata `json:"metadata"`
+}
+
+type EscrowInvitation struct {
+	ID           string      `json:"id"`
+	Inviter      string      `json:"inviter"`
+	Mediator     string      `json:"mediator"`
+	Issuer       string      `json:"issuer"`
+	InviteeEmail string      `json:"inviteeEmail"`
+	InviteeRole  string      `json:"inviteeRole"` // Buyer, Seller, Mediator
+	InviteeType  string      `json:"inviteeType"` // Residential, Company
+	TokenHash    string      `json:"tokenHash"`
+	Terms        EscrowTerms `json:"terms"`
 }
 
 type EscrowSettlement struct {
@@ -124,6 +144,14 @@ type HealthResponse struct {
 	Goroutines  int     `json:"goroutines"`
 }
 
+type UserIdentity struct {
+	OktaSub      string `json:"oktaSub"`
+	DamlUserID   string `json:"damlUserId"`
+	DamlPartyID  string `json:"damlPartyId"`
+	Email        string `json:"email"`
+	DisplayName  string `json:"displayName"`
+}
+
 type Client interface {
 	// Escrow Lifecycle
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
@@ -138,6 +166,11 @@ type Client interface {
 	RefundBuyer(ctx context.Context, id string) error
 	RefundBySeller(ctx context.Context, id string) error
 
+	// Invitation Lifecycle (Phase 5)
+	CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, terms EscrowTerms) (*EscrowInvitation, error)
+	ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error)
+	ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error)
+
 	// Metrics & Observability
 	GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error)
 
@@ -147,6 +180,10 @@ type Client interface {
 
 	// Wallet Management (Mockable)
 	ListWallets(ctx context.Context, userID string) ([]*Wallet, error)
+
+	// User Management (Phase 5)
+	GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error)
+	ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error)
 
 	// Internal helper for tests
 	getParty(user string) string

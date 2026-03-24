@@ -9,6 +9,205 @@ import (
 	"time"
 )
 
+func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, terms EscrowTerms) (*EscrowInvitation, error) {
+	inviterParty := c.getParty(inviterID)
+	mediatorParty := c.getParty(EscrowMediatorUser)
+	cbParty := c.getParty(CentralBankUser)
+
+	// Generate a token hash for secure claiming (mocked for now)
+	tokenHash := fmt.Sprintf("invite-%d", time.Now().UnixNano())
+
+	var milestones []interface{}
+	for _, m := range terms.Milestones {
+		milestones = append(milestones, map[string]interface{}{
+			"label":     m.Label,
+			"amount":    fmt.Sprintf("%.10f", m.Amount),
+			"completed": m.Completed,
+		})
+	}
+
+	payload := map[string]interface{}{
+		"inviter":      inviterParty,
+		"mediator":     mediatorParty,
+		"issuer":       cbParty,
+		"inviteeEmail": inviteeEmail,
+		"inviteeRole":  role,
+		"inviteeType":  inviteeType,
+		"tokenHash":    tokenHash,
+		"terms": map[string]interface{}{
+			"totalAmount": fmt.Sprintf("%.10f", terms.TotalAmount),
+			"currency":    terms.Currency,
+			"description": terms.Description,
+			"milestones":  milestones,
+			"metadata":    terms.Metadata,
+		},
+	}
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("create-invite-%d", time.Now().UnixNano()),
+			"actAs":     []string{inviterParty, mediatorParty},
+			"userId":    inviterID,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"CreateCommand": map[string]interface{}{
+						"templateId":      fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowInvitation"),
+						"createArguments": payload,
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var txResp v2TransactionResponse
+	if err := json.Unmarshal(respBody, &txResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction response: %w", err)
+	}
+
+	// Extract Invitation
+	for _, wrapper := range txResp.Transaction.Events {
+		var created map[string]interface{}
+		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+			created = ce
+		}
+		if created != nil && strings.Contains(created["templateId"].(string), "EscrowInvitation") {
+			args := created["createArguments"].(map[string]interface{})
+			return &EscrowInvitation{
+				ID:           created["contractId"].(string),
+				Inviter:      fmt.Sprintf("%v", args["inviter"]),
+				Mediator:     fmt.Sprintf("%v", args["mediator"]),
+				Issuer:       fmt.Sprintf("%v", args["issuer"]),
+				InviteeEmail: fmt.Sprintf("%v", args["inviteeEmail"]),
+				InviteeRole:  fmt.Sprintf("%v", args["inviteeRole"]),
+				InviteeType:  fmt.Sprintf("%v", args["inviteeType"]),
+				TokenHash:    fmt.Sprintf("%v", args["tokenHash"]),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invitation created but not found in response")
+}
+
+func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error) {
+	claimantParty := c.getParty(claimantID)
+	
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("claim-%d", time.Now().UnixNano()),
+			"actAs":     []string{claimantParty},
+			"userId":    claimantID,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowInvitation"),
+						"contractId":     inviteID,
+						"choice":         "Claim",
+						"choiceArgument": map[string]interface{}{
+							"claimingParty": claimantParty,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var txResp v2TransactionResponse
+	if err := json.Unmarshal(respBody, &txResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction response: %w", err)
+	}
+
+	// Extract resulting Proposal
+	for _, wrapper := range txResp.Transaction.Events {
+		var created map[string]interface{}
+		if ce, ok := wrapper["createdEvent"].(map[string]interface{}); ok {
+			created = ce
+		}
+		if created != nil && strings.Contains(created["templateId"].(string), "EscrowProposal") {
+			args := created["createArguments"].(map[string]interface{})
+			amount, _ := strconv.ParseFloat(fmt.Sprintf("%v", args["totalAmount"]), 64)
+			return &EscrowProposal{
+				ID:          created["contractId"].(string),
+				Buyer:       fmt.Sprintf("%v", args["buyer"]),
+				Seller:      fmt.Sprintf("%v", args["seller"]),
+				Issuer:      fmt.Sprintf("%v", args["issuer"]),
+				Mediator:    fmt.Sprintf("%v", args["mediator"]),
+				Amount:      amount,
+				Currency:    fmt.Sprintf("%v", args["currency"]),
+				Description: fmt.Sprintf("%v", args["description"]),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invitation claimed but proposal not found in response")
+}
+
+func (c *JsonLedgerClient) ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error) {
+	party := c.getParty(userID)
+	offset, err := c.getLedgerEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	body := map[string]interface{}{
+		"activeAtOffset": offset,
+		"eventFormat": map[string]interface{}{
+			"verbose": true,
+			"filtersByParty": map[string]interface{}{
+				party: map[string]interface{}{
+					"templateIds": []string{
+						fmt.Sprintf("%s:%s:%s", PackageID, "StablecoinEscrow", "EscrowInvitation"),
+					},
+				},
+			},
+		},
+	}
+
+	respBody, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := parseNDJSON(respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var list = []*EscrowInvitation{}
+	for _, wrapper := range result {
+		var created map[string]interface{}
+		if entry, ok := wrapper["contractEntry"].(map[string]interface{}); ok {
+			if active, ok := entry["JsActiveContract"].(map[string]interface{}); ok {
+				if ce, ok := active["createdEvent"].(map[string]interface{}); ok {
+					created = ce
+				}
+			}
+		}
+
+		if created != nil {
+			args := created["createArguments"].(map[string]interface{})
+			list = append(list, &EscrowInvitation{
+				ID:           created["contractId"].(string),
+				Inviter:      fmt.Sprintf("%v", args["inviter"]),
+				Mediator:     fmt.Sprintf("%v", args["mediator"]),
+				Issuer:       fmt.Sprintf("%v", args["issuer"]),
+				InviteeEmail: fmt.Sprintf("%v", args["inviteeEmail"]),
+				TokenHash:    fmt.Sprintf("%v", args["tokenHash"]),
+			})
+		}
+	}
+	return list, nil
+}
+
 func (c *JsonLedgerClient) getLedgerEnd(ctx context.Context) (interface{}, error) {
 	respBody, err := c.doRawRequest(ctx, "GET", "/v2/state/ledger-end", nil)
 	if err != nil {
@@ -487,8 +686,8 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 }
 
 func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error) {
-	// Increase retries to 10 with 1s delay for high-assurance retrieval
-	for retry := 0; retry < 10; retry++ {
+	// Increase retries to 15 with 2s delay for extreme reliability in automation
+	for retry := 0; retry < 15; retry++ {
 		contracts, err := c.ListEscrows(ctx, userID)
 		if err != nil {
 			return nil, err
@@ -498,7 +697,7 @@ func (c *JsonLedgerClient) GetEscrow(ctx context.Context, id string, userID stri
 				return item, nil
 			}
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	return nil, fmt.Errorf("escrow not found: %s", id)
 }

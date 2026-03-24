@@ -23,6 +23,11 @@ type Config struct {
 	UserConfig struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"userConfig"`
+	Auth struct {
+		Issuer   string `yaml:"issuer"`
+		ClientID string `yaml:"clientId"`
+		Audience string `yaml:"audience"`
+	} `yaml:"auth"`
 	Oracle struct {
 		WebhookSecret string `yaml:"webhookSecret"`
 	} `yaml:"oracle"`

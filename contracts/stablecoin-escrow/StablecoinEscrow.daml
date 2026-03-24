@@ -172,6 +172,43 @@ template EscrowProposal
       do return ()
 
 -- ---------------------------------------------------------------------------
+-- EscrowInvitation (Phase 5 Identity Extension)
+-- ---------------------------------------------------------------------------
+
+template EscrowInvitation
+  with
+    inviter      : Party
+    mediator     : Party
+    issuer       : Party
+    inviteeEmail : Text
+    tokenHash    : Text
+    terms        : EscrowTerms
+  where
+    signatory inviter, mediator
+
+    choice Claim : ContractId EscrowProposal
+      with
+        claimingParty : Party
+      controller claimingParty
+      do
+        -- In a real app, the backend would verify the tokenHash matches 
+        -- the email of the claimingParty before submitting this command.
+        create EscrowProposal with
+          issuer   = issuer
+          buyer    = inviter
+          seller   = claimingParty
+          mediator = mediator
+          totalAmount = terms.totalAmount
+          currency    = terms.currency
+          description = terms.description
+          milestones  = terms.milestones
+          metadata    = terms.metadata
+
+    choice Cancel : ()
+      controller inviter
+      do return ()
+
+-- ---------------------------------------------------------------------------
 -- StablecoinDisputedEscrow  (implements DisputedEscrow)
 -- ---------------------------------------------------------------------------
 
