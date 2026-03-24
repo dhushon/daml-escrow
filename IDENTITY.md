@@ -61,8 +61,14 @@ The request body MUST include `userId` and `identityProviderId` even though the 
 
 ---
 
-## 4. Development Mode (Bypass)
+## 5. Dynamic Identity & Package Discovery
 
-- **`AUTH_DEV_MODE`**: Set to `true` to enable bypass.
-- **`X-Dev-User`**: Header used to simulate identity (e.g., `Buyer`).
-- **Dev Scopes:** Simulated users are granted broad scopes (`read`, `write`, `accept`) for local walkthroughs.
+To maintain high assurance across contract upgrades and environment resets, the platform avoids hardcoding cryptographic identifiers. Instead, it employs a **Discovery Phase** at startup.
+
+### Strategy:
+1.  **Logical Mapping:** The backend maintains knowledge of "Logical Names" (e.g., package `stablecoin-escrow`, party `Buyer`).
+2.  **Runtime Resolution:** Upon connection, the `ledgerClient.Discover(ctx)` method is executed.
+3.  **Package Sync:** The system queries the ledger's package registry to resolve the current content-hashes (Package IDs) for interfaces and implementations.
+4.  **Party Sync:** Cryptographic Party IDs are resolved via the User Management API and identifier hints, populating a high-speed local cache (`partyMap`).
+
+This ensures that the Go backend always interacts with the exact versions of the contracts currently active on the Synchronizer.

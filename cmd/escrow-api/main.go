@@ -61,6 +61,11 @@ func main() {
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
 	}
 
+	// Perform dynamic discovery (resolve Package and Party IDs)
+	if err := ledgerClient.Discover(context.Background()); err != nil {
+		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
+	}
+
 	// Initialize core services
 	metricsService := services.NewMetricsService()
 	

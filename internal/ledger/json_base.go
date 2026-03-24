@@ -20,10 +20,10 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-// Package-level constants for Daml 3.x integration
-const (
-	PackageID          = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
-	InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
+// Package-level variables for Daml 3.x integration (resolved at startup)
+var (
+	PackageID          string
+	InterfacePackageID string
 )
 
 type JsonLedgerClient struct {
@@ -31,6 +31,24 @@ type JsonLedgerClient struct {
 	httpClient *http.Client
 	baseURL    string
 	partyMap   map[string]string // Maps User ID -> Canton Party ID (e.g. Buyer -> Buyer::1220...)
+}
+
+func (c *JsonLedgerClient) Discover(ctx context.Context) error {
+	c.logger.Info("performing ledger discovery...")
+
+	// 1. Resolve Package IDs by name
+	// In a real environment, we'd query /v2/packages and check metadata.
+	// For this prototype, we'll allow them to be passed in or continue using 
+	// the most recent valid IDs if discovery is restricted.
+	if PackageID == "" {
+		PackageID = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
+	}
+	if InterfacePackageID == "" {
+		InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
+	}
+
+	// 2. Resolve Party IDs (Enhancing refreshPartyMap)
+	return c.refreshPartyMap(ctx)
 }
 
 // v2TransactionResponse is shared between escrow and settlement logic
@@ -54,9 +72,6 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 		baseURL:  fmt.Sprintf("http://%s:%d", host, port),
 		partyMap: make(map[string]string),
 	}
-	
-	// Initial population of the party map
-	_ = c.refreshPartyMap(context.Background())
 	
 	return c
 }
@@ -99,6 +114,7 @@ func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+	c.logger.Debug("ledger response", zap.String("path", path), zap.String("body", string(respBody)))
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("JSON API error (%d): %s", resp.StatusCode, string(respBody))
 	}

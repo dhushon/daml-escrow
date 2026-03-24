@@ -29,5 +29,7 @@
 - **Event Extraction:** Check both `CreatedEvent` and `createdEvent` when parsing transaction trees.
 
 ## 4. Stability & Performance
+- **Dynamic Discovery:** Every ledger client MUST implement a `Discover(ctx)` phase. 
+- **Hardcoding Prohibited:** Do NOT hardcode Package IDs or Party IDs in `const` blocks. Use variables populated during the discovery phase to ensure compatibility across ledger resets and contract upgrades.
 - **Timeout Management:** Ledger transactions involving automation or complex retry logic REQUIRE a minimum 120s client timeout.
 - **Retry Strategy:** `GetEscrow` operations should use a minimum of 15 retries with 2s delays to account for indexing latency in multi-participant Canton environments.

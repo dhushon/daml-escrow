@@ -19,6 +19,10 @@ func NewDamlClient(logger *zap.Logger, host string, port int) *DamlClient {
 	}
 }
 
+func (c *DamlClient) Discover(ctx context.Context) error {
+	return nil
+}
+
 func (c *DamlClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error) {
 	return nil, fmt.Errorf("gRPC not implemented in this prototype")
 }

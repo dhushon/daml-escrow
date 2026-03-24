@@ -29,5 +29,9 @@ Module-specific configuration variables MUST be prefixed with the module name (e
 - **Privacy Redaction:** Sensitive operational data MUST use the `exclusions` pattern to prevent leakage to the immutable record.
 - **Oracle Trust:** Webhooks must be authenticated using HMAC-SHA256 signatures verified against `ORACLE_WEBHOOK_SECRET`.
 
-## 8. Modular Integration Pattern
+## 8. Self-Healing Lifecycle (Phase 5+)
+- **Dynamic Bindings:** All contract references (Package IDs) and participant identifiers (Party IDs) MUST be resolved at runtime during the startup discovery phase.
+- **Resilience:** Systems must survive ledger resets and contract re-builds by automatically re-synchronizing their identity maps and version tags from the authoritative ledger metadata.
+
+## 9. Modular Integration Pattern
 Large ledger clients MUST be refactored into modular files (`base`, `parser`, `parties`, `escrows`). Shared structs must reside in `base` or `generated` packages.

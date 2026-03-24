@@ -153,6 +153,9 @@ type UserIdentity struct {
 }
 
 type Client interface {
+	// Discovery
+	Discover(ctx context.Context) error
+
 	// Escrow Lifecycle
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
 	AcceptProposal(ctx context.Context, id string, sellerID string) error
