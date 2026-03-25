@@ -1,24 +1,34 @@
 # Daml & Canton Ledger Requirements (SDK 3.4.x)
 
-## Authorization Rules
-- **Party ID Integrity:** The `actAs` field in any command submission MUST use the fully qualified Party ID (e.g., `Buyer::1220abc...`).
-- **User ID Scoping:** The `userId` field MUST use the plain user name (e.g., `Buyer`) to match the JWT/User mapping.
-- **Never hardcode Party IDs:** Always use `refreshPartyMap` to resolve user names to their active ledger Party IDs. The `/v2/parties` response is an object with a `partyDetails` array.
+## 1. Tooling & Package Management
+- **MANDATORY:** Use **`dpm`** (Digital Asset Package Manager) for all contract operations. The legacy `daml` assistant is deprecated and MUST NOT be used for builds, tests, or deployments.
+- **DPM Path:** Ensure `dpm` is in your path (typically `~/.dpm/bin/dpm`).
+- **Multi-Package Builds:** Use `dpm build --all` from the `contracts/` directory to build the entire suite.
 
-## JSON API V2 Serialization
-- **Nullary Constructors:** Data constructors with no fields (e.g., `data ApproveMilestoneArg = ApproveMilestoneArg`) MUST be represented as a plain string in the JSON payload: `"payload": "ApproveMilestoneArg"`.
-- **Zero-Argument Choices:** Choices with no parameters (e.g., `choice Settle : ...`) MUST use an empty object for the argument: `"choiceArgument": {}`.
-- **Interface ID:** Interface exercises MUST provide both `templateId` (Interface ID for the exercise) and `interfaceId` (Interface ID for validation). In SDK 3.x, the `templateId` in the `ExerciseCommand` should target the Interface.
+## 2. High-Assurance Escrow Lifecycle (Formal Model)
+- **State Sequence:** ALL escrow contracts MUST follow the sequence: `DRAFT → FUNDED → ACTIVE → DISPUTED → PROPOSED → SETTLED`.
+- **Tripartite Authority:**
+    - **Issuer (Bank):** Signatory on ALL states. Must authorize final disbursement.
+    - **Buyer & Seller:** Co-signers on terms (`DRAFT`) and settlement ratification (`PROPOSED`).
+    - **Mediator:** Primary controller for condition confirmation and settlement proposals.
+- **Audit Logging:** Every state transition MUST emit an `EscrowEvent` interface instance for auditability.
 
-## Response Handling
-- **Flexible JSON Parsing:** The `/v2/state/active-contracts` endpoint may return either a JSON Array or Newline Delimited JSON (NDJSON) depending on the environment. Parsers MUST handle both formats gracefully.
-- **Transaction Events:** When extracting contracts from a transaction response, check both `CreatedEvent` and `createdEvent` (case sensitivity varies).
+## 3. Authorization & Identity (Phase 5+)
+- **Party ID Integrity:** Command submissions MUST use fully qualified Party IDs (e.g., `Buyer::1220abc...`).
+- **User ID Scoping:** The `userId` MUST match the sanitized Daml User ID derived from the external IdP (e.g., `u-google-sub-123`).
+- **JIT Provisioning Flow (SDK 3.4.x specific):** 
+    1. **Allocation:** `POST /v2/parties` with `{ "partyIdHint": "id", "displayName": "..." }`.
+    2. **User Creation:** `POST /v2/users` with a nested user object.
+    3. **Rights Granting:** `POST /v2/users/{id}/rights` requires `userId` and `identityProviderId` in the body.
+- **Dynamic Resolution:** NEVER hardcode Party IDs. Always resolve via the `partyMap` cache refreshed from `/v2/parties`.
 
-## DAR Update & Ledger Reset Process
-When modifying contract logic (Daml source) or adding new templates, the ledger environment MUST be synchronized:
+## 4. JSON API V2 Serialization
+- **Nullary Constructors:** Data constructors with no fields MUST be represented as a plain string: `"payload": "ApproveMilestoneArg"`.
+- **Zero-Argument Choices:** Choices with no parameters MUST use an empty object: `"choiceArgument": {}`.
+- **Interface Exercises:** Targeting an interface choice MUST use the Interface Package ID and Template ID in the `ExerciseCommand`.
 
-1.  **Build All:** Execute `make daml-build` (uses `dpm build --all`) to ensure all interfaces, implementations, and test packages are compiled and Package IDs are updated.
-2.  **Verify Backend IDs:** Inspect the built implementation DAR using `~/.dpm/bin/dpm inspect-dar <file>` to extract the new Package ID. Update `PackageID` and `InterfacePackageID` in `internal/ledger/json_base.go`.
-3.  **Wipe State:** Execute `docker-compose down -v` to definitively clear persistent database schemas and ledger state.
-4.  **Re-upload & Bootstrap:** Execute `make up` to restart the stack. This triggers the `db-init` container and the `escrow-ledger` bootstrap script (`sandbox_init.canton`), ensuring fresh DARs are uploaded and topology is re-mapped.
-5.  **Integration Pass:** Run `make integration-test` to verify that the backend client correctly interacts with the new contract logic.
+## 5. Stability & Performance
+- **Dynamic Discovery:** Every ledger client MUST implement a `Discover(ctx)` phase to resolve Package IDs and Party IDs at runtime.
+- **Hardcoding Prohibited:** Do NOT hardcode Package IDs or Party IDs. Use variables populated during discovery.
+- **Timeout Management:** Complex transactions REQUIRE a minimum 120s client timeout.
+- **Retry Strategy:** `GetEscrow` operations should use a minimum of 15 retries with 2s delays to account for Canton indexing latency.

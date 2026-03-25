@@ -1,4 +1,4 @@
-version: "3.9"
+# version: "3.9" /version has been deprecated in favor of specifying the Compose file format in the top-level "format" key. See https://docs.docker.com/compose/compose-file/#version for more details.
 
 services:
 

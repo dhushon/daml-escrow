@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import EscrowCard from '../components/EscrowCard.astro';
+import InviteModal from '../components/InviteModal.astro';
 import { fetchEscrows, fetchProposals } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
@@ -88,7 +89,10 @@ try {
 			<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl transition-all duration-300">
 				<h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">No pending proposals</h3>
 				<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Start a new draft agreement to begin the escrow process.</p>
-				<a href="/compose" class="inline-block mt-6 bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-xl shadow-blue-500/20">Compose Draft Agreement</a>
+				<div class="flex justify-center gap-4 mt-6">
+					<a href="/compose" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-xl shadow-blue-500/20">Compose Draft</a>
+					<button id="open-invite" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Invite Partner</button>
+				</div>
 			</div>
 		) : (
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -137,6 +141,8 @@ try {
 			</div>
 		)
 	)}
+
+	<InviteModal />
 </Layout>
 
 <script>
@@ -158,7 +164,6 @@ try {
 				if (action === 'release') await releaseFunds(id);
 				else if (action === 'dispute') await raiseDispute(id);
 				else if (action === 'accept') {
-					// In a real app, user identity would be in context
 					const urlParams = new URLSearchParams(window.location.search);
 					const user = urlParams.get('view') || 'Seller';
 					await acceptProposal(id, user);
@@ -170,5 +175,9 @@ try {
 				target.textContent = originalText;
 			}
 		});
+	});
+
+	document.getElementById('open-invite')?.addEventListener('click', () => {
+		window.dispatchEvent(new CustomEvent('open-invite-modal'));
 	});
 </script>

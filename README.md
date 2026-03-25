@@ -2,18 +2,13 @@
 
 ## Overview
 
-This project explores the design of a **privacy-preserving, multi‑party
-stablecoin escrow platform** implemented using **DAML (Digital Asset
-Modeling Language)** and deployed on a **Canton-style distributed ledger
-network**.
+This project implements a **high-assurance, privacy-preserving stablecoin escrow platform** using **DAML (Digital Asset Modeling Language)** and a **Canton distributed ledger**. It follows a rigorous formal escrow process designed for tokenized reserves.
 
 ------------------------------------------------------------------------
 
-## Architecture & Workflow
+## High-Assurance Architecture
 
-### System Architecture
-The platform is built on a modern, decoupled stack ensuring high performance and cryptographic certainty.
-
+### System Stack
 ```mermaid
 graph TD
     User((User / Admin)) <-->|Port 8080| Astro[Astro Frontend]
@@ -24,36 +19,44 @@ graph TD
     Oracle((Oracle Service)) -->|Webhook| Go
 ```
 
-### Escrow Lifecycle Workflow
-A multi-actor flow demonstrating the transition from proposal to final stablecoin settlement.
+### Escrow Lifecycle (Formal Model)
+Refined per `ESCROW-PROCESS.md` to ensure bilateral consent and tripartite authority.
 
 ```mermaid
-sequenceDiagram
-    participant B as Buyer
-    participant S as Seller
-    participant L as Daml Ledger
-    participant O as Oracle (FedEx/IoT)
-    participant CB as Central Bank
-
-    Note over B,S: 1. Composition & Agreement
-    B->>L: Create EscrowProposal
-    L-->>S: Notify (Observer)
-    S->>L: Exercise 'Accept' choice
-    L->>L: Archive Proposal, Create Active Escrow
-
-    Note over S,O: 2. Execution & Evidence
-    S->>O: Dispatch Goods
-    O->>B: Provide Evidence (Webhook)
-    
-    Note over B,L: 3. Milestone Approval
-    B->>L: Approve Milestone
-    L->>L: Create EscrowSettlement
-
-    Note over CB,S: 4. Final Settlement
-    CB->>L: Settle Payment
-    L->>L: Archive Settlement, Funds Transferred
-    Note right of S: Seller receives stablecoins
+stateDiagram-v2
+    [*] --> DRAFT: ProposeEscrow (B+S+I)
+    DRAFT --> FUNDED: Fund (Buyer)
+    FUNDED --> ACTIVE: Activate (Issuer)
+    ACTIVE --> SETTLED: ConfirmConditions (Mediator)
+    ACTIVE --> DISPUTED: RaiseDispute (Buyer/Seller)
+    DISPUTED --> PROPOSED: ProposeSettlement (Mediator)
+    PROPOSED --> DISPUTED: Reject (Buyer/Seller)
+    PROPOSED --> SETTLED: Ratify + Finalize (Buyer+Seller)
+    SETTLED --> [*]: Disburse (Issuer)
 ```
+
+------------------------------------------------------------------------
+
+## Key Features (Phase 5 Refactor)
+
+### 1. Robust State Machine
+Strict transition guards ensure funds cannot be released until conditions are met or bilateral agreement is reached in a dispute.
+- **DRAFT:** Terms agreed, but asset not yet deposited.
+- **FUNDED:** Asset locked by Issuer, awaiting activation.
+- **ACTIVE:** Escrow is live and conditions are being monitored.
+- **DISPUTED:** Adjudication phase initiated.
+- **PROPOSED:** Mediated settlement awaiting party ratification.
+
+### 2. Tripartite Authority Model
+- **Issuer (Bank):** Signatory on all states; controls final disbursement.
+- **Buyer & Seller:** Co-signers on terms and settlement ratification.
+- **Mediator:** Authoritative adjudicator for conditions and settlement proposals.
+
+### 3. Self-Healing Integration
+The Go backend features a **Dynamic Discovery Engine** that automatically resolves Package IDs and Party IDs at runtime, ensuring the stack is environment-agnostic and resilient to ledger resets.
+
+### 4. API Request Validation & DTOs
+All HTTP endpoints utilize strict Data Transfer Objects (DTOs) (e.g., `ProposeEscrowRequest`, `FundEscrowRequest`) with explicit `.Validate()` methods before interacting with the core ledger services. This isolates business logic from malformed or dirty web payloads and prevents mass-assignment vulnerabilities.
 
 ------------------------------------------------------------------------
 
@@ -66,62 +69,20 @@ sequenceDiagram
 - **Docker & Docker Compose**
 
 ### Development Environment
-
-The project provides a unified management console via `Makefile`.
-
 ```bash
-# View all available strategies
-make help
-
-# START the full stack (Ledger + API + Frontend)
+# Start the full stack (Ledger + API + Frontend)
 make up
 
-# STOP everything
-make down
-```
-
-### Verification
-Verify the full lifecycle functionality using the integration tests:
-
-```bash
-# Runs standard unit tests
+# Run verification suite
 make test
-
-# Runs full ledger integration suite (requires active ledger)
 make integration-test
 ```
 
 ------------------------------------------------------------------------
 
 ## Repository Structure
-
-```text
-/cmd                    - Entry points for API and Oracle Simulator
-/internal/api           - REST handlers and middleware
-/internal/ledger        - Modular Daml JSON API V2 client
-/internal/services      - Core business logic and metrics orchestration
-/contracts/stablecoin-* - Multi-package Daml contracts (Interface, Implementation, Tests)
-/frontend               - Astro-based dashboard with Tailwind CSS
-/docs                   - API documentation (Swagger)
-/.gemini                - Project memory and architectural guardrails
-```
-
-------------------------------------------------------------------------
-
-## Product Goals
-
-1. **Enable trust-minimized escrow using stablecoins**
-2. **Support milestone-based payments**
-3. **Allow dispute mediation**
-4. **Provide private contract execution**
-5. **Integrate external triggers (oracles, webhooks)**
-
-------------------------------------------------------------------------
-
-## Key Achievements (Phase 4)
-
-- **Modular Backend:** Deconstructed monolithic clients into specialized modules for better maintainability.
-- **Admin Dashboard:** Branded UI with role-based oversight and real-time metrics.
-- **Daml 3.x Compatibility:** Fully aligned with LF 2.1 and Canton authorization (actAs) requirements.
-- **Observability:** Real-time system performance and ledger throughput visualizations.
-- **UX Flow:** End-to-end lifecycle support from agreement drafting to final settlement.
+- `/cmd`: Entry points for API and Oracle Simulator.
+- `/internal`: Modular Go backend (Ledger Client, Service Layer, REST Handlers).
+- `/contracts`: Multi-package Daml structure (Interfaces, Implementation, Tests).
+- `/frontend`: Astro-based dashboard with DataCloud LNF styling.
+- `ESCROW-PROCESS.md`: The formal process specification.

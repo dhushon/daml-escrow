@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 
 	"github.com/go-chi/chi/v5"
@@ -27,346 +26,374 @@ func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metri
 	}
 }
 
-// GetConfig handles GET /config?user={id}&key={key}
+// ---------------------------------------------------------------------------
+// Config Handlers
+// ---------------------------------------------------------------------------
+
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")
 	key := r.URL.Query().Get("key")
-	if userID == "" || key == "" {
-		http.Error(w, "missing user or key", http.StatusBadRequest)
-		return
-	}
-
 	val, err := h.configService.GetConfig(userID, key)
 	if err != nil {
-		h.logger.Error("get config failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
 	if val == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(val); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
+		h.logger.Error("failed to write config response", zap.Error(err))
 	}
 }
 
-// SaveConfig handles POST /config?user={id}&key={key}
 func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")
 	key := r.URL.Query().Get("key")
-	if userID == "" || key == "" {
-		http.Error(w, "missing user or key", http.StatusBadRequest)
-		return
-	}
-
 	var val json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&val); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-
 	if err := h.configService.SaveConfig(userID, key, val); err != nil {
-		h.logger.Error("save config failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 }
 
-type CreateEscrowRequest struct {
-	Buyer       string                `json:"buyer" example:"Buyer"`
-	Seller      string                `json:"seller" example:"Seller"`
-	Amount      float64               `json:"amount" example:"500.0"`
-	Currency    string                `json:"currency" example:"USD"`
-	Description string                `json:"description" example:"Software Project"`
-	Milestones  []ledger.Milestone    `json:"milestones"`
-	Metadata    ledger.EscrowMetadata `json:"metadata"`
-}
+// ---------------------------------------------------------------------------
+// Escrow Lifecycle Handlers (Directive 05)
+// ---------------------------------------------------------------------------
 
-type EscrowResponse struct {
-	ID                    string                `json:"id"`
-	Buyer                 string                `json:"buyer"`
-	Seller                string                `json:"seller"`
-	Amount                float64               `json:"amount"`
-	Currency              string                `json:"currency"`
-	State                 string                `json:"state"`
-	Milestones            []ledger.Milestone    `json:"milestones"`
-	CurrentMilestoneIndex int                   `json:"currentMilestoneIndex"`
-	Metadata              ledger.EscrowMetadata `json:"metadata"`
-}
-
-// CreateEscrow handles POST /escrows
-func (h *Handler) CreateEscrow(w http.ResponseWriter, r *http.Request) {
-	var req CreateEscrowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("failed to decode request", zap.Error(err))
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-
-	escrow, err := h.escrowService.CreateEscrow(r.Context(), ledger.CreateEscrowRequest{
-		Buyer:       req.Buyer,
-		Seller:      req.Seller,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Description: req.Description,
-		Milestones:  req.Milestones,
-		Metadata:    req.Metadata,
-	})
-	if err != nil {
-		h.logger.Error("create escrow failed", zap.Error(err))
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(escrow); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
-}
-
-// ProposeEscrow handles POST /escrows/propose
 func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
-	var req CreateEscrowRequest
+	var req ProposeEscrowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, "invalid request format", http.StatusBadRequest)
 		return
 	}
 
-	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledger.CreateEscrowRequest{
-		Buyer:       req.Buyer,
-		Seller:      req.Seller,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Description: req.Description,
-		Milestones:  req.Milestones,
-		Metadata:    req.Metadata,
-	})
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ledgerReq := req.ToLedgerRequest()
+	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledgerReq)
 	if err != nil {
 		h.logger.Error("propose escrow failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(proposal); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	h.renderJSON(w, proposal)
 }
 
-// AcceptProposal handles POST /escrows/{id}/accept
-func (h *Handler) AcceptProposal(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
-	sellerID := r.URL.Query().Get("user")
-	if sellerID == "" {
-		sellerID = "Seller"
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	var req FundEscrowRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request format", http.StatusBadRequest)
+		return
 	}
 
-	if err := h.escrowService.AcceptProposal(r.Context(), id, sellerID); err != nil {
-		h.logger.Error("accept proposal failed", zap.Error(err))
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.escrowService.Fund(r.Context(), id, req.CustodyRef, userID); err != nil {
+		h.logger.Error("fund failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(`{"status":"accepted"}`)); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
 }
 
-// ListEscrows handles GET /escrows
-func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user")
-	if userID == "" {
-		userID = "Buyer"
-	}
+func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	escrows, err := h.escrowService.ListEscrows(r.Context(), userID)
-	if err != nil {
-		h.logger.Error("list escrows failed", zap.Error(err))
+	if err := h.escrowService.Activate(r.Context(), id, userID); err != nil {
+		h.logger.Error("activate failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(escrows); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	w.WriteHeader(http.StatusOK)
 }
 
-// ListProposals handles GET /escrows/proposals
-func (h *Handler) ListProposals(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user")
-	if userID == "" {
-		userID = "Buyer"
-	}
+func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	proposals, err := h.escrowService.ListProposals(r.Context(), userID)
-	if err != nil {
-		h.logger.Error("list proposals failed", zap.Error(err))
+	if err := h.escrowService.ConfirmConditions(r.Context(), id, userID); err != nil {
+		h.logger.Error("confirm failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(proposals); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	w.WriteHeader(http.StatusOK)
 }
 
-// GetEscrow handles GET /escrows/{escrowID}
+func (h *Handler) RaiseDispute(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.escrowService.RaiseDispute(r.Context(), id, userID); err != nil {
+		h.logger.Error("raise dispute failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	var req ProposeSettlementRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request format", http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ledgerTerms := req.ToLedgerTerms()
+	if err := h.escrowService.ProposeSettlement(r.Context(), id, ledgerTerms, userID); err != nil {
+		h.logger.Error("propose settlement failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.escrowService.RatifySettlement(r.Context(), id, userID); err != nil {
+		h.logger.Error("ratify failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.escrowService.FinalizeSettlement(r.Context(), id, userID); err != nil {
+		h.logger.Error("finalize failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) Disburse(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.escrowService.Disburse(r.Context(), id, userID); err != nil {
+		h.logger.Error("disburse failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
-		userID = "Buyer"
+		userID, _ = r.Context().Value(AuthSubKey).(string)
 	}
 
 	escrow, err := h.escrowService.GetEscrow(r.Context(), id, userID)
 	if err != nil {
-		h.logger.Error("get escrow failed", zap.Error(err), zap.String("id", id))
 		http.Error(w, "escrow not found", http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(escrow); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	h.renderJSON(w, escrow)
 }
 
-// ReleaseFunds handles POST /escrows/{escrowID}/release
-func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "escrowID")
-	if err := h.escrowService.ReleaseFunds(r.Context(), id); err != nil {
-		h.logger.Error("release funds failed", zap.Error(err))
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
-}
-
-// RefundBuyer handles POST /escrows/{escrowID}/refund
-func (h *Handler) RefundBuyer(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "escrowID")
-	if err := h.escrowService.RefundBuyer(r.Context(), id); err != nil {
-		h.logger.Error("refund buyer failed", zap.Error(err))
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
-}
-
-// RefundBySeller handles POST /escrows/{escrowID}/refund-by-seller
-func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "escrowID")
-	if err := h.escrowService.RefundBySeller(r.Context(), id); err != nil {
-		h.logger.Error("seller refund failed", zap.Error(err))
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
-}
-
-// ResolveDispute handles POST /escrows/{escrowID}/resolve
-func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "escrowID")
-	var req struct {
-		PayoutToBuyer  float64 `json:"payoutToBuyer"`
-		PayoutToSeller float64 `json:"payoutToSeller"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.escrowService.ResolveDispute(r.Context(), id, req.PayoutToBuyer, req.PayoutToSeller); err != nil {
-		h.logger.Error("resolve dispute failed", zap.Error(err))
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
-}
-
-// GetHealth handles GET /health
-func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
-	health := h.metricsService.GetHealth()
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(health); err != nil {
-		h.logger.Error("failed to encode health response", zap.Error(err))
-	}
-}
-
-// GetMetrics handles GET /metrics
-func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user")
 	if userID == "" {
-		userID = ledger.CentralBankUser
+		userID, _ = r.Context().Value(AuthSubKey).(string)
 	}
 
-	metrics, err := h.escrowService.GetMetrics(r.Context(), userID)
+	escrows, err := h.escrowService.ListEscrows(r.Context(), userID)
 	if err != nil {
-		h.logger.Error("get metrics failed", zap.Error(err))
+		h.logger.Error("list failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// Override mock performance with real-time stats if we have the service
-	if h.metricsService != nil {
-		latency, reqs, errRate, mem, cpu, uptime := h.metricsService.GetSystemPerformance()
-		metrics.SystemPerformance.APILatencyMS = latency
-		metrics.SystemPerformance.RequestCount = reqs
-		metrics.SystemPerformance.ErrorRate = errRate
-		metrics.SystemPerformance.MemoryUsage = mem
-		metrics.SystemPerformance.CPUUsage = cpu
-		metrics.SystemPerformance.Uptime = uptime
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(metrics); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	h.renderJSON(w, escrows)
 }
 
-// ListSettlements handles GET /settlements
+// ---------------------------------------------------------------------------
+// Invitation Handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
+	var req CreateInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request format", http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	asset, terms := req.ToLedgerAssetAndTerms()
+	invitation, err := h.escrowService.CreateInvitation(r.Context(), userID, req.InviteeEmail, req.InviteeRole, req.InviteeType, asset, terms)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderJSON(w, invitation)
+}
+
+func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	invite, err := h.escrowService.GetInvitationByToken(r.Context(), token)
+	if err != nil {
+		http.Error(w, "invitation not found", http.StatusNotFound)
+		return
+	}
+
+	proposal, err := h.escrowService.ClaimInvitation(r.Context(), invite.ID, userID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderJSON(w, proposal)
+}
+
+func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	invitations, err := h.escrowService.ListInvitations(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("list invitations failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderJSON(w, invitations)
+}
+
+func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	invitation, err := h.escrowService.GetInvitationByToken(r.Context(), token)
+	if err != nil {
+		http.Error(w, "invitation not found", http.StatusNotFound)
+		return
+	}
+	h.renderJSON(w, invitation)
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Health
+// ---------------------------------------------------------------------------
+
+func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
+	sub, ok := r.Context().Value(AuthSubKey).(string)
+	if !ok || sub == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	email, _ := r.Context().Value(EmailKey).(string)
+
+	identity, err := h.escrowService.GetIdentity(r.Context(), sub)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if identity == nil {
+		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	h.renderJSON(w, identity)
+}
+
+func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	health := h.metricsService.GetHealth()
+	h.renderJSON(w, health)
+}
+
+func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
+	var req OracleWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request format", http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ledgerReq := req.ToLedgerRequest()
+	if err := h.escrowService.ProcessOracleWebhook(r.Context(), ledgerReq); err != nil {
+		h.logger.Error("webhook failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// ---------------------------------------------------------------------------
+// System Handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	metrics, err := h.escrowService.GetMetrics(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderJSON(w, metrics)
+}
+
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	settlements, err := h.escrowService.ListSettlements(r.Context())
 	if err != nil {
-		h.logger.Error("list settlements failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(settlements); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
+	h.renderJSON(w, settlements)
 }
 
-// SettlePayment handles POST /settlements/{settlementID}/settle
 func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "settlementID")
 	if err := h.escrowService.SettlePayment(r.Context(), id); err != nil {
@@ -374,49 +401,22 @@ func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
-	}
 }
 
-// ListWallets handles GET /wallets (Mocked for Phase 4)
 func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user")
-	if userID == "" {
-		userID = "Buyer"
-	}
-
-	// Mocked stablecoin accounts
-	wallets := []*ledger.Wallet{
-		{ID: "wallet-usd-001", Owner: userID, Currency: "USD", Balance: 15000.50},
-		{ID: "wallet-eur-002", Owner: userID, Currency: "EUR", Balance: 4200.00},
-		{ID: "wallet-gbp-003", Owner: userID, Currency: "GBP", Balance: 850.75},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(wallets); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-	}
-}
-
-// OracleMilestoneTrigger handles POST /webhooks/milestone
-func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
-	var req ledger.OracleWebhookRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.escrowService.ProcessOracleWebhook(r.Context(), req); err != nil {
-		h.logger.Error("webhook processing failed", zap.Error(err))
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	wallets, err := h.escrowService.ListWallets(r.Context(), userID)
+	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.renderJSON(w, wallets)
+}
 
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("ok")); err != nil {
-		h.logger.Error("failed to write response", zap.Error(err))
+func (h *Handler) renderJSON(w http.ResponseWriter, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		h.logger.Error("failed to encode response", zap.Error(err))
 	}
 }

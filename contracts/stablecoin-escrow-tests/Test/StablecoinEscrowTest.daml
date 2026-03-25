@@ -1,16 +1,13 @@
 -- Test/StablecoinEscrowTest.daml  —  package: stablecoin-escrow-tests 1.0.0
 --  Daml-LF 2.1  (SDK 3.4.x)
---
--- Tests live in a separate package so daml-script is never uploaded
--- to the ledger alongside production templates.
--- submitMulti replaced with submit (actAs [...]) per SDK 3.4 API.
 
 module Test.StablecoinEscrowTest where
 
 import Daml.Script
 import StablecoinEscrow
 import Escrow.Interface
-import DA.Optional (isSome, isNone)
+import DA.Time
+import DA.Date
 
 -- ---------------------------------------------------------------------------
 -- Setup
@@ -25,118 +22,98 @@ setup = do
   return (issuer, buyer, seller, mediator)
 
 -- ---------------------------------------------------------------------------
--- testEscrowFlow: happy path through two milestones
+-- testFullLifecycle: happy path through funding and disbursement
 -- ---------------------------------------------------------------------------
 
-testEscrowFlow : Script ()
-testEscrowFlow = do
+testFullLifecycle : Script ()
+testFullLifecycle = do
   (issuer, buyer, seller, mediator) <- setup
+  let 
+    asset = Asset with
+      assetType = "stablecoin"
+      assetId = "USD-123"
+      amount = 1000.0
+      currency = "USD"
+      custodyRef = None
+    
+    terms = EscrowTerms with
+      conditionDescription = "Deliver software"
+      conditionType = "Binary"
+      evidenceRequired = "MediatorAttestation"
+      expiryDate = time (date 2026 Jun 01) 0 0 0
+      gracePeriodDays = 7
+      disputeWindowDays = 14
+      partialSchedule = []
 
-  let milestone1 = Milestone with label = "Design",         amount = 100.0, completed = False
-      milestone2 = Milestone with label = "Implementation", amount = 200.0, completed = False
+  -- 1. Create Proposal (DRAFT)
+  proposalCid <- submit (actAs [buyer, seller, issuer]) do
+    createCmd EscrowProposal with
+      issuer, buyer, seller, mediator, asset, terms, metadata = "{}"
 
-  escrowCid <- submit (actAs [buyer, issuer]) do
-    createCmd StablecoinEscrow with
-      issuer                = issuer
-      buyer                 = buyer
-      seller                = seller
-      mediator              = mediator
-      totalAmount           = 300.0
-      currency              = "USD"
-      description           = "Software project"
-      milestones            = [milestone1, milestone2]
-      currentMilestoneIndex = 0
-      metadata              = "{}"
+  -- 2. Fund (DRAFT -> FUNDED)
+  fundedCid <- submit (actAs [buyer]) do
+    exerciseCmd proposalCid Fund with custodyRef = "REF-999"
 
-  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
+  -- 3. Activate (FUNDED -> ACTIVE)
+  activeCid <- submit (actAs [issuer]) do
+    exerciseCmd fundedCid Activate
 
-  -- Approve first milestone
-  (newEscrowIdOpt, settlementIfaceCid) <- submit (actAs [buyer]) do
-    exerciseCmd escrowIfaceCid ApproveMilestone with
-      payload = ApproveMilestoneArg
+  -- 4. Confirm (ACTIVE -> SETTLED)
+  settledCid <- submit (actAs [mediator]) do
+    exerciseCmd activeCid ConfirmConditions
 
-  assert (isSome newEscrowIdOpt)
-  let Some newEscrowIfaceCid = newEscrowIdOpt
-
-  let settlementCid = fromInterfaceContractId @EscrowSettlement settlementIfaceCid
-  Some settlement <- queryContractId issuer settlementCid
-  assert (settlement.amount    == 100.0)
-  assert (settlement.recipient == seller)
-
-  -- Approve second (final) milestone
-  (finalEscrowIdOpt, settlementIfaceCid2) <- submit (actAs [buyer]) do
-    exerciseCmd newEscrowIfaceCid ApproveMilestone with
-      payload = ApproveMilestoneArg
-
-  assert (isNone finalEscrowIdOpt)
-
-  let settlementCid2 = fromInterfaceContractId @EscrowSettlement settlementIfaceCid2
-  Some settlement2 <- queryContractId issuer settlementCid2
-  assert (settlement2.amount    == 200.0)
-  assert (settlement2.recipient == seller)
+  -- 5. Disburse (SETTLED -> terminal)
+  submit (actAs [issuer]) do
+    exerciseCmd settledCid Disburse
 
 -- ---------------------------------------------------------------------------
--- testDisputeFlow: raise and resolve a dispute
+-- testDisputeLifecycle: raise, propose, ratify, and finalize
 -- ---------------------------------------------------------------------------
 
-testDisputeFlow : Script ()
-testDisputeFlow = do
+testDisputeLifecycle : Script ()
+testDisputeLifecycle = do
   (issuer, buyer, seller, mediator) <- setup
+  let 
+    asset = Asset with
+      assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None
+    terms = EscrowTerms with
+      conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
+      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = []
 
-  let milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
+  proposalCid <- submit (actAs [buyer, seller, issuer]) do
+    createCmd EscrowProposal with issuer, buyer, seller, mediator, asset, terms, metadata = "{}"
 
-  escrowCid <- submit (actAs [buyer, issuer]) do
-    createCmd StablecoinEscrow with
-      issuer                = issuer
-      buyer                 = buyer
-      seller                = seller
-      mediator              = mediator
-      totalAmount           = 100.0
-      currency              = "USD"
-      description           = "Disputed work"
-      milestones            = [milestone1]
-      currentMilestoneIndex = 0
-      metadata              = "{}"
+  fundedCid <- submit (actAs [buyer]) do
+    exerciseCmd proposalCid Fund with custodyRef = "REF-999"
 
-  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
+  activeCid <- submit (actAs [issuer]) do
+    exerciseCmd fundedCid Activate
 
-  disputeIfaceCid <- submit (actAs [buyer]) do
-    exerciseCmd escrowIfaceCid RaiseDispute with
-      payload = RaiseDisputeArg
+  -- 1. Raise Dispute (ACTIVE -> DISPUTED)
+  disputeCid <- submit (actAs [buyer]) do
+    exerciseCmd activeCid RaiseDispute
 
-  settlementIfaceCids <- submit (actAs [mediator]) do
-    exerciseCmd disputeIfaceCid ResolveDispute with
-      payload = ResolveDisputeArg with
-        payoutToBuyer  = 50.0
-        payoutToSeller = 50.0
+  -- 2. Propose Settlement (DISPUTED -> PROPOSED)
+  proposedCid <- submit (actAs [mediator]) do
+    exerciseCmd disputeCid ProposeSettlement with
+      proposal = SettlementTerms with
+        settlementType = "PartialSplit"
+        buyerReturn = 400.0
+        sellerPayment = 600.0
+        mediatorFee = 0.0
 
-  assert (length settlementIfaceCids == 2)
+  -- 3. Ratify (Buyer)
+  proposed2Cid <- submit (actAs [buyer]) do
+    exerciseCmd proposedCid RatifySettlement with actor = buyer
 
--- ---------------------------------------------------------------------------
--- testUnauthorizedApprove: seller cannot approve their own milestone
--- ---------------------------------------------------------------------------
+  -- 4. Ratify (Seller)
+  proposed3Cid <- submit (actAs [seller]) do
+    exerciseCmd proposed2Cid RatifySettlement with actor = seller
 
-testUnauthorizedApprove : Script ()
-testUnauthorizedApprove = do
-  (issuer, buyer, seller, mediator) <- setup
+  -- 5. Finalize (PROPOSED -> SETTLED)
+  settledCid <- submit (actAs [buyer, seller]) do
+    exerciseCmd proposed3Cid FinalizeSettlement
 
-  let milestone1 = Milestone with label = "Work", amount = 100.0, completed = False
-
-  escrowCid <- submit (actAs [buyer, issuer]) do
-    createCmd StablecoinEscrow with
-      issuer                = issuer
-      buyer                 = buyer
-      seller                = seller
-      mediator              = mediator
-      totalAmount           = 100.0
-      currency              = "USD"
-      description           = "Unauthorized test"
-      milestones            = [milestone1]
-      currentMilestoneIndex = 0
-      metadata              = "{}"
-
-  let escrowIfaceCid = toInterfaceContractId @Escrow escrowCid
-
-  submitMustFail (actAs [seller]) do
-    exerciseCmd escrowIfaceCid ApproveMilestone with
-      payload = ApproveMilestoneArg
+  -- 6. Disburse
+  submit (actAs [issuer]) do
+    exerciseCmd settledCid Disburse

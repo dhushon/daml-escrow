@@ -117,6 +117,7 @@ Focuses on accountability and standardized identifier compliance.
 
 ## 4. Implementation Mechanics
 
-1. **API Ingestion:** The Go API receives a `CreateEscrowRequest` containing the `Metadata` object.
-2. **Persistence:** The API marshals the `Metadata` into a JSON string and submits it to the Daml ledger.
-3. **Oracle Trigger:** When an Oracle sends a webhook, it identifies the contract by `escrowId`. The service fetches the contract, retrieves the `SchemaURL` from the metadata, and validates the event against that schema before advancing the milestone.
+1. **API Ingestion:** The Go API receives a `ProposeEscrowRequest` DTO containing the `Metadata` object.
+2. **Validation:** The request is validated (`.Validate()`) to ensure business rules are met (e.g., positive amounts, future expiry dates) before being mapped to the ledger boundary struct.
+3. **Persistence:** The API marshals the `Metadata` into a JSON string and submits it to the Daml ledger via the JSON API V2.
+4. **Oracle Trigger:** When an Oracle sends a webhook, it identifies the contract by `escrowId`. The service fetches the contract, retrieves the `SchemaURL` from the metadata, and validates the event against that schema before advancing the milestone.

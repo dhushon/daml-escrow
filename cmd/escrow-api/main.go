@@ -54,10 +54,16 @@ func main() {
 
 	if ledgerType == "grpc" {
 		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
+		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	} else {
+		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
+		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+	}
+
+	// Perform dynamic discovery (resolve Package and Party IDs)
+	if err := ledgerClient.Discover(context.Background()); err != nil {
+		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
 	}
 
 	// Initialize core services
@@ -86,6 +92,7 @@ func main() {
 	
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
+	router.Use(api.AuthMiddleware(cfg.Auth.Issuer, cfg.Auth.ClientID, cfg.Auth.Audience, logger))
 
 	router.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
@@ -94,20 +101,27 @@ func main() {
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
+		r.Get("/auth/me", handler.GetIdentity)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)
 
-		r.Post("/escrows", handler.CreateEscrow)
+		r.Get("/invites", handler.ListInvitations)
+		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
+		r.Post("/invites", handler.CreateInvitation)
+		r.Post("/invites/token/{token}/claim", handler.ClaimInvitation)
+		r.Post("/escrows", handler.ProposeEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)
-		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)
-		r.Get("/escrows", handler.ListEscrows)
-		r.Get("/escrows/proposals", handler.ListProposals)
-		r.Get("/escrows/{escrowID}", handler.GetEscrow)
-		r.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
-		r.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
-		r.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
-		r.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
+		r.Post("/escrows/{escrowID}/fund", handler.Fund)
+		r.Post("/escrows/{escrowID}/activate", handler.Activate)
+		r.Post("/escrows/{escrowID}/confirm", handler.ConfirmConditions)
+		r.Post("/escrows/{escrowID}/dispute", handler.RaiseDispute)
+		r.Post("/escrows/{escrowID}/propose-settlement", handler.ProposeSettlement)
+		r.Post("/escrows/{escrowID}/ratify", handler.RatifySettlement)
+		r.Post("/escrows/{escrowID}/finalize", handler.FinalizeSettlement)
+		r.Post("/escrows/{escrowID}/disburse", handler.Disburse)
 
+		r.Get("/escrows", handler.ListEscrows)
+		r.Get("/escrows/{escrowID}", handler.GetEscrow)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 
 		r.Get("/metrics", handler.GetMetrics)

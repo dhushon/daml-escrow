@@ -20,8 +20,13 @@ type MockLedgerClient struct {
 	ledger.Client
 }
 
-func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
+func (m *MockLedgerClient) ConfirmConditions(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
+	return args.Error(0)
+}
+
+func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
 	return args.Error(0)
 }
 
@@ -31,6 +36,46 @@ func (m *MockLedgerClient) GetEscrow(ctx context.Context, id string, userID stri
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*ledger.EscrowContract), args.Error(1)
+}
+
+func (m *MockLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset ledger.Asset, terms ledger.EscrowTerms) (*ledger.EscrowInvitation, error) {
+	args := m.Called(ctx, inviterID, inviteeEmail, role, inviteeType, asset, terms)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ledger.EscrowInvitation), args.Error(1)
+}
+
+func (m *MockLedgerClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*ledger.EscrowProposal, error) {
+	args := m.Called(ctx, inviteID, claimantID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ledger.EscrowProposal), args.Error(1)
+}
+
+func (m *MockLedgerClient) ListInvitations(ctx context.Context, userID string) ([]*ledger.EscrowInvitation, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*ledger.EscrowInvitation), args.Error(1)
+}
+
+func (m *MockLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*ledger.UserIdentity, error) {
+	args := m.Called(ctx, oktaSub)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ledger.UserIdentity), args.Error(1)
+}
+
+func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*ledger.UserIdentity, error) {
+	args := m.Called(ctx, oktaSub, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ledger.UserIdentity), args.Error(1)
 }
 
 func TestProcessOracleWebhook(t *testing.T) {
@@ -58,9 +103,9 @@ func TestProcessOracleWebhook(t *testing.T) {
 		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
-			State:                 "Active",
+			State:                 "ACTIVE",
 		}, nil)
-		mockLedger.On("ReleaseFunds", mock.Anything, "escrow-123").Return(nil)
+		mockLedger.On("ConfirmConditions", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(nil)
 		
 		err := svc.ProcessOracleWebhook(context.Background(), req)
 		assert.NoError(t, err)
@@ -102,7 +147,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
-			State:                 "Active",
+			State:                 "ACTIVE",
 		}, nil)
 		
 		err := svc.ProcessOracleWebhook(context.Background(), req)

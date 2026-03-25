@@ -1,0 +1,171 @@
+---
+---
+<div id="invite-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+    
+    <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden transition-all transform scale-95 opacity-0 duration-300" id="invite-modal-content">
+        <div class="p-8">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Invite Participant</h3>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs mt-1 italic">Onboard new parties to the escrow platform.</p>
+                </div>
+                <button id="close-invite-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <form id="invite-form" class="space-y-6">
+                {/* Invitee Role */}
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Participant Role</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="inviteeRole" value="Seller" class="peer sr-only" checked />
+                            <div class="px-4 py-3 text-center rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 transition-all">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 peer-checked:text-blue-600">Seller</span>
+                            </div>
+                        </label>
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="inviteeRole" value="Buyer" class="peer sr-only" />
+                            <div class="px-4 py-3 text-center rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 transition-all">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 peer-checked:text-blue-600">Buyer</span>
+                            </div>
+                        </label>
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="inviteeRole" value="Mediator" class="peer sr-only" />
+                            <div class="px-4 py-3 text-center rounded-xl border border-slate-200 dark:border-slate-800 peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 transition-all">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 peer-checked:text-blue-600">Mediator</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                {/* Email Address */}
+                <div>
+                    <label for="inviteeEmail" class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="inviteeEmail" 
+                        name="inviteeEmail" 
+                        required
+                        placeholder="e.g. partner@datacloud.com"
+                        class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-white"
+                    />
+                </div>
+
+                {/* Affiliation Intelligence */}
+                <div id="affiliation-preview" class="hidden animate-in fade-in slide-in-from-top-2">
+                    <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-xs uppercase">
+                                <span id="company-initial">D</span>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-blue-600/60 uppercase tracking-widest">Inferred Affiliation</p>
+                                <p class="text-xs font-bold text-blue-900 dark:text-blue-100" id="company-name">DataCloud LLC</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-4">
+                    <button type="button" id="cancel-invite" class="px-6 py-3 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">Cancel</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-blue-500/20">Send Invitation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { createInvitation } from '../lib/api';
+
+    const modal = document.getElementById('invite-modal');
+    const content = document.getElementById('invite-modal-content');
+    const form = document.getElementById('invite-form') as HTMLFormElement;
+    const emailInput = document.getElementById('inviteeEmail') as HTMLInputElement;
+    const affiliationPreview = document.getElementById('affiliation-preview');
+    const companyNameEl = document.getElementById('company-name');
+    const companyInitialEl = document.getElementById('company-initial');
+
+    // Email Domain Intelligence
+    const commonDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'];
+    
+    emailInput?.addEventListener('input', (e) => {
+        const email = (e.target as HTMLInputElement).value;
+        const parts = email.split('@');
+        
+        if (parts.length === 2 && parts[1].includes('.')) {
+            const domain = parts[1].toLowerCase();
+            
+            if (!commonDomains.includes(domain)) {
+                // Business/Corporate Domain
+                const namePart = domain.split('.')[0];
+                const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+                const fullName = capitalized + (domain.endsWith('.com') ? ' LLC' : ' Corp');
+                
+                companyNameEl!.textContent = fullName;
+                companyInitialEl!.textContent = capitalized.charAt(0);
+                affiliationPreview?.classList.remove('hidden');
+            } else {
+                affiliationPreview?.classList.add('hidden');
+            }
+        } else {
+            affiliationPreview?.classList.add('hidden');
+        }
+    });
+
+    form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const email = formData.get('inviteeEmail') as string;
+        const role = formData.get('inviteeRole') as string;
+        
+        const isResidential = commonDomains.includes(email.split('@')[1]?.toLowerCase());
+        const inviteeType = isResidential ? 'Residential' : 'Company';
+
+        // Mock terms for the initial invitation (in Phase 5.4 these will be configurable)
+        const terms = {
+            totalAmount: 1000.0,
+            currency: 'USD',
+            description: 'Standard Project Services',
+            milestones: [{ label: 'Final Delivery', amount: 1000.0, completed: false }],
+            metadata: JSON.stringify({ type: inviteeType, source: 'Astro Dashboard' })
+        };
+
+        try {
+            // Simulated Inviter ID (usually from current user context)
+            const urlParams = new URLSearchParams(window.location.search);
+            const inviterId = urlParams.get('view') || 'Buyer';
+
+            await createInvitation(inviterId, email, role, inviteeType, terms);
+            alert('Invitation sent successfully!');
+            window.location.reload();
+        } catch (err) {
+            alert('Failed to send invitation: ' + err.message);
+        }
+    });
+
+    // Modal Control
+    window.addEventListener('open-invite-modal', () => {
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+        setTimeout(() => {
+            content?.classList.remove('scale-95', 'opacity-0');
+            content?.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    });
+
+    const close = () => {
+        content?.classList.remove('scale-100', 'opacity-100');
+        content?.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal?.classList.add('hidden');
+            modal?.classList.remove('flex');
+        }, 300);
+    };
+
+    document.getElementById('close-invite-modal')?.addEventListener('click', close);
+    document.getElementById('cancel-invite')?.addEventListener('click', close);
+</script>

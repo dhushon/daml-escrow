@@ -75,6 +75,16 @@ build: ## Build Go binaries (API and Simulator)
 	go build -o bin/$(APP_NAME) ./cmd/escrow-api
 	@echo "Building Oracle Simulator..."
 	go build -o bin/oracle-simulator ./cmd/oracle-simulator
+	@echo "Building Ledger Sync Tool..."
+	go build -o bin/ledger-sync ./cmd/ledger-sync
+
+.PHONY: sync
+sync: build ## DISCOVER and EXPORT ledger state (Package IDs, Party IDs) to ledger-state.json
+	@echo "Exporting ledger state..."
+	./bin/ledger-sync -host localhost -port 7575 \
+		-impl stablecoin-escrow \
+		-iface stablecoin-escrow-interfaces \
+		-out ledger-state.json
 
 .PHONY: daml-build
 daml-build: ## Build all Daml packages using DPM
@@ -91,6 +101,23 @@ clean-db: ## Wipe the persistent ledger database (Postgres)
 clean: ## Remove binaries, logs, and PID files
 	rm -rf bin *.log *.pid
 
+.PHONY: clean-frontend
+clean-frontend: ## Clean Astro frontend build artifacts
+	cd frontend && rm -rf dist .astro node_modules
+
+## -- GCP Identity Management --
+
+.PHONY: gcp-identity-up
+gcp-identity-up: ## Initialize Google Cloud Identity Platform and enable APIs
+	@chmod +x scripts/setup_gcp_identity.sh
+	./scripts/setup_gcp_identity.sh
+
+.PHONY: gcp-identity-down
+gcp-identity-down: ## Disable Identity Platform APIs (Clean)
+	@echo "Disabling Identity Platform APIs..."
+	gcloud services disable identitytoolkit.googleapis.com identityplatform.googleapis.com
+	@echo "GCP Identity services disabled."
+
 ## -- Testing --
 
 .PHONY: test
@@ -100,15 +127,15 @@ test: ## Run Go unit tests
 .PHONY: integration-test
 integration-test: ## Run full-cycle ledger integration tests
 	@echo "Running integration tests..."
-	go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
+	@go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
 		./internal/ledger/json_base.go \
 		./internal/ledger/json_parser.go \
 		./internal/ledger/json_parties.go \
 		./internal/ledger/json_escrows.go \
-		./internal/ledger/json_settlements.go \
 		./internal/ledger/daml_client.go \
 		./internal/ledger/client.go \
 		./internal/ledger/stablecoin.go
+
 
 ## -- Simulations --
 

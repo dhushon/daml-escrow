@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -20,28 +22,19 @@ const (
 	EscrowMediatorUser = "EscrowMediator"
 )
 
-// Package-level constants for Daml 3.x integration
-const (
-	PackageID          = "6c43548c421c1e66eb3911379a64d57de18dfe320b679ccb3f84bc7c4028e541"
-	InterfacePackageID = "eeada456377e4287fabfe089057b419d54159c87f98da712fd543122fc7c39f3"
-)
-
 type JsonLedgerClient struct {
-	logger     *zap.Logger
-	httpClient *http.Client
-	baseURL    string
-	partyMap   map[string]string // Maps User ID -> Canton Party ID (e.g. Buyer -> Buyer::1220...)
+	logger             *zap.Logger
+	httpClient         *http.Client
+	baseURL            string
+	mu                 sync.RWMutex     // Protects partyMap
+	partyMap           map[string]string // Maps User ID -> Canton Party ID
+	PackageID          string            // Instance-specific Package ID
+	InterfacePackageID string            // Instance-specific Interface ID
+	ImplName           string            // Logical name for implementation DAR
+	InterfaceName      string            // Logical name for interface DAR
 }
 
-// v2TransactionResponse is shared between escrow and settlement logic
-type v2TransactionResponse struct {
-	Transaction struct {
-		Events []map[string]interface{} `json:"events"`
-		Offset json.RawMessage          `json:"offset"`
-	} `json:"transaction"`
-}
-
-func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerClient {
+func NewJsonLedgerClient(logger *zap.Logger, host string, port int, implName, ifaceName string) *JsonLedgerClient {
 	if host == "localhost" {
 		host = "127.0.0.1"
 	}
@@ -49,16 +42,123 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 	c := &JsonLedgerClient{
 		logger: logger,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second,
 		},
-		baseURL:  fmt.Sprintf("http://%s:%d", host, port),
-		partyMap: make(map[string]string),
+		baseURL:       fmt.Sprintf("http://%s:%d", host, port),
+		partyMap:      make(map[string]string),
+		ImplName:      implName,
+		InterfaceName: ifaceName,
 	}
 	
-	// Initial population of the party map
-	_ = c.refreshPartyMap(context.Background())
-	
 	return c
+}
+
+func (c *JsonLedgerClient) Discover(ctx context.Context) error {
+	c.logger.Info("performing ledger discovery...")
+
+	// 1. Try to load from ledger-state.json (created by make sync)
+	if data, err := os.ReadFile("ledger-state.json"); err == nil {
+		var state struct {
+			PackageID          string            `json:"packageId"`
+			InterfacePackageID string            `json:"interfacePackageId"`
+			Parties            map[string]string `json:"parties"`
+		}
+		if err := json.Unmarshal(data, &state); err == nil {
+			c.PackageID = state.PackageID
+			c.InterfacePackageID = state.InterfacePackageID
+			c.mu.Lock()
+			for k, v := range state.Parties {
+				c.partyMap[k] = v
+			}
+			c.mu.Unlock()
+			c.logger.Info("loaded ledger state from ledger-state.json", 
+				zap.String("packageId", c.PackageID))
+			return nil
+		}
+	}
+
+	// 2. Fallback to active discovery if file missing or invalid
+	c.logger.Info("ledger-state.json not found or invalid, performing active discovery...")
+
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	var pids []string
+	var listResponse struct {
+		PackageIds []string `json:"packageIds"`
+	}
+	if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
+		pids = listResponse.PackageIds
+	} else {
+		var altResponse struct {
+			PackageDetails []struct {
+				PackageId string `json:"packageId"`
+			} `json:"packageDetails"`
+		}
+		if err2 := json.Unmarshal(respBody, &altResponse); err2 == nil && len(altResponse.PackageDetails) > 0 {
+			for _, d := range altResponse.PackageDetails {
+				pids = append(pids, d.PackageId)
+			}
+		}
+	}
+
+	if len(pids) == 0 {
+		return fmt.Errorf("no packages found on ledger")
+	}
+
+	// 2. Query each package for metadata to find logical names
+	for _, pid := range pids {
+		path := fmt.Sprintf("/v2/packages/%s", pid)
+		pkgBody, err := c.doRawRequest(ctx, "GET", path, nil)
+		if err != nil {
+			continue
+		}
+
+		// Try to find packageName in the response
+		var pkgMap map[string]interface{}
+		if err := json.Unmarshal(pkgBody, &pkgMap); err == nil {
+			if details, ok := pkgMap["packageDetails"].(map[string]interface{}); ok {
+				if name, ok := details["packageName"].(string); ok {
+					if name == c.ImplName {
+						c.PackageID = pid
+						c.logger.Info("discovered package", zap.String("name", name), zap.String("id", pid))
+					} else if name == c.InterfaceName {
+						c.InterfacePackageID = pid
+						c.logger.Info("discovered interface package", zap.String("name", name), zap.String("id", pid))
+					}
+				}
+			}
+		}
+	}
+
+	if c.PackageID == "" || c.InterfacePackageID == "" {
+		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks", 
+			zap.String("implName", c.ImplName), 
+			zap.String("ifaceName", c.InterfaceName))
+		if c.PackageID == "" {
+			c.PackageID = "e9304f56b61960a66860bf9251fac4ed658bb342178e9f401042a265b7437c71"
+		}
+		if c.InterfacePackageID == "" {
+			c.InterfacePackageID = "92a947da89541baf1a52956d069643d907d9ef01d3cd59ccfd0fcfea012060de"
+		}
+	}
+
+	// 3. Resolve Party IDs
+	return c.refreshPartyMap(ctx)
+}
+
+func (c *JsonLedgerClient) GetPartyMap() map[string]string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// Return a copy to ensure thread safety
+	m := make(map[string]string)
+	for k, v := range c.partyMap {
+		m[k] = v
+	}
+	return m
 }
 
 func (c *JsonLedgerClient) getOffset() interface{} {
@@ -99,9 +199,18 @@ func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+	c.logger.Debug("ledger response", zap.String("path", path), zap.String("body", string(respBody)))
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("JSON API error (%d): %s", resp.StatusCode, string(respBody))
 	}
 
 	return respBody, nil
+}
+
+// v2TransactionResponse is shared between escrow and settlement logic
+type v2TransactionResponse struct {
+	Transaction struct {
+		Events []map[string]interface{} `json:"events"`
+		Offset json.RawMessage          `json:"offset"`
+	} `json:"transaction"`
 }

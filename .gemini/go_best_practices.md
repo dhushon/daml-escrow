@@ -1,80 +1,38 @@
 # Go Engineering Guardrails
 
-## Language Philosophy
+## 1. Language Philosophy
+Go services should be small, explicit, and deterministic. Avoid unnecessary abstractions or heavy ORMs.
 
-Go services should be:
+## 2. Project Layout
+Target a standard Go structure:
+- `/cmd`: Entry points (e.g. `escrow-api`)
+- `/internal`: Private library code (ledger, services, api)
+- `/pkg`: Shared public logic (logging)
+- `/config`: YAML/Env configuration
 
-- small
-- explicit
-- deterministic
+## 3. Dependency Rules
+- **Minimize Third-Party:** Prefer the standard library.
+- **Agnostic Auth:** Use standard JWT libraries (`golang-jwt`) instead of vendor-specific SDKs to ensure cross-platform portability.
+- **Preferred Stack:** `chi` (routing), `zap` (logging), `sql/pgx` (database).
 
-Avoid unnecessary abstraction.
+## 4. Context-Aware Security (Phase 5+)
+- **Identity Propagation:** Authenticated subject IDs MUST be stored in the request context using type-safe keys (e.g. `AuthSubKey`).
+- **Scope Enforcement:** Every handler MUST use a helper (e.g. `RequireScope`) to verify permissions before executing business logic.
 
-------------------------------------------------------------------------
+## 5. Configuration Strategy
+- **Namespacing:** All environment/config variables MUST be prefixed by their module (e.g. `AUTH_DEV_MODE`, `LEDGER_PORT`).
+- **Validation:** Configuration must be loaded into strongly typed structs at startup.
 
-## Project Layout
+## 6. Error Handling
+Errors must be explicit and include wrapped context:
+`return fmt.Errorf("ledger submission failed: %w", err)`
 
-Standard layout:
+## 7. API Handlers & Validation
+- **Data Transfer Objects (DTOs):** Always define specific Request and Response structs (DTOs) for API endpoints rather than using the core ledger boundary structs directly.
+- **Input Validation:** Implement `.Validate() error` on DTOs to catch malformed payloads, negative numbers, or invalid enums *before* they enter the service layer.
 
-/cmd /internal /pkg /api /config
+## 8. Testing & Quality
+- **Unit Tests:** Mandatory for all service logic using interfaces/mocks.
+- **Integration Tests:** Required for ledger-facing code using the `integration` build tag.
+- **Validation:** `go build ./...` and `go test ./...` must pass before any push.
 
-Example:
-
-/cmd/escrow-api/main.go /internal/ledger /internal/oracle
-/internal/services
-
-------------------------------------------------------------------------
-
-## Dependency Rules
-
-Allowed:
-
-- standard library
-- minimal third-party dependencies
-
-Avoid:
-
-- large frameworks
-- reflection-heavy libraries
-
-Preferred:
-
-- chi (HTTP routing)
-- zap (logging)
-- viper (config)
-
-------------------------------------------------------------------------
-
-## Concurrency
-
-Use Go concurrency patterns:
-
-- worker pools
-- channels
-- context cancellation
-
-Never create unbounded goroutines.
-
-------------------------------------------------------------------------
-
-## Error Handling
-
-Errors must:
-
-- be explicit
-- include context
-
-Example:
-
-return fmt.Errorf("ledger submission failed: %w", err)
-
-------------------------------------------------------------------------
-
-## Testing
-
-Minimum requirements:
-
-- unit tests
-- integration tests against ledger sandbox
-
-Coverage target: 80%

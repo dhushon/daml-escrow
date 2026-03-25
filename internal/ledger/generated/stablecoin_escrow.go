@@ -1,8 +1,8 @@
 package generated
 
 const (
-	PackageID          = "6c43548c421c1e66eb3911379a64d57de18dfe320b679ccb3f84bc7c4028e541"
-	InterfacePackageID = "eeada456377e4287fabfe089057b419d54159c87f98da712fd543122fc7c39f3"
+	PackageID          = "4a1d3b2bc1a0c5141bd83bcc2228189e5398cf7484e47afc2e8ccaeafadef7a7"
+	InterfacePackageID = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
 )
 
 type Milestone struct {
