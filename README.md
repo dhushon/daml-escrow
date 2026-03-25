@@ -24,36 +24,49 @@ graph TD
     Oracle((Oracle Service)) -->|Webhook| Go
 ```
 
-### Escrow Lifecycle Workflow
-A multi-actor flow demonstrating the transition from proposal to final stablecoin settlement.
+### Escrow Lifecycle Workflow (Adjudicator Model)
+A high-assurance, multi-party flow where stakeholders sign the agreement and an independent Adjudicator (Mediator) facilitates the evidence of completion.
 
 ```mermaid
 sequenceDiagram
-    participant B as Buyer
-    participant S as Seller
+    participant B as Buyer (Stakeholder)
+    participant S as Seller (Stakeholder)
+    participant M as Mediator (Adjudicator)
     participant L as Daml Ledger
-    participant O as Oracle (FedEx/IoT)
-    participant CB as Central Bank
+    participant CB as Issuer (Central Bank)
 
-    Note over B,S: 1. Composition & Agreement
-    B->>L: Create EscrowProposal
-    L-->>S: Notify (Observer)
-    S->>L: Exercise 'Accept' choice
-    L->>L: Archive Proposal, Create Active Escrow
+    Note over B,M: 1. Onboarding & Appointment
+    B->>L: Create EscrowInvitation (Buyer + Issuer + Mediator)
+    L-->>S: Anonymous Preview (Token-based)
+    S->>L: Claim Invitation (Verified by Email match)
+    L->>L: Create EscrowProposal
 
-    Note over S,O: 2. Execution & Evidence
-    S->>O: Dispatch Goods
-    O->>B: Provide Evidence (Webhook)
-    
-    Note over B,L: 3. Milestone Approval
-    B->>L: Approve Milestone
+    Note over S,L: 2. Agreement Formation
+    S->>L: Exercise 'Accept'
+    L->>L: Create Active Escrow (Signatories: B, S, CB)
+
+    Note over M,L: 3. Adjudicated Evidence
+    M->>L: Approve Milestone (Authoritative Release)
     L->>L: Create EscrowSettlement
 
-    Note over CB,S: 4. Final Settlement
+    Note over CB,L: 4. Final Settlement
     CB->>L: Settle Payment
     L->>L: Archive Settlement, Funds Transferred
     Note right of S: Seller receives stablecoins
 ```
+
+------------------------------------------------------------------------
+
+## Key Tools & Helper Apps
+
+### Ledger Identity Sync
+To maintain a self-healing, high-assurance architecture, the platform includes a **Sync Helper** that maps logical names to cryptographic identities.
+
+```bash
+# Authoritatively DISCOVER and EXPORT current Package and Party IDs
+make sync
+```
+This generates a `ledger-state.json` file which the Go backend automatically loads at startup to synchronize with the latest ledger environment.
 
 ------------------------------------------------------------------------
 
@@ -118,10 +131,10 @@ make integration-test
 
 ------------------------------------------------------------------------
 
-## Key Achievements (Phase 4)
+## Key Achievements (Phase 5)
 
-- **Modular Backend:** Deconstructed monolithic clients into specialized modules for better maintainability.
-- **Admin Dashboard:** Branded UI with role-based oversight and real-time metrics.
-- **Daml 3.x Compatibility:** Fully aligned with LF 2.1 and Canton authorization (actAs) requirements.
-- **Observability:** Real-time system performance and ledger throughput visualizations.
-- **UX Flow:** End-to-end lifecycle support from agreement drafting to final settlement.
+- **OIDC Identity Alignment:** Authoritative identity matching using Google Cloud Identity claims.
+- **Safe Onboarding:** Token-based invitations with anonymous previews and email-matched claims.
+- **Adjudicator Model:** High-assurance lifecycle where Mediator authoritatively backs evidence of completion.
+- **Self-Healing Architecture:** Dynamic Package/Party ID discovery with automated local state synchronization.
+- **Multi-Tenant Ready:** Thread-safe, context-driven session management for independent user ledgers.

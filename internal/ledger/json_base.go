@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -51,11 +52,31 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	c.logger.Info("performing ledger discovery...")
 
-	// 1. List all Package IDs
-	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
-	if err != nil {
-		return fmt.Errorf("failed to list packages: %w", err)
+	// 1. Try to load from ledger-state.json (created by make sync)
+	if data, err := os.ReadFile("ledger-state.json"); err == nil {
+		var state struct {
+			PackageID          string            `json:"packageId"`
+			InterfacePackageID string            `json:"interfacePackageId"`
+			Parties            map[string]string `json:"parties"`
+		}
+		if err := json.Unmarshal(data, &state); err == nil {
+			c.PackageID = state.PackageID
+			c.InterfacePackageID = state.InterfacePackageID
+			c.mu.Lock()
+			for k, v := range state.Parties {
+				c.partyMap[k] = v
+			}
+			c.mu.Unlock()
+			c.logger.Info("loaded ledger state from ledger-state.json", 
+				zap.String("packageId", c.PackageID))
+			return nil
+		}
 	}
+
+	// 2. Fallback to active discovery if file missing or invalid
+	c.logger.Info("ledger-state.json not found or invalid, performing active discovery...")
+
+	// ... (Rest of existing discovery logic)
 
 	var pids []string
 	var listResponse struct {
