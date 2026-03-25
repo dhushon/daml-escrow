@@ -20,6 +20,11 @@ type MockLedgerClient struct {
 	ledger.Client
 }
 
+func (m *MockLedgerClient) ConfirmConditions(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
+	return args.Error(0)
+}
+
 func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
 	args := m.Called(ctx, id, userID)
 	return args.Error(0)
@@ -33,8 +38,8 @@ func (m *MockLedgerClient) GetEscrow(ctx context.Context, id string, userID stri
 	return args.Get(0).(*ledger.EscrowContract), args.Error(1)
 }
 
-func (m *MockLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, terms ledger.EscrowTerms) (*ledger.EscrowInvitation, error) {
-	args := m.Called(ctx, inviterID, inviteeEmail, role, inviteeType, terms)
+func (m *MockLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset ledger.Asset, terms ledger.EscrowTerms) (*ledger.EscrowInvitation, error) {
+	args := m.Called(ctx, inviterID, inviteeEmail, role, inviteeType, asset, terms)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -98,9 +103,9 @@ func TestProcessOracleWebhook(t *testing.T) {
 		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
-			State:                 "Active",
+			State:                 "ACTIVE",
 		}, nil)
-		mockLedger.On("ReleaseFunds", mock.Anything, "escrow-123", mock.Anything).Return(nil)
+		mockLedger.On("ConfirmConditions", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(nil)
 		
 		err := svc.ProcessOracleWebhook(context.Background(), req)
 		assert.NoError(t, err)
@@ -142,7 +147,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
 			ID:                    "escrow-123",
 			CurrentMilestoneIndex: 0,
-			State:                 "Active",
+			State:                 "ACTIVE",
 		}, nil)
 		
 		err := svc.ProcessOracleWebhook(context.Background(), req)

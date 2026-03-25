@@ -150,6 +150,10 @@ func (s *EscrowService) ProcessOracleWebhook(ctx context.Context, req ledger.Ora
 		return fmt.Errorf("escrow %s is not in ACTIVE state", req.EscrowID)
 	}
 
+	if escrow.CurrentMilestoneIndex != req.MilestoneIndex {
+		return fmt.Errorf("webhook milestone index %d does not match current escrow milestone index %d", req.MilestoneIndex, escrow.CurrentMilestoneIndex)
+	}
+
 	return s.ledger.ConfirmConditions(ctx, req.EscrowID, ledger.EscrowMediatorUser)
 }
 
