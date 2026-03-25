@@ -13,6 +13,10 @@ type Config struct {
 	Ledger struct {
 		Host    string `yaml:"host"`
 		Port    int    `yaml:"port"`
+		Packages struct {
+			Implementation string `yaml:"implementation"`
+			Interfaces     string `yaml:"interfaces"`
+		} `yaml:"packages"`
 		Parties struct {
 			Issuer   string `yaml:"issuer"`
 			Buyer    string `yaml:"buyer"`

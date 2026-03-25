@@ -30,9 +30,11 @@ type JsonLedgerClient struct {
 	partyMap           map[string]string // Maps User ID -> Canton Party ID
 	PackageID          string            // Instance-specific Package ID
 	InterfacePackageID string            // Instance-specific Interface ID
+	ImplName           string            // Logical name for implementation DAR
+	InterfaceName      string            // Logical name for interface DAR
 }
 
-func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerClient {
+func NewJsonLedgerClient(logger *zap.Logger, host string, port int, implName, ifaceName string) *JsonLedgerClient {
 	if host == "localhost" {
 		host = "127.0.0.1"
 	}
@@ -42,8 +44,10 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 		httpClient: &http.Client{
 			Timeout: 120 * time.Second,
 		},
-		baseURL:  fmt.Sprintf("http://%s:%d", host, port),
-		partyMap: make(map[string]string),
+		baseURL:       fmt.Sprintf("http://%s:%d", host, port),
+		partyMap:      make(map[string]string),
+		ImplName:      implName,
+		InterfaceName: ifaceName,
 	}
 	
 	return c
@@ -114,10 +118,10 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 		if err := json.Unmarshal(pkgBody, &pkgMap); err == nil {
 			if details, ok := pkgMap["packageDetails"].(map[string]interface{}); ok {
 				if name, ok := details["packageName"].(string); ok {
-					if name == "stablecoin-escrow" {
+					if name == c.ImplName {
 						c.PackageID = pid
 						c.logger.Info("discovered package", zap.String("name", name), zap.String("id", pid))
-					} else if name == "stablecoin-escrow-interfaces" {
+					} else if name == c.InterfaceName {
 						c.InterfacePackageID = pid
 						c.logger.Info("discovered interface package", zap.String("name", name), zap.String("id", pid))
 					}
@@ -127,7 +131,9 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	}
 
 	if c.PackageID == "" || c.InterfacePackageID == "" {
-		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks")
+		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks", 
+			zap.String("implName", c.ImplName), 
+			zap.String("ifaceName", c.InterfaceName))
 		if c.PackageID == "" {
 			c.PackageID = "18d08e81f601958adc214a33970fa3a06729cad1f4283d873cf0799ab77ac878"
 		}

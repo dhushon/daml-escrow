@@ -81,7 +81,10 @@ build: ## Build Go binaries (API and Simulator)
 .PHONY: sync
 sync: build ## DISCOVER and EXPORT ledger state (Package IDs, Party IDs) to ledger-state.json
 	@echo "Exporting ledger state..."
-	./bin/ledger-sync -host localhost -port 7575 -out ledger-state.json
+	./bin/ledger-sync -host localhost -port 7575 \
+		-impl stablecoin-escrow \
+		-iface stablecoin-escrow-interfaces \
+		-out ledger-state.json
 
 .PHONY: daml-build
 daml-build: ## Build all Daml packages using DPM

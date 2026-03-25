@@ -13,7 +13,7 @@ type DamlClient struct {
 	logger *zap.Logger
 }
 
-func NewDamlClient(logger *zap.Logger, host string, port int) *DamlClient {
+func NewDamlClient(logger *zap.Logger, host string, port int, implName, ifaceName string) *DamlClient {
 	return &DamlClient{
 		logger: logger,
 	}

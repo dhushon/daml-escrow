@@ -22,11 +22,13 @@ type LedgerState struct {
 func main() {
 	host := flag.String("host", "localhost", "Ledger host")
 	port := flag.Int("port", 7575, "Ledger JSON API port")
+	implName := flag.String("impl", "stablecoin-escrow", "Logical name for implementation package")
+	ifaceName := flag.String("iface", "stablecoin-escrow-interfaces", "Logical name for interface package")
 	output := flag.String("out", "ledger-state.json", "Output file path")
 	flag.Parse()
 
 	logger, _ := zap.NewDevelopment()
-	client := ledger.NewJsonLedgerClient(logger, *host, *port)
+	client := ledger.NewJsonLedgerClient(logger, *host, *port, *implName, *ifaceName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

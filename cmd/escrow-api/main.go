@@ -58,7 +58,7 @@ func main() {
 	} else {
 		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
+		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
 
 	// Perform dynamic discovery (resolve Package and Party IDs)
