@@ -230,7 +230,15 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invitation, err := h.escrowService.CreateInvitation(r.Context(), req.InviterID, req.InviteeEmail, req.InviteeRole, req.InviteeType, req.Terms)
+	// Extract logical User ID from context (injected by AuthMiddleware)
+	userID, ok := r.Context().Value(AuthSubKey).(string)
+	if !ok {
+		h.logger.Error("user ID not found in context")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	invitation, err := h.escrowService.CreateInvitation(r.Context(), userID, req.InviteeEmail, req.InviteeRole, req.InviteeType, req.Terms)
 	if err != nil {
 		h.logger.Error("create invitation failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -244,21 +252,47 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ClaimInvitation handles POST /invites/{inviteID}/claim
+// ClaimInvitation handles POST /invites/token/{token}/claim
 func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
 	if !RequireScope(r.Context(), ScopeEscrowAccept) {
 		http.Error(w, "insufficient scope", http.StatusForbidden)
 		return
 	}
 
-	id := chi.URLParam(r, "inviteID")
-	claimantID := r.URL.Query().Get("user")
-	if claimantID == "" {
-		http.Error(w, "missing user parameter", http.StatusBadRequest)
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		http.Error(w, "missing token", http.StatusBadRequest)
 		return
 	}
 
-	proposal, err := h.escrowService.ClaimInvitation(r.Context(), id, claimantID)
+	// Extract logical User ID and Email from the JWT (authoritative)
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	userEmail, _ := r.Context().Value(EmailKey).(string)
+
+	if userID == "" || userEmail == "" {
+		http.Error(w, "unauthorized: missing identity claims", http.StatusUnauthorized)
+		return
+	}
+
+	// 1. Resolve the Invitation by token
+	invite, err := h.escrowService.GetInvitationByToken(r.Context(), token)
+	if err != nil {
+		h.logger.Error("invitation lookup failed", zap.Error(err))
+		http.Error(w, "invitation not found", http.StatusNotFound)
+		return
+	}
+
+	// 2. Authoritative Verification: JWT Email MUST match Invitation Email
+	if invite.InviteeEmail != userEmail {
+		h.logger.Warn("invitation email mismatch", 
+			zap.String("jwtEmail", userEmail), 
+			zap.String("inviteEmail", invite.InviteeEmail))
+		http.Error(w, "forbidden: this invitation belongs to another email address", http.StatusForbidden)
+		return
+	}
+
+	// 3. Claim the invitation as the authenticated user
+	proposal, err := h.escrowService.ClaimInvitation(r.Context(), invite.ID, userID)
 	if err != nil {
 		h.logger.Error("claim invitation failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -299,6 +333,7 @@ func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
 // GetInvitationByToken handles GET /invites/token/{token} (Anonymous)
 func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
+	h.logger.Info("anonymous token lookup", zap.String("token", token))
 	if token == "" {
 		http.Error(w, "missing token", http.StatusBadRequest)
 		return

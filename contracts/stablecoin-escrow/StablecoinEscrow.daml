@@ -157,8 +157,8 @@ template EscrowProposal
     milestones            : [Milestone]
     metadata              : Text
   where
-    signatory buyer, issuer
-    observer  seller, mediator
+    signatory mediator, issuer
+    observer  buyer, seller
 
     choice Accept : ContractId StablecoinEscrow
       controller seller
@@ -186,12 +186,14 @@ template EscrowInvitation
     tokenHash    : Text
     terms        : EscrowTerms
   where
-    signatory inviter, mediator
+    signatory inviter, mediator, issuer
+
+    ensure inviteeRole == "Buyer" || inviteeRole == "Seller"
 
     choice Claim : ContractId EscrowProposal
       with
         claimingParty : Party
-      controller claimingParty
+      controller mediator
       do
         let isInviteeBuyer = inviteeRole == "Buyer"
         create EscrowProposal with

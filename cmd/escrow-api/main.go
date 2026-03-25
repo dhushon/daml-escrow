@@ -108,8 +108,7 @@ func main() {
 		r.Get("/invites", handler.ListInvitations)
 		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
 		r.Post("/invites", handler.CreateInvitation)
-		r.Post("/invites/{inviteID}/claim", handler.ClaimInvitation)
-
+		r.Post("/invites/token/{token}/claim", handler.ClaimInvitation)
 		r.Post("/escrows", handler.CreateEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)
 		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)

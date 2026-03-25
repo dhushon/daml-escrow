@@ -34,14 +34,12 @@ func TestLedgerIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Initial party map refresh to resolve fully-qualified IDs (Buyer::1220...)
-	err := client.refreshPartyMap(ctx)
+	// Perform discovery to resolve Package and Party IDs
+	err := client.Discover(ctx)
 	require.NoError(t, err)
 
 	buyerParty := client.getParty(BuyerUser)
 	sellerParty := client.getParty(SellerUser)
-	cbParty := client.getParty(CentralBankUser)
-	mediatorParty := client.getParty(EscrowMediatorUser)
 
 	t.Run("Identity JIT Provisioning", func(t *testing.T) {
 		t.Log("Testing ProvisionUser for external identity...")
@@ -128,7 +126,7 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 2. Get Escrow (Read)
 		t.Log("Testing GetEscrow...")
-		fetched, err := client.GetEscrow(ctx, id, buyerParty)
+		fetched, err := client.GetEscrow(ctx, id, BuyerUser)
 		require.NoError(t, err)
 		require.NotNil(t, fetched)
 		require.Equal(t, id, fetched.ID)
@@ -142,7 +140,7 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 4. Verify Archive
 		t.Log("Testing GetEscrow after archive (should fail)...")
-		_, err = client.GetEscrow(ctx, id, buyerParty)
+		_, err = client.GetEscrow(ctx, id, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified contract is archived")
 	})
@@ -163,7 +161,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 		t.Log("Successfully exercised RefundBuyer")
 
-		_, err = client.GetEscrow(ctx, escrow.ID, buyerParty)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after refund")
 	})
@@ -184,7 +182,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 		t.Log("Successfully exercised RefundBySeller")
 
-		_, err = client.GetEscrow(ctx, escrow.ID, buyerParty)
+		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified original escrow is archived after seller refund")
 	})
@@ -215,9 +213,9 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Wait for propagation
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 		
-		updated, _ := client.GetEscrow(ctx, escrow.ID, buyerParty)
+		updated, _ := client.GetEscrow(ctx, escrow.ID, BuyerUser)
 		require.NotNil(t, updated)
 		require.Equal(t, 1, updated.CurrentMilestoneIndex)
 		require.True(t, updated.Milestones[0].Completed)
@@ -245,7 +243,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NoError(t, err)
 		t.Log("Successfully exercised ResolveDispute")
 
-		_, err = client.GetEscrow(ctx, disputedId, buyerParty)
+		_, err = client.GetEscrow(ctx, disputedId, BuyerUser)
 		require.Error(t, err)
 		t.Log("Verified disputed escrow is archived after resolution")
 	})
@@ -288,7 +286,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Successfully finalized settlement")
 
 		// Wait for propagation
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 		
 		// Verify settlement is gone (archived)
 		settlements, _ := client.ListSettlements(ctx)
@@ -306,19 +304,19 @@ func TestLedgerIntegration(t *testing.T) {
 	t.Run("Role-Based Visibility and Metrics", func(t *testing.T) {
 		// Seller should see their own escrows
 		t.Log("Checking visibility for Seller...")
-		sellerEscrows, err := client.ListEscrows(ctx, sellerParty)
+		sellerEscrows, err := client.ListEscrows(ctx, SellerUser)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(sellerEscrows), 0)
 
 		// Bank may see multiple escrows in this environment
 		t.Log("Checking visibility for Bank...")
-		bankEscrows, err := client.ListEscrows(ctx, cbParty)
+		bankEscrows, err := client.ListEscrows(ctx, CentralBankUser)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(bankEscrows), 0)
 
 		// Bank should see metrics
 		t.Log("Checking aggregated metrics for Bank...")
-		metrics, err := client.GetMetrics(ctx, cbParty)
+		metrics, err := client.GetMetrics(ctx, CentralBankUser)
 		require.NoError(t, err)
 		require.NotNil(t, metrics)
 		require.GreaterOrEqual(t, metrics.TotalActiveEscrows, 0)
@@ -418,12 +416,12 @@ func TestLedgerIntegration(t *testing.T) {
 		// Verification loop with retries
 		var archived bool
 		for i := 0; i < 15; i++ {
-			_, err = client.GetEscrow(ctx, escrow.ID, buyerParty)
+			_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
 			if err != nil {
 				archived = true
 				break
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 		require.True(t, archived)
 		t.Log("Oracle automated approval verified end-to-end")

@@ -16,7 +16,7 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 
 	tokenHash := fmt.Sprintf("invite-%d", time.Now().UnixNano())
 
-	var milestones []interface{}
+	milestones := []interface{}{}
 	for _, m := range terms.Milestones {
 		milestones = append(milestones, map[string]interface{}{
 			"label":     m.Label,
@@ -45,7 +45,7 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("create-invite-%d", time.Now().UnixNano()),
-			"actAs":     []string{inviterParty, mediatorParty},
+			"actAs":     []string{inviterParty, mediatorParty, cbParty},
 			"userId":    inviterID,
 			"commands": []interface{}{
 				map[string]interface{}{
@@ -94,12 +94,13 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 
 func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error) {
 	claimantParty := c.getParty(claimantID)
+	mediatorParty := c.getParty(EscrowMediatorUser)
 	
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("claim-%d", time.Now().UnixNano()),
-			"actAs":     []string{claimantParty},
-			"userId":    claimantID,
+			"actAs":     []string{mediatorParty},
+			"userId":    EscrowMediatorUser,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
@@ -225,6 +226,7 @@ func (c *JsonLedgerClient) GetInvitationByToken(ctx context.Context, tokenHash s
 					},
 				},
 			},
+			"userId": EscrowMediatorUser,
 		}
 
 		respBody, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
@@ -737,7 +739,7 @@ func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId":  fmt.Sprintf("%s:%s:%s", Interfacec.PackageID, "Escrow.Interface", "Escrow"),
+						"templateId":  fmt.Sprintf("%s:%s:%s", c.InterfacePackageID, "Escrow.Interface", "Escrow"),
 						"contractId":  id,
 						"choice":      "ApproveMilestone",
 						"choiceArgument": map[string]interface{}{
@@ -764,7 +766,7 @@ func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string) (string,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId":  fmt.Sprintf("%s:%s:%s", Interfacec.PackageID, "Escrow.Interface", "Escrow"),
+						"templateId":  fmt.Sprintf("%s:%s:%s", c.InterfacePackageID, "Escrow.Interface", "Escrow"),
 						"contractId":  id,
 						"choice":      "RaiseDispute",
 						"choiceArgument": map[string]interface{}{
@@ -809,7 +811,7 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId": fmt.Sprintf("%s:%s:%s", Interfacec.PackageID, "Escrow.Interface", "DisputedEscrow"),
+						"templateId": fmt.Sprintf("%s:%s:%s", c.InterfacePackageID, "Escrow.Interface", "DisputedEscrow"),
 						"contractId": id,
 						"choice":     "ResolveDispute",
 						"choiceArgument": map[string]interface{}{
@@ -920,7 +922,7 @@ func (c *JsonLedgerClient) SettlePayment(ctx context.Context, settlementID strin
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId": fmt.Sprintf("%s:%s:%s", Interfacec.PackageID, "Escrow.Interface", "Settlement"),
+						"templateId": fmt.Sprintf("%s:%s:%s", c.InterfacePackageID, "Escrow.Interface", "Settlement"),
 						"contractId": settlementID,
 						"choice": "Settle",
 						"choiceArgument": map[string]interface{}{},

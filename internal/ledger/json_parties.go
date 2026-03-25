@@ -15,28 +15,24 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 		return err
 	}
 
-	// Corrected response structure for SDK 3.4.x
 	var response struct {
 		PartyDetails []struct {
-			Party       string `json:"party"`
-			DisplayName string `json:"displayName"`
-			IsLocal     bool   `json:"isLocal"`
+			Party string `json:"party"`
 		} `json:"partyDetails"`
 	}
-	
+
 	if err := json.Unmarshal(respBody, &response); err != nil {
-		return fmt.Errorf("failed to unmarshal party list: %w", err)
+		return err
 	}
 
-	for _, p := range response.PartyDetails {
-		if strings.HasPrefix(p.Party, "Buyer::") {
-			c.partyMap[BuyerUser] = p.Party
-		} else if strings.HasPrefix(p.Party, "CentralBank::") {
-			c.partyMap[CentralBankUser] = p.Party
-		} else if strings.HasPrefix(p.Party, "Seller::") {
-			c.partyMap[SellerUser] = p.Party
-		} else if strings.HasPrefix(p.Party, "EscrowMediator::") {
-			c.partyMap[EscrowMediatorUser] = p.Party
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, detail := range response.PartyDetails {
+		parts := strings.Split(detail.Party, "::")
+		if len(parts) > 0 {
+			logicalName := parts[0]
+			c.partyMap[logicalName] = detail.Party
 		}
 	}
 	
@@ -45,22 +41,22 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 }
 
 func (c *JsonLedgerClient) getParty(user string) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if id, ok := c.partyMap[user]; ok {
 		return id
 	}
 	return user
 }
 
-// sanitizeSub converts a Google sub (or any string) into a valid Daml User ID.
-// Daml User ID regex: ^[a-z0-9][a-z0-9\-]{0,254}$
+// sanitizeSub converts an external sub into a valid Daml User ID.
 func sanitizeSub(sub string) string {
 	clean := strings.ToLower(sub)
 	clean = strings.ReplaceAll(clean, "|", "-")
 	clean = strings.ReplaceAll(clean, "_", "-")
 	clean = strings.ReplaceAll(clean, "@", "-")
 	clean = strings.ReplaceAll(clean, ".", "-")
-	
-	// Prepend with a known string to ensure it starts with a letter/number
 	return "u-" + clean
 }
 
@@ -87,9 +83,11 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 		return nil, fmt.Errorf("failed to unmarshal user identity: %w", err)
 	}
 
-	// Update local map cache
+	// Update local cache
 	if response.User.PrimaryParty != "" {
+		c.mu.Lock()
 		c.partyMap[damlUserID] = response.User.PrimaryParty
+		c.mu.Unlock()
 	}
 
 	return &UserIdentity{
@@ -153,8 +151,10 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		return nil, fmt.Errorf("failed to grant rights: %w", err)
 	}
 
-	// Update local map cache
+	// Update local cache
+	c.mu.Lock()
 	c.partyMap[damlUserID] = allocatedParty
+	c.mu.Unlock()
 
 	c.logger.Info("provisioned new identity", zap.String("oktaSub", oktaSub), zap.String("damlParty", allocatedParty))
 

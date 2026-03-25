@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -24,32 +25,10 @@ type JsonLedgerClient struct {
 	logger             *zap.Logger
 	httpClient         *http.Client
 	baseURL            string
+	mu                 sync.RWMutex     // Protects partyMap
 	partyMap           map[string]string // Maps User ID -> Canton Party ID
 	PackageID          string            // Instance-specific Package ID
 	InterfacePackageID string            // Instance-specific Interface ID
-}
-
-func (c *JsonLedgerClient) Discover(ctx context.Context) error {
-	c.logger.Info("performing ledger discovery...")
-
-	// 1. Resolve Package IDs by name for this specific instance
-	if c.PackageID == "" {
-		c.PackageID = "d209d27f09adfc9883015b5f23e89f28df6d507c31846cd09e4f2e2bb8b0726b"
-	}
-	if c.InterfacePackageID == "" {
-		c.InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
-	}
-
-	// 2. Resolve Party IDs
-	return c.refreshPartyMap(ctx)
-}
-
-// v2TransactionResponse is shared between escrow and settlement logic
-type v2TransactionResponse struct {
-	Transaction struct {
-		Events []map[string]interface{} `json:"events"`
-		Offset json.RawMessage          `json:"offset"`
-	} `json:"transaction"`
 }
 
 func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerClient {
@@ -67,6 +46,77 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int) *JsonLedgerC
 	}
 	
 	return c
+}
+
+func (c *JsonLedgerClient) Discover(ctx context.Context) error {
+	c.logger.Info("performing ledger discovery...")
+
+	// 1. List all Package IDs
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	var pids []string
+	var listResponse struct {
+		PackageIds []string `json:"packageIds"`
+	}
+	if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
+		pids = listResponse.PackageIds
+	} else {
+		var altResponse struct {
+			PackageDetails []struct {
+				PackageId string `json:"packageId"`
+			} `json:"packageDetails"`
+		}
+		if err2 := json.Unmarshal(respBody, &altResponse); err2 == nil && len(altResponse.PackageDetails) > 0 {
+			for _, d := range altResponse.PackageDetails {
+				pids = append(pids, d.PackageId)
+			}
+		}
+	}
+
+	if len(pids) == 0 {
+		return fmt.Errorf("no packages found on ledger")
+	}
+
+	// 2. Query each package for metadata to find logical names
+	for _, pid := range pids {
+		path := fmt.Sprintf("/v2/packages/%s", pid)
+		pkgBody, err := c.doRawRequest(ctx, "GET", path, nil)
+		if err != nil {
+			continue
+		}
+
+		// Try to find packageName in the response
+		var pkgMap map[string]interface{}
+		if err := json.Unmarshal(pkgBody, &pkgMap); err == nil {
+			if details, ok := pkgMap["packageDetails"].(map[string]interface{}); ok {
+				if name, ok := details["packageName"].(string); ok {
+					if name == "stablecoin-escrow" {
+						c.PackageID = pid
+						c.logger.Info("discovered package", zap.String("name", name), zap.String("id", pid))
+					} else if name == "stablecoin-escrow-interfaces" {
+						c.InterfacePackageID = pid
+						c.logger.Info("discovered interface package", zap.String("name", name), zap.String("id", pid))
+					}
+				}
+			}
+		}
+	}
+
+	if c.PackageID == "" || c.InterfacePackageID == "" {
+		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks")
+		if c.PackageID == "" {
+			c.PackageID = "aa5346e86ae4508bfafeed61c67a3f5b7f01ab37b70c64d32cf66c56c12bf1fb"
+		}
+		if c.InterfacePackageID == "" {
+			c.InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
+		}
+	}
+
+	// 3. Resolve Party IDs
+	return c.refreshPartyMap(ctx)
 }
 
 func (c *JsonLedgerClient) getOffset() interface{} {
@@ -113,4 +163,12 @@ func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string
 	}
 
 	return respBody, nil
+}
+
+// v2TransactionResponse is shared between escrow and settlement logic
+type v2TransactionResponse struct {
+	Transaction struct {
+		Events []map[string]interface{} `json:"events"`
+		Offset json.RawMessage          `json:"offset"`
+	} `json:"transaction"`
 }

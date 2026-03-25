@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -70,10 +71,23 @@ func MetricsMiddleware(metrics *services.MetricsService) func(http.Handler) http
 func AuthMiddleware(issuer, clientId, audience string, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Bypass auth for health, swagger, and anonymous token lookup
+			// Bypass auth for health, swagger, and anonymous token endpoints
 			if strings.HasPrefix(r.URL.Path, "/api/v1/health") || 
 			   strings.HasPrefix(r.URL.Path, "/swagger") ||
 			   strings.HasPrefix(r.URL.Path, "/api/v1/invites/token/") {
+				// Special Case: In AUTH_DEV_MODE, we still want to inject the Dev User 
+				// if they provided the header, so they can 'Claim' the token.
+				if os.Getenv("AUTH_DEV_MODE") == "true" {
+					devUser := r.Header.Get("X-Dev-User")
+					if devUser != "" {
+						scopes := []string{ScopeEscrowRead, ScopeEscrowWrite, ScopeEscrowAccept}
+						ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
+						ctx = context.WithValue(ctx, EmailKey, devUser+"@dev.local")
+						ctx = context.WithValue(ctx, ScopesKey, scopes)
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -93,7 +107,7 @@ func AuthMiddleware(issuer, clientId, audience string, logger *zap.Logger) func(
 					scopes = append(scopes, ScopeSystemAdmin)
 				}
 
-				ctx := context.WithValue(r.Context(), AuthSubKey, "dev-"+devUser)
+				ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
 				ctx = context.WithValue(ctx, EmailKey, devUser+"@dev.local")
 				ctx = context.WithValue(ctx, ScopesKey, scopes)
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -150,10 +164,20 @@ func RequireScope(ctx context.Context, required string) bool {
 	if !ok {
 		return false
 	}
+	// For debugging during walkthrough
+	if os.Getenv("AUTH_DEV_MODE") == "true" {
+		fmt.Printf("DEBUG: RequireScope checking '%s' against user scopes: %v\n", required, scopes)
+	}
 	for _, s := range scopes {
 		if s == required {
+			if os.Getenv("AUTH_DEV_MODE") == "true" {
+				fmt.Printf("DEBUG: RequireScope MATCHED '%s'\n", required)
+			}
 			return true
 		}
+	}
+	if os.Getenv("AUTH_DEV_MODE") == "true" {
+		fmt.Printf("DEBUG: RequireScope FAILED to find '%s'\n", required)
 	}
 	return false
 }
