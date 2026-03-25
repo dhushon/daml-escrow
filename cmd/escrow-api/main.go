@@ -116,6 +116,7 @@ func main() {
 		r.Get("/escrows/proposals", handler.ListProposals)
 		r.Get("/escrows/{escrowID}", handler.GetEscrow)
 		r.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
+		r.Post("/escrows/{escrowID}/dispute", handler.RaiseDispute)
 		r.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
 		r.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
 		r.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)

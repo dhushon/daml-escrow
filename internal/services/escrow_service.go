@@ -93,18 +93,20 @@ func (s *EscrowService) ReleaseFunds(
 func (s *EscrowService) RaiseDispute(
 	ctx context.Context,
 	id string,
+	userID string,
 ) (string, error) {
-	s.logger.Info("raising dispute", zap.String("id", id))
-	return s.ledger.RaiseDispute(ctx, id)
+	s.logger.Info("raising dispute", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.RaiseDispute(ctx, id, userID)
 }
 
 func (s *EscrowService) ResolveDispute(
 	ctx context.Context,
 	id string,
 	payoutToBuyer, payoutToSeller float64,
+	userID string,
 ) error {
-	s.logger.Info("resolving dispute", zap.String("id", id), zap.Float64("payoutToBuyer", payoutToBuyer), zap.Float64("payoutToSeller", payoutToSeller))
-	return s.ledger.ResolveDispute(ctx, id, payoutToBuyer, payoutToSeller)
+	s.logger.Info("resolving dispute", zap.String("id", id), zap.Float64("payoutToBuyer", payoutToBuyer), zap.Float64("payoutToSeller", payoutToSeller), zap.String("userID", userID))
+	return s.ledger.ResolveDispute(ctx, id, payoutToBuyer, payoutToSeller, userID)
 }
 
 func (s *EscrowService) RefundBuyer(
@@ -129,12 +131,12 @@ func (s *EscrowService) RefundBuyer(
 		return fmt.Errorf("no funds to refund")
 	}
 
-	disputeID, err := s.RaiseDispute(ctx, id)
+	disputeID, err := s.RaiseDispute(ctx, id, ledger.EscrowMediatorUser)
 	if err != nil {
 		return err
 	}
 
-	return s.ResolveDispute(ctx, disputeID, remaining, 0.0)
+	return s.ResolveDispute(ctx, disputeID, remaining, 0.0, ledger.EscrowMediatorUser)
 }
 
 func (s *EscrowService) RefundBySeller(

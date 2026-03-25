@@ -100,7 +100,7 @@ func AuthMiddleware(issuer, clientId, audience string, logger *zap.Logger) func(
 				}
 
 				scopes := []string{ScopeEscrowRead}
-				if devUser == "Buyer" || devUser == "Seller" || devUser == "EscrowMediator" {
+				if devUser == "Buyer" || devUser == "Seller" || devUser == "EscrowMediator" || devUser == "CentralBank" {
 					scopes = append(scopes, ScopeEscrowWrite, ScopeEscrowAccept)
 				}
 				if devUser == "CentralBank" {

@@ -93,7 +93,7 @@ interface Escrow where
 
   choice RaiseDispute : ContractId DisputedEscrow
     with payload : RaiseDisputeArg
-    controller (view this).buyer
+    controller [(view this).buyer, (view this).seller]
     do
       raiseDispute this payload
 
@@ -109,6 +109,6 @@ interface DisputedEscrow where
 
   choice ResolveDispute : [ContractId Settlement]
     with payload : ResolveDisputeArg
-    controller (view this).escrowView.mediator
+    controller [(view this).escrowView.mediator, (view this).escrowView.issuer]
     do
       resolveDispute this payload

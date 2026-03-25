@@ -490,14 +490,37 @@ func (h *Handler) RefundBySeller(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ResolveDispute handles POST /escrows/{escrowID}/resolve
-func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
-	if !RequireScope(r.Context(), ScopeSystemAdmin) {
+// RaiseDispute handles POST /escrows/{escrowID}/dispute
+func (h *Handler) RaiseDispute(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeEscrowWrite) && !RequireScope(r.Context(), ScopeEscrowAccept) {
 		http.Error(w, "insufficient scope", http.StatusForbidden)
 		return
 	}
 
 	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	disputeID, err := h.escrowService.RaiseDispute(r.Context(), id, userID)
+	if err != nil {
+		h.logger.Error("raise dispute failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"disputeId": disputeID})
+}
+
+// ResolveDispute handles POST /escrows/{escrowID}/resolve
+func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
+	if !RequireScope(r.Context(), ScopeSystemAdmin) && !RequireScope(r.Context(), ScopeEscrowAccept) {
+		http.Error(w, "insufficient scope", http.StatusForbidden)
+		return
+	}
+
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
 	var req struct {
 		PayoutToBuyer  float64 `json:"payoutToBuyer"`
 		PayoutToSeller float64 `json:"payoutToSeller"`
@@ -507,7 +530,7 @@ func (h *Handler) ResolveDispute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.escrowService.ResolveDispute(r.Context(), id, req.PayoutToBuyer, req.PayoutToSeller); err != nil {
+	if err := h.escrowService.ResolveDispute(r.Context(), id, req.PayoutToBuyer, req.PayoutToSeller, userID); err != nil {
 		h.logger.Error("resolve dispute failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

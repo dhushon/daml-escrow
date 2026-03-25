@@ -108,10 +108,10 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	if c.PackageID == "" || c.InterfacePackageID == "" {
 		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks")
 		if c.PackageID == "" {
-			c.PackageID = "3098a3443a9be5436d5083dcfd2c1d9368fd4cfcdff88c22c639a2ba0572d6ce"
+			c.PackageID = "18d08e81f601958adc214a33970fa3a06729cad1f4283d873cf0799ab77ac878"
 		}
 		if c.InterfacePackageID == "" {
-			c.InterfacePackageID = "b531775c01987bf5ab31634077756188e7d06be9508c632727f416add56275c3"
+			c.InterfacePackageID = "c27305f41570a49eb794b3dcca9d5723334829719eba5752c6bca134df19f95b"
 		}
 	}
 

@@ -755,14 +755,14 @@ func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string, userID s
 	return err
 }
 
-func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string) (string, error) {
-	party := c.getParty(BuyerUser)
+func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string, userID string) (string, error) {
+	party := c.getParty(userID)
 
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("dispute-%d", time.Now().UnixNano()),
 			"actAs":     []string{party},
-			"userId":    BuyerUser,
+			"userId":    userID,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
@@ -800,14 +800,14 @@ func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string) (string,
 	return "", fmt.Errorf("disputed escrow not found in response")
 }
 
-func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error {
-	party := c.getParty(EscrowMediatorUser)
+func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64, userID string) error {
+	party := c.getParty(userID)
 
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("resolve-%d", time.Now().UnixNano()),
 			"actAs":     []string{party},
-			"userId":    EscrowMediatorUser,
+			"userId":    userID,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
@@ -831,11 +831,11 @@ func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, payout
 }
 
 func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	disputeID, err := c.RaiseDispute(ctx, id)
+	disputeID, err := c.RaiseDispute(ctx, id, EscrowMediatorUser)
 	if err != nil {
 		return err
 	}
-	return c.ResolveDispute(ctx, disputeID, 100.0, 0.0) // Mock full refund
+	return c.ResolveDispute(ctx, disputeID, 100.0, 0.0, EscrowMediatorUser) // Mock full refund
 }
 
 func (c *JsonLedgerClient) RefundBySeller(ctx context.Context, id string) error {

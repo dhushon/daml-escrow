@@ -51,11 +51,11 @@ func (c *DamlClient) ReleaseFunds(ctx context.Context, id string, userID string)
 	return nil
 }
 
-func (c *DamlClient) RaiseDispute(ctx context.Context, id string) (string, error) {
+func (c *DamlClient) RaiseDispute(ctx context.Context, id string, userID string) (string, error) {
 	return "", nil
 }
 
-func (c *DamlClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error {
+func (c *DamlClient) ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64, userID string) error {
 	return nil
 }
 

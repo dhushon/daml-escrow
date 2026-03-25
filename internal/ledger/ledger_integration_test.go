@@ -234,7 +234,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NotNil(t, escrow)
 		
 		t.Log("Raising dispute first...")
-		disputedId, err := client.RaiseDispute(ctx, escrow.ID)
+		disputedId, err := client.RaiseDispute(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 		require.NotEmpty(t, disputedId)
 
