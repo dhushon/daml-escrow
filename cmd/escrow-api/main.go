@@ -54,7 +54,7 @@ func main() {
 
 	if ledgerType == "grpc" {
 		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort)
+		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	} else {
 		// Default to JSON API for better dynamic binding support
 		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
@@ -109,18 +109,19 @@ func main() {
 		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
 		r.Post("/invites", handler.CreateInvitation)
 		r.Post("/invites/token/{token}/claim", handler.ClaimInvitation)
-		r.Post("/escrows", handler.CreateEscrow)
+		r.Post("/escrows", handler.ProposeEscrow)
 		r.Post("/escrows/propose", handler.ProposeEscrow)
-		r.Post("/escrows/{escrowID}/accept", handler.AcceptProposal)
-		r.Get("/escrows", handler.ListEscrows)
-		r.Get("/escrows/proposals", handler.ListProposals)
-		r.Get("/escrows/{escrowID}", handler.GetEscrow)
-		r.Post("/escrows/{escrowID}/release", handler.ReleaseFunds)
+		r.Post("/escrows/{escrowID}/fund", handler.Fund)
+		r.Post("/escrows/{escrowID}/activate", handler.Activate)
+		r.Post("/escrows/{escrowID}/confirm", handler.ConfirmConditions)
 		r.Post("/escrows/{escrowID}/dispute", handler.RaiseDispute)
-		r.Post("/escrows/{escrowID}/refund", handler.RefundBuyer)
-		r.Post("/escrows/{escrowID}/refund-by-seller", handler.RefundBySeller)
-		r.Post("/escrows/{escrowID}/resolve", handler.ResolveDispute)
+		r.Post("/escrows/{escrowID}/propose-settlement", handler.ProposeSettlement)
+		r.Post("/escrows/{escrowID}/ratify", handler.RatifySettlement)
+		r.Post("/escrows/{escrowID}/finalize", handler.FinalizeSettlement)
+		r.Post("/escrows/{escrowID}/disburse", handler.Disburse)
 
+		r.Get("/escrows", handler.ListEscrows)
+		r.Get("/escrows/{escrowID}", handler.GetEscrow)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 
 		r.Get("/metrics", handler.GetMetrics)

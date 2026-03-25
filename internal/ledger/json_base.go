@@ -80,7 +80,10 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	// 2. Fallback to active discovery if file missing or invalid
 	c.logger.Info("ledger-state.json not found or invalid, performing active discovery...")
 
-	// ... (Rest of existing discovery logic)
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %w", err)
+	}
 
 	var pids []string
 	var listResponse struct {
@@ -135,10 +138,10 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 			zap.String("implName", c.ImplName), 
 			zap.String("ifaceName", c.InterfaceName))
 		if c.PackageID == "" {
-			c.PackageID = "18d08e81f601958adc214a33970fa3a06729cad1f4283d873cf0799ab77ac878"
+			c.PackageID = "e9304f56b61960a66860bf9251fac4ed658bb342178e9f401042a265b7437c71"
 		}
 		if c.InterfacePackageID == "" {
-			c.InterfacePackageID = "c27305f41570a49eb794b3dcca9d5723334829719eba5752c6bca134df19f95b"
+			c.InterfacePackageID = "92a947da89541baf1a52956d069643d907d9ef01d3cd59ccfd0fcfea012060de"
 		}
 	}
 

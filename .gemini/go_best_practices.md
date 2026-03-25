@@ -27,7 +27,12 @@ Target a standard Go structure:
 Errors must be explicit and include wrapped context:
 `return fmt.Errorf("ledger submission failed: %w", err)`
 
-## 7. Testing & Quality
+## 7. API Handlers & Validation
+- **Data Transfer Objects (DTOs):** Always define specific Request and Response structs (DTOs) for API endpoints rather than using the core ledger boundary structs directly.
+- **Input Validation:** Implement `.Validate() error` on DTOs to catch malformed payloads, negative numbers, or invalid enums *before* they enter the service layer.
+
+## 8. Testing & Quality
 - **Unit Tests:** Mandatory for all service logic using interfaces/mocks.
 - **Integration Tests:** Required for ledger-facing code using the `integration` build tag.
-- **Validation:** `go build ./...` and `go build ./...` must pass before any push.
+- **Validation:** `go build ./...` and `go test ./...` must pass before any push.
+

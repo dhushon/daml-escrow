@@ -1,114 +1,86 @@
 -- Interface.daml  —  Daml-LF 2.1  (SDK 3.4.x)
---
--- In LF 2.1, interface instance blocks support ONLY:
---   - view = ...
---   - named method implementations (methods declared on the interface)
---
--- Choices cannot be overridden in the instance. Instead, choices call
--- interface methods, and templates implement those methods.
--- This is the correct pattern for LF 2.1.
+-- 
+-- Revised per ESCROW-PROCESS.md v1.0
+-- Decouples generic financial dynamics from business metadata.
 
 module Escrow.Interface where
 
-data Milestone = Milestone with
-  label     : Text
-  amount    : Decimal
-  completed : Bool
+-- Directive 03
+data EscrowState 
+  = DRAFT 
+  | FUNDED 
+  | ACTIVE 
+  | DISPUTED 
+  | PROPOSED 
+  | SETTLED 
+  | EXPIRED 
+  | CANCELLED
     deriving (Eq, Show)
 
+-- Directive 02
+data Asset = Asset with
+  assetType  : Text -- stablecoin | tokenized_reserve | digital_asset
+  assetId    : Text
+  amount     : Decimal
+  currency   : Text
+  custodyRef : Optional Text
+    deriving (Eq, Show)
+
+-- Directive 04
 data EscrowTerms = EscrowTerms with
-  totalAmount : Decimal
-  currency    : Text
-  description : Text
-  milestones  : [Milestone]
-  metadata    : Text
+  conditionDescription : Text
+  conditionType        : Text -- Binary | Partial | Milestone
+  evidenceRequired     : Text
+  expiryDate           : Time
+  gracePeriodDays      : Int
+  disputeWindowDays    : Int
+  partialSchedule      : [(Decimal, Text)]
     deriving (Eq, Show)
 
+-- Directive 06
+data SettlementTerms = SettlementTerms with
+  settlementType : Text -- FullRelease | FullReturn | PartialSplit
+  buyerReturn    : Decimal
+  sellerPayment  : Decimal
+  mediatorFee    : Decimal
+    deriving (Eq, Show)
+
+-- Unified View for visibility
 data View = View with
-  issuer                : Party
-  buyer                 : Party
-  seller                : Party
-  mediator              : Party
-  totalAmount           : Decimal
-  currency              : Text
-  description           : Text
-  milestones            : [Milestone]
-  currentMilestoneIndex : Int
-  metadata              : Text
-    deriving (Eq, Show)
-
-data SettlementView = SettlementView with
-  issuer    : Party
-  recipient : Party
-  amount    : Decimal
-  currency  : Text
-  status    : Text
-    deriving (Eq, Show)
-
-data DisputedView = DisputedView with
-  escrowView : View
-    deriving (Eq, Show)
-
-data ApproveMilestoneArg = ApproveMilestoneArg deriving (Eq, Show)
-data RaiseDisputeArg     = RaiseDisputeArg     deriving (Eq, Show)
-
-data ResolveDisputeArg = ResolveDisputeArg with
-  payoutToBuyer  : Decimal
-  payoutToSeller : Decimal
+  issuer   : Party
+  buyer    : Party
+  seller   : Party
+  mediator : Party
+  asset    : Asset
+  terms    : EscrowTerms
+  state    : EscrowState
+  metadata : Text
     deriving (Eq, Show)
 
 -- ---------------------------------------------------------------------------
--- Settlement interface
+-- Base Escrow Interface
 -- ---------------------------------------------------------------------------
--- No methods needed — Settle has no logic to delegate.
-
-interface Settlement where
-  viewtype SettlementView
-
-  choice Settle : ()
-    controller (view this).issuer
-    do
-      return ()
-
--- ---------------------------------------------------------------------------
--- Escrow interface
--- ---------------------------------------------------------------------------
--- Choices delegate to interface methods.
--- Templates implement the methods in their interface instance blocks.
-
 interface Escrow where
   viewtype View
 
-  -- Method signatures — implemented by each template
-  approveMilestone : ApproveMilestoneArg
-    -> Update (Optional (ContractId Escrow), ContractId Settlement)
-  raiseDispute : RaiseDisputeArg
-    -> Update (ContractId DisputedEscrow)
+  -- Choice definitions per Directive 05
+  -- Note: Controllers and guards are enforced by the interface choice definition
+  -- or the implementing template.
 
-  choice ApproveMilestone : (Optional (ContractId Escrow), ContractId Settlement)
-    with payload : ApproveMilestoneArg
-    controller (view this).mediator
-    do
-      approveMilestone this payload
-
-  choice RaiseDispute : ContractId DisputedEscrow
-    with payload : RaiseDisputeArg
-    controller [(view this).buyer, (view this).seller]
-    do
-      raiseDispute this payload
+  choice GetStatus : View
+    controller (view this).issuer, (view this).buyer, (view this).seller, (view this).mediator
+    do return (view this)
 
 -- ---------------------------------------------------------------------------
--- DisputedEscrow interface
+-- Audit Event Interface (Directive 07)
 -- ---------------------------------------------------------------------------
+interface EscrowEvent where
+  viewtype EventView
 
-interface DisputedEscrow where
-  viewtype DisputedView
-
-  -- Method signature — implemented by each template
-  resolveDispute : ResolveDisputeArg -> Update [ContractId Settlement]
-
-  choice ResolveDispute : [ContractId Settlement]
-    with payload : ResolveDisputeArg
-    controller [(view this).escrowView.mediator, (view this).escrowView.issuer]
-    do
-      resolveDispute this payload
+data EventView = EventView with
+  escrowId  : Text
+  eventType : Text
+  timestamp : Time
+  actor     : Party
+  details   : Text
+    deriving (Eq, Show)

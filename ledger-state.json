@@ -1,12 +1,13 @@
 {
-  "generatedAt": "2026-03-25T01:03:22.101439-04:00",
-  "packageId": "3098a3443a9be5436d5083dcfd2c1d9368fd4cfcdff88c22c639a2ba0572d6ce",
-  "interfacePackageId": "b531775c01987bf5ab31634077756188e7d06be9508c632727f416add56275c3",
+  "generatedAt": "2026-03-25T12:30:40.553198-04:00",
+  "packageId": "18d08e81f601958adc214a33970fa3a06729cad1f4283d873cf0799ab77ac878",
+  "interfacePackageId": "c27305f41570a49eb794b3dcca9d5723334829719eba5752c6bca134df19f95b",
   "parties": {
-    "Buyer": "Buyer::1220f36a97663a714b5f97ced9c1655bdaad246b7313d7e6f1523049af25b688d84a",
-    "CentralBank": "CentralBank::1220f36a97663a714b5f97ced9c1655bdaad246b7313d7e6f1523049af25b688d84a",
-    "EscrowMediator": "EscrowMediator::1220f36a97663a714b5f97ced9c1655bdaad246b7313d7e6f1523049af25b688d84a",
-    "Seller": "Seller::1220f36a97663a714b5f97ced9c1655bdaad246b7313d7e6f1523049af25b688d84a",
-    "sandbox": "sandbox::1220f36a97663a714b5f97ced9c1655bdaad246b7313d7e6f1523049af25b688d84a"
+    "Buyer": "Buyer::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
+    "CentralBank": "CentralBank::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
+    "EscrowMediator": "EscrowMediator::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
+    "Seller": "Seller::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
+    "sandbox": "sandbox::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
+    "u-google-oauth2-1774455364151342000": "u-google-oauth2-1774455364151342000::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e"
   }
 }

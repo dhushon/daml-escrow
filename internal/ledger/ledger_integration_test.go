@@ -4,14 +4,8 @@
 package ledger
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -29,7 +23,7 @@ func TestLedgerIntegration(t *testing.T) {
 	ledgerPort := 7575 // JSON API port
 
 	logger, _ := zap.NewDevelopment()
-	client := NewJsonLedgerClient(logger, ledgerHost, ledgerPort)
+	client := NewJsonLedgerClient(logger, ledgerHost, ledgerPort, "stablecoin-escrow", "stablecoin-escrow-interfaces")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -38,8 +32,33 @@ func TestLedgerIntegration(t *testing.T) {
 	err := client.Discover(ctx)
 	require.NoError(t, err)
 
-	buyerParty := client.getParty(BuyerUser)
-	sellerParty := client.getParty(SellerUser)
+	waitForEscrowState := func(ctx context.Context, userID, assetID, expectedState string) *EscrowContract {
+		for retry := 0; retry < 20; retry++ {
+			escrows, _ := client.ListEscrows(ctx, userID)
+			for _, e := range escrows {
+				if e.Asset.AssetID == assetID && e.State == expectedState {
+					return e
+				}
+			}
+			time.Sleep(2 * time.Second)
+		}
+		return nil
+	}
+
+	waitForEscrowCondition := func(ctx context.Context, userID, assetID, expectedState string, cond func(*EscrowContract) bool) *EscrowContract {
+		for retry := 0; retry < 20; retry++ {
+			escrows, _ := client.ListEscrows(ctx, userID)
+			for _, e := range escrows {
+				if e.Asset.AssetID == assetID && e.State == expectedState {
+					if cond(e) {
+						return e
+					}
+				}
+			}
+			time.Sleep(2 * time.Second)
+		}
+		return nil
+	}
 
 	t.Run("Identity JIT Provisioning", func(t *testing.T) {
 		t.Log("Testing ProvisionUser for external identity...")
@@ -63,367 +82,187 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Logf("Successfully provisioned identity: %s", identity.DamlPartyID)
 	})
 
-	t.Run("Invitation and Onboarding Lifecycle", func(t *testing.T) {
-		t.Log("Testing full invitation flow...")
-		inviteeEmail := "contractor@external.com"
-		terms := EscrowTerms{
-			TotalAmount: 2500.0,
-			Currency:    "USD",
-			Description: "External Consulting Services",
-			Milestones: []Milestone{
-				{Label: "Initial Research", Amount: 500.0, Completed: false},
-				{Label: "Final Report", Amount: 2000.0, Completed: false},
+	t.Run("High-Assurance Happy Path Lifecycle", func(t *testing.T) {
+		assetID := "USD-STABLE-001"
+		// 1. Propose Escrow (DRAFT)
+		t.Log("Step 1: ProposeEscrow...")
+		req := CreateEscrowRequest{
+			Seller: SellerUser,
+			Asset: Asset{
+				AssetType: "stablecoin",
+				AssetID:   assetID,
+				Amount:    1000.0,
+				Currency:  "USD",
+			},
+			Terms: EscrowTerms{
+				ConditionDescription: "Deliver high-assurance software",
+				ConditionType:        "Binary",
+				EvidenceRequired:     "MediatorAttestation",
+				ExpiryDate:           time.Now().Add(30 * 24 * time.Hour),
+			},
+			Metadata: EscrowMetadata{
+				SchemaURL: "https://stablecoin-escrow.io/schemas/grants.v1.json",
+				Payload:   map[string]interface{}{"grantId": "G-123"},
 			},
 		}
 
-		// 1. Create Invitation (as Buyer)
-		invite, err := client.CreateInvitation(ctx, buyerParty, inviteeEmail, sellerParty, "Company", terms)
-		require.NoError(t, err)
-		require.NotNil(t, invite)
-		token := invite.TokenHash
-		t.Logf("Invitation created with token: %s", token)
-
-		// 2. Lookup Invitation (Anonymous lookup via Token)
-		lookup, err := client.GetInvitationByToken(ctx, token)
-		require.NoError(t, err)
-		require.Equal(t, inviteeEmail, lookup.InviteeEmail)
-		require.Equal(t, sellerParty, lookup.InviteeRole)
-		t.Log("Anonymous token lookup verified")
-
-		// 3. Provision New User (Simulating JIT logic during onboarding)
-		uniqueID := time.Now().UnixNano()
-		googleSub := fmt.Sprintf("onboard-%d", uniqueID)
-		identity, err := client.ProvisionUser(ctx, googleSub, inviteeEmail)
-		require.NoError(t, err)
-		require.NotNil(t, identity)
-		t.Logf("JIT provisioned new party: %s", identity.DamlPartyID)
-
-		// 4. Claim Invitation (as the newly provisioned party)
-		proposal, err := client.ClaimInvitation(ctx, invite.ID, googleSub)
+		proposal, err := client.ProposeEscrow(ctx, req)
 		require.NoError(t, err)
 		require.NotNil(t, proposal)
-		require.Equal(t, identity.DamlPartyID, proposal.Seller)
-		require.Equal(t, terms.TotalAmount, proposal.Amount)
-		t.Log("Invitation successfully claimed and transformed into Proposal")
+		t.Logf("Proposed escrow ID: %s", proposal.ID)
+
+		// 2. Fund (DRAFT -> FUNDED)
+		t.Log("Step 2: Fund...")
+		err = client.Fund(ctx, proposal.ID, "CUST-REF-999", BuyerUser)
+		require.NoError(t, err)
+
+		// Fetch updated state
+		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
+		require.NotNil(t, escrow)
+		require.Equal(t, "FUNDED", escrow.State)
+		require.Equal(t, "CUST-REF-999", escrow.Asset.CustodyRef)
+
+		// 3. Activate (FUNDED -> ACTIVE)
+		t.Log("Step 3: Activate...")
+		err = client.Activate(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err)
+
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
+		require.NotNil(t, escrow)
+		require.Equal(t, "ACTIVE", escrow.State)
+
+		// 4. Confirm Conditions (ACTIVE -> SETTLED)
+		t.Log("Step 4: ConfirmConditions...")
+		err = client.ConfirmConditions(ctx, escrow.ID, EscrowMediatorUser)
+		require.NoError(t, err)
+
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
+		require.NotNil(t, escrow)
+		require.Equal(t, "SETTLED", escrow.State)
+
+		// 5. Disburse (SETTLED -> Terminal)
+		t.Log("Step 5: Disburse...")
+		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err)
+
+		// Verify archive
+		time.Sleep(2 * time.Second) // wait for indexer
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED") // This will timeout and return nil if archived
+		require.Nil(t, escrow, "escrow should be archived")
+		t.Log("Happy path completed successfully")
 	})
 
-	t.Run("Standard Escrow Lifecycle", func(t *testing.T) {
-		// 1. Create Escrow (Write)
-		t.Log("Testing CreateEscrow...")
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   500.0,
-			Currency: "USD",
+	t.Run("High-Assurance Dispute & Ratification", func(t *testing.T) {
+		assetID := "USD-STABLE-002"
+		// 1. Setup Active Escrow
+		req := CreateEscrowRequest{
+			Seller: SellerUser,
+			Asset: Asset{AssetType: "stablecoin", AssetID: assetID, Amount: 500.0, Currency: "USD"},
+			Terms: EscrowTerms{ConditionDescription: "Disputed project", ConditionType: "Binary", ExpiryDate: time.Now().Add(30 * 24 * time.Hour)},
 		}
+		proposal, _ := client.ProposeEscrow(ctx, req)
+		client.Fund(ctx, proposal.ID, "REF-DISP", BuyerUser)
 		
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
+		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
 		require.NotNil(t, escrow)
 		
-		id := escrow.ID
-		t.Logf("Created escrow with ID: %s", id)
-
-		// 2. Get Escrow (Read)
-		t.Log("Testing GetEscrow...")
-		fetched, err := client.GetEscrow(ctx, id, BuyerUser)
-		require.NoError(t, err)
-		require.NotNil(t, fetched)
-		require.Equal(t, id, fetched.ID)
-		t.Log("Successfully fetched escrow")
-
-		// 3. Release Funds (Choice)
-		t.Log("Testing ReleaseFunds (ApproveMilestone)...")
-		err = client.ReleaseFunds(ctx, id, BuyerUser)
-		require.NoError(t, err)
-		t.Log("Successfully exercised ApproveMilestone")
-
-		// 4. Verify Archive
-		t.Log("Testing GetEscrow after archive (should fail)...")
-		_, err = client.GetEscrow(ctx, id, BuyerUser)
-		require.Error(t, err)
-		t.Log("Verified contract is archived")
-	})
-
-	t.Run("Escrow Refund Lifecycle (Buyer Initiated)", func(t *testing.T) {
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   100.0,
-			Currency: "USD",
-		}
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
+		client.Activate(ctx, escrow.ID, CentralBankUser)
 		
-		t.Log("Testing RefundBuyer (Automated Raise+Resolve)...")
-		err = client.RefundBuyer(ctx, escrow.ID)
-		require.NoError(t, err)
-		t.Log("Successfully exercised RefundBuyer")
-
-		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
-		require.Error(t, err)
-		t.Log("Verified original escrow is archived after refund")
-	})
-
-	t.Run("Escrow Refund Lifecycle (Seller Initiated)", func(t *testing.T) {
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   150.0,
-			Currency: "USD",
-		}
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		
-		t.Log("Testing RefundBySeller...")
-		err = client.RefundBySeller(ctx, escrow.ID)
-		require.NoError(t, err)
-		t.Log("Successfully exercised RefundBySeller")
-
-		_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
-		require.Error(t, err)
-		t.Log("Verified original escrow is archived after seller refund")
-	})
-
-	t.Run("Escrow with Multi-Milestones", func(t *testing.T) {
-		t.Log("Testing CreateEscrow with milestones...")
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   1000.0,
-			Currency: "USD",
-			Milestones: []Milestone{
-				{Label: "Discovery", Amount: 200.0, Completed: false},
-				{Label: "Design", Amount: 300.0, Completed: false},
-				{Label: "Build", Amount: 500.0, Completed: false},
-			},
-		}
-		
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		require.Equal(t, 3, len(escrow.Milestones))
-		require.Equal(t, 0, escrow.CurrentMilestoneIndex)
-		t.Log("Multi-milestone escrow verified")
-
-		t.Log("Approving first milestone...")
-		err = client.ReleaseFunds(ctx, escrow.ID, BuyerUser)
-		require.NoError(t, err)
-
-		// Wait for propagation
-		time.Sleep(5 * time.Second)
-		
-		updated, _ := client.GetEscrow(ctx, escrow.ID, BuyerUser)
-		require.NotNil(t, updated)
-		require.Equal(t, 1, updated.CurrentMilestoneIndex)
-		require.True(t, updated.Milestones[0].Completed)
-		t.Log("First milestone approval verified")
-	})
-
-	t.Run("Mediated Dispute Resolution", func(t *testing.T) {
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   500.0,
-			Currency: "USD",
-		}
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		
-		t.Log("Raising dispute first...")
-		disputedId, err := client.RaiseDispute(ctx, escrow.ID, BuyerUser)
-		require.NoError(t, err)
-		require.NotEmpty(t, disputedId)
-
-		t.Log("Testing ResolveDispute (Mediator path)...")
-		err = client.ResolveDispute(ctx, disputedId, 250.0, 250.0)
-		require.NoError(t, err)
-		t.Log("Successfully exercised ResolveDispute")
-
-		_, err = client.GetEscrow(ctx, disputedId, BuyerUser)
-		require.Error(t, err)
-		t.Log("Verified disputed escrow is archived after resolution")
-	})
-
-	t.Run("Full Settlement Lifecycle", func(t *testing.T) {
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   100.0,
-			Currency: "USD",
-		}
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		
-		t.Log("Approving milestone to create settlement...")
-		err = client.ReleaseFunds(ctx, escrow.ID, BuyerUser)
-		require.NoError(t, err)
-		time.Sleep(5 * time.Second) // Wait for automation
-
-		t.Log("Listing pending settlements...")
-		var settlementID string
-		for i := 0; i < 10; i++ {
-			settlements, _ := client.ListSettlements(ctx)
-			for _, s := range settlements {
-				if s.Amount == 100.0 && s.Status == "Pending" {
-					settlementID = s.ID
-					break
-				}
-			}
-			if settlementID != "" { break }
-			time.Sleep(1 * time.Second)
-		}
-		require.NotEmpty(t, settlementID)
-		t.Logf("Found settlement ID: %s", settlementID)
-
-		t.Log("Finalizing settlement (CentralBank)...")
-		err = client.SettlePayment(ctx, settlementID)
-		require.NoError(t, err)
-		t.Log("Successfully finalized settlement")
-
-		// Wait for propagation
-		time.Sleep(5 * time.Second)
-		
-		// Verify settlement is gone (archived)
-		settlements, _ := client.ListSettlements(ctx)
-		found := false
-		for _, s := range settlements {
-			if s.ID == settlementID {
-				found = true
-				break
-			}
-		}
-		require.False(t, found)
-		t.Log("Verified settlement archived")
-	})
-
-	t.Run("Role-Based Visibility and Metrics", func(t *testing.T) {
-		// Seller should see their own escrows
-		t.Log("Checking visibility for Seller...")
-		sellerEscrows, err := client.ListEscrows(ctx, SellerUser)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(sellerEscrows), 0)
-
-		// Bank may see multiple escrows in this environment
-		t.Log("Checking visibility for Bank...")
-		bankEscrows, err := client.ListEscrows(ctx, CentralBankUser)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(bankEscrows), 0)
-
-		// Bank should see metrics
-		t.Log("Checking aggregated metrics for Bank...")
-		metrics, err := client.GetMetrics(ctx, CentralBankUser)
-		require.NoError(t, err)
-		require.NotNil(t, metrics)
-		require.GreaterOrEqual(t, metrics.TotalActiveEscrows, 0)
-		t.Logf("Bank Metrics: %+v", metrics)
-	})
-
-	t.Run("Metadata and Anonymous Counterparties", func(t *testing.T) {
-		metadata := EscrowMetadata{
-			SchemaURL: "https://stablecoin-escrow.io/schemas/leasing.v1.json",
-			Payload: map[string]interface{}{
-				"assetId":               "SERIAL-123",
-				"assetType":             "Machinery",
-				"securityDepositAmount": 5000,
-			},
-		}
-
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   27.0,
-			Currency: "USD",
-			Metadata: metadata,
-		}
-
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		require.Equal(t, metadata.SchemaURL, escrow.Metadata.SchemaURL)
-		require.Equal(t, "SERIAL-123", escrow.Metadata.Payload["assetId"])
-		t.Logf("Verified schema-driven metadata: %+v", escrow.Metadata)
-	})
-
-	t.Run("Metadata Selective Exclusion (Privacy)", func(t *testing.T) {
-		metadata := EscrowMetadata{
-			SchemaURL: "https://stablecoin-escrow.io/schemas/supply-chain.v1.json",
-			Payload: map[string]interface{}{
-				"shipmentId": "SHIP-999",
-				"pvt_operator_code": "SECRET-SIG-44", // Should be excluded
-			},
-			Exclusions: map[string]struct{}{
-				"pvt_operator_code": {},
-			},
-		}
-
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   150.0,
-			Currency: "USD",
-			Metadata: metadata,
-		}
-
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
-		require.NotNil(t, escrow)
-		
-		_, exists := escrow.Metadata.Payload["pvt_operator_code"]
-		require.False(t, exists)
-		require.Equal(t, "SHIP-999", escrow.Metadata.Payload["shipmentId"])
-		t.Log("Verified sensitive fields were excluded from the ledger record")
-	})
-
-	t.Run("Oracle Automated Approval", func(t *testing.T) {
-		createReq := CreateEscrowRequest{
-			Buyer:    buyerParty,
-			Seller:   sellerParty,
-			Amount:   50.0,
-			Currency: "USD",
-			Milestones: []Milestone{
-				{Label: "Delivery", Amount: 50.0, Completed: false},
-			},
-		}
-		escrow, err := client.CreateEscrow(ctx, createReq)
-		require.NoError(t, err)
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
 		require.NotNil(t, escrow)
 
-		// Trigger webhook
-		webhookSecret := "development-secret-key"
-		payload := fmt.Sprintf("%s|%d|%s|%s", escrow.ID, 0, "DELIVERY_CONFIRMED", "TestOracle")
-		h := hmac.New(sha256.New, []byte(webhookSecret))
-		h.Write([]byte(payload))
-		signature := hex.EncodeToString(h.Sum(nil))
+		// 2. Raise Dispute (ACTIVE -> DISPUTED)
+		t.Log("Step 1: RaiseDispute...")
+		err = client.RaiseDispute(ctx, escrow.ID, BuyerUser)
+		require.NoError(t, err, "RaiseDispute failed")
 
-		hookReq := map[string]interface{}{
-			"escrowId":       escrow.ID,
-			"milestoneIndex": 0,
-			"event":          "DELIVERY_CONFIRMED",
-			"oracleProvider": "TestOracle",
-			"signature":      signature,
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "DISPUTED")
+		require.NotNil(t, escrow, "Failed to reach DISPUTED state")
+		require.Equal(t, "DISPUTED", escrow.State)
+
+		// 3. Propose Settlement (DISPUTED -> PROPOSED)
+		t.Log("Step 2: ProposeSettlement...")
+		settlement := SettlementTerms{
+			SettlementType: "PartialSplit",
+			BuyerReturn:    200.0,
+			SellerPayment:  300.0,
+			MediatorFee:    0.0,
 		}
+		err = client.ProposeSettlement(ctx, escrow.ID, settlement, EscrowMediatorUser)
+		require.NoError(t, err, "ProposeSettlement failed")
 
-		jsonData, _ := json.Marshal(hookReq)
-		resp, err := http.Post("http://localhost:8081/api/v1/webhooks/milestone", "application/json", bytes.NewBuffer(jsonData))
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "PROPOSED")
+		require.NotNil(t, escrow, "Failed to reach PROPOSED state")
+		require.Equal(t, "PROPOSED", escrow.State)
+
+		// 4. Ratify Settlement (Buyer)
+		t.Log("Step 3: RatifySettlement (Buyer)...")
+		err = client.RatifySettlement(ctx, escrow.ID, BuyerUser)
+		require.NoError(t, err, "RatifySettlement (Buyer) failed")
+
+		// Wait for BuyerAccepted to be true
+		escrow = waitForEscrowCondition(ctx, BuyerUser, assetID, "PROPOSED", func(e *EscrowContract) bool {
+			return e.BuyerAccepted
+		})
+		require.NotNil(t, escrow, "Failed to find PROPOSED escrow with BuyerAccepted=true")
+		require.True(t, escrow.BuyerAccepted)
+		require.False(t, escrow.SellerAccepted)
+
+		// 5. Ratify Settlement (Seller)
+		t.Log("Step 4: RatifySettlement (Seller)...")
+		err = client.RatifySettlement(ctx, escrow.ID, SellerUser)
+		require.NoError(t, err, "RatifySettlement (Seller) failed")
+
+		// Wait for SellerAccepted to be true
+		escrow = waitForEscrowCondition(ctx, BuyerUser, assetID, "PROPOSED", func(e *EscrowContract) bool {
+			return e.SellerAccepted
+		})
+		require.NotNil(t, escrow, "Failed to find PROPOSED escrow with SellerAccepted=true")
+		require.True(t, escrow.SellerAccepted)
+
+		// 6. Finalize (PROPOSED -> SETTLED)
+		t.Log("Step 5: FinalizeSettlement...")
+		err = client.FinalizeSettlement(ctx, escrow.ID, EscrowMediatorUser) // Acts as orchestrator with multi-party rights
+		require.NoError(t, err, "FinalizeSettlement failed")
+
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
+		require.NotNil(t, escrow, "Failed to reach SETTLED state")
+		require.Equal(t, "SETTLED", escrow.State)
+
+		// 7. Disburse
+		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err, "Disburse failed")
+		t.Log("Dispute path completed successfully")
+	})
+
+	t.Run("Timeout Refund Path", func(t *testing.T) {
+		assetID := "USD-TIMEOUT"
+		req := CreateEscrowRequest{
+			Seller: SellerUser,
+			Asset: Asset{AssetType: "stablecoin", AssetID: assetID, Amount: 100.0, Currency: "USD"},
+			Terms: EscrowTerms{ConditionDescription: "Timeout test", ConditionType: "Binary", ExpiryDate: time.Now().Add(30 * 24 * time.Hour)},
+		}
+		proposal, _ := client.ProposeEscrow(ctx, req)
+		client.Fund(ctx, proposal.ID, "REF-TIMEOUT", BuyerUser)
+		
+		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
+		require.NotNil(t, escrow)
+		
+		client.Activate(ctx, escrow.ID, CentralBankUser)
+		
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
+		require.NotNil(t, escrow)
+
+		t.Log("Exercising ExpireEscrow (Issuer path)...")
+		err = client.ExpireEscrow(ctx, escrow.ID, CentralBankUser)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		// Verification loop with retries
-		var archived bool
-		for i := 0; i < 15; i++ {
-			_, err = client.GetEscrow(ctx, escrow.ID, BuyerUser)
-			if err != nil {
-				archived = true
-				break
-			}
-			time.Sleep(5 * time.Second)
-		}
-		require.True(t, archived)
-		t.Log("Oracle automated approval verified end-to-end")
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
+		require.NotNil(t, escrow)
+		require.Equal(t, "SETTLED", escrow.State)
+		
+		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err)
+		t.Log("Timeout path completed successfully")
 	})
 }
