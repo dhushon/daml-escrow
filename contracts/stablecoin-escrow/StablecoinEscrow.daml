@@ -54,8 +54,8 @@ template StablecoinEscrow
     currentMilestoneIndex : Int
     metadata              : Text
   where
-    signatory buyer, issuer
-    observer  seller, mediator
+    signatory buyer, issuer, mediator
+    observer  seller
 
     ensure totalAmount == sum (map (.amount) milestones) && totalAmount > 0.0
 
@@ -228,8 +228,8 @@ template StablecoinDisputedEscrow
     currentMilestoneIndex : Int
     metadata              : Text
   where
-    signatory buyer, issuer
-    observer  seller, mediator
+    signatory buyer, issuer, mediator
+    observer  seller
 
     interface instance DisputedEscrow for StablecoinDisputedEscrow where
       view = DisputedView with
