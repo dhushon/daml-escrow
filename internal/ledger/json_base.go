@@ -108,15 +108,27 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	if c.PackageID == "" || c.InterfacePackageID == "" {
 		c.logger.Warn("dynamic discovery failed, using authoritative fallbacks")
 		if c.PackageID == "" {
-			c.PackageID = "aa5346e86ae4508bfafeed61c67a3f5b7f01ab37b70c64d32cf66c56c12bf1fb"
+			c.PackageID = "3098a3443a9be5436d5083dcfd2c1d9368fd4cfcdff88c22c639a2ba0572d6ce"
 		}
 		if c.InterfacePackageID == "" {
-			c.InterfacePackageID = "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb"
+			c.InterfacePackageID = "b531775c01987bf5ab31634077756188e7d06be9508c632727f416add56275c3"
 		}
 	}
 
 	// 3. Resolve Party IDs
 	return c.refreshPartyMap(ctx)
+}
+
+func (c *JsonLedgerClient) GetPartyMap() map[string]string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// Return a copy to ensure thread safety
+	m := make(map[string]string)
+	for k, v := range c.partyMap {
+		m[k] = v
+	}
+	return m
 }
 
 func (c *JsonLedgerClient) getOffset() interface{} {

@@ -75,6 +75,13 @@ build: ## Build Go binaries (API and Simulator)
 	go build -o bin/$(APP_NAME) ./cmd/escrow-api
 	@echo "Building Oracle Simulator..."
 	go build -o bin/oracle-simulator ./cmd/oracle-simulator
+	@echo "Building Ledger Sync Tool..."
+	go build -o bin/ledger-sync ./cmd/ledger-sync
+
+.PHONY: sync
+sync: build ## DISCOVER and EXPORT ledger state (Package IDs, Party IDs) to ledger-state.json
+	@echo "Exporting ledger state..."
+	./bin/ledger-sync -host localhost -port 7575 -out ledger-state.json
 
 .PHONY: daml-build
 daml-build: ## Build all Daml packages using DPM

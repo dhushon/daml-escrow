@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-03-25T00:51:14.436203-04:00",
+  "packageId": "aa5346e86ae4508bfafeed61c67a3f5b7f01ab37b70c64d32cf66c56c12bf1fb",
+  "interfacePackageId": "75da980e1b67864b12ca7d4d0f5530faaa20a7361ac44b737e640de70cc84bdb",
+  "parties": {
+    "Buyer": "Buyer::1220697339520ad0f5f5bea97e48e253d7e56824441622f16c4a119fba5c35ab8818",
+    "CentralBank": "CentralBank::1220697339520ad0f5f5bea97e48e253d7e56824441622f16c4a119fba5c35ab8818",
+    "EscrowMediator": "EscrowMediator::1220697339520ad0f5f5bea97e48e253d7e56824441622f16c4a119fba5c35ab8818",
+    "Seller": "Seller::1220697339520ad0f5f5bea97e48e253d7e56824441622f16c4a119fba5c35ab8818",
+    "sandbox": "sandbox::1220697339520ad0f5f5bea97e48e253d7e56824441622f16c4a119fba5c35ab8818"
+  }
+}

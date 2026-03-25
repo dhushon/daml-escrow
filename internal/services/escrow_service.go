@@ -84,9 +84,10 @@ func (s *EscrowService) ListEscrows(
 func (s *EscrowService) ReleaseFunds(
 	ctx context.Context,
 	id string,
+	userID string,
 ) error {
-	s.logger.Info("releasing funds", zap.String("id", id))
-	return s.ledger.ReleaseFunds(ctx, id)
+	s.logger.Info("releasing funds", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.ReleaseFunds(ctx, id, userID)
 }
 
 func (s *EscrowService) RaiseDispute(
@@ -250,7 +251,7 @@ func (s *EscrowService) ProcessOracleWebhook(
 		zap.String("escrowId", req.EscrowID), 
 		zap.Int("index", req.MilestoneIndex))
 		
-	return s.ledger.ReleaseFunds(ctx, req.EscrowID)
+	return s.ledger.ReleaseFunds(ctx, req.EscrowID, ledger.EscrowMediatorUser)
 }
 
 func (s *EscrowService) GetIdentity(

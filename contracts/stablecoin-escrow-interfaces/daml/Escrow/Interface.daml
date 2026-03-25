@@ -87,7 +87,7 @@ interface Escrow where
 
   choice ApproveMilestone : (Optional (ContractId Escrow), ContractId Settlement)
     with payload : ApproveMilestoneArg
-    controller (view this).buyer
+    controller (view this).mediator
     do
       approveMilestone this payload
 

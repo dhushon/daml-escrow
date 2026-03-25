@@ -728,14 +728,14 @@ func (c *JsonLedgerClient) GetMetrics(ctx context.Context, userID string) (*Ledg
 	return metrics, nil
 }
 
-func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
-	party := c.getParty(BuyerUser)
+func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
+	party := c.getParty(userID)
 	
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("release-%d", time.Now().UnixNano()),
 			"actAs":     []string{party},
-			"userId":    BuyerUser,
+			"userId":    userID,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{

@@ -163,7 +163,7 @@ type Client interface {
 	ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error)
 	ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error)
 	GetEscrow(ctx context.Context, id string, userID string) (*EscrowContract, error)
-	ReleaseFunds(ctx context.Context, id string) error
+	ReleaseFunds(ctx context.Context, id string, userID string) error
 	RaiseDispute(ctx context.Context, id string) (string, error)
 	ResolveDispute(ctx context.Context, id string, payoutToBuyer, payoutToSeller float64) error
 	RefundBuyer(ctx context.Context, id string) error

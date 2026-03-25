@@ -47,7 +47,7 @@ func (c *DamlClient) GetEscrow(ctx context.Context, id string, userID string) (*
 	return nil, fmt.Errorf("not found")
 }
 
-func (c *DamlClient) ReleaseFunds(ctx context.Context, id string) error {
+func (c *DamlClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
 	return nil
 }
 

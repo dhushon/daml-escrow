@@ -436,7 +436,9 @@ func (h *Handler) ReleaseFunds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := chi.URLParam(r, "escrowID")
-	if err := h.escrowService.ReleaseFunds(r.Context(), id); err != nil {
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.escrowService.ReleaseFunds(r.Context(), id, userID); err != nil {
 		h.logger.Error("release funds failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

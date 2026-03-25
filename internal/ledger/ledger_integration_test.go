@@ -134,7 +134,7 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 3. Release Funds (Choice)
 		t.Log("Testing ReleaseFunds (ApproveMilestone)...")
-		err = client.ReleaseFunds(ctx, id)
+		err = client.ReleaseFunds(ctx, id, BuyerUser)
 		require.NoError(t, err)
 		t.Log("Successfully exercised ApproveMilestone")
 
@@ -209,7 +209,7 @@ func TestLedgerIntegration(t *testing.T) {
 		t.Log("Multi-milestone escrow verified")
 
 		t.Log("Approving first milestone...")
-		err = client.ReleaseFunds(ctx, escrow.ID)
+		err = client.ReleaseFunds(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 
 		// Wait for propagation
@@ -260,7 +260,7 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NotNil(t, escrow)
 		
 		t.Log("Approving milestone to create settlement...")
-		err = client.ReleaseFunds(ctx, escrow.ID)
+		err = client.ReleaseFunds(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err)
 		time.Sleep(5 * time.Second) // Wait for automation
 

@@ -20,8 +20,8 @@ type MockLedgerClient struct {
 	ledger.Client
 }
 
-func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
+func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
 	return args.Error(0)
 }
 
@@ -100,7 +100,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 			CurrentMilestoneIndex: 0,
 			State:                 "Active",
 		}, nil)
-		mockLedger.On("ReleaseFunds", mock.Anything, "escrow-123").Return(nil)
+		mockLedger.On("ReleaseFunds", mock.Anything, "escrow-123", mock.Anything).Return(nil)
 		
 		err := svc.ProcessOracleWebhook(context.Background(), req)
 		assert.NoError(t, err)
