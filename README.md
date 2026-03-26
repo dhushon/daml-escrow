@@ -19,6 +19,15 @@ graph TD
     Oracle((Oracle Service)) -->|Webhook| Go
 ```
 
+### Canton Network & Token Standards
+
+This platform is built on the **Canton Network**, a privacy-enabled, interoperable blockchain designed for institutional finance. It leverages industry-standard protocols to ensure secure B2B stablecoin pledging and escrow:
+
+*   **CIP-0056 Token Standard:** Implements the "holding" and "transfer" interfaces required for secure, interoperable stablecoin movement (e.g., USDCx via BitGo/Circle).
+*   **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
+*   **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
+*   **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.
+
 ### Escrow Lifecycle (Formal Model)
 Refined per `ESCROW-PROCESS.md` to ensure bilateral consent and tripartite authority.
 

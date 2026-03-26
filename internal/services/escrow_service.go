@@ -15,18 +15,24 @@ import (
 type EscrowService struct {
 	logger        *zap.Logger
 	ledger        ledger.Client
+	stablecoin    ledger.StablecoinProvider
+	compliance    ComplianceService
 	webhookSecret string
 }
 
 func NewEscrowService(
 	logger *zap.Logger,
 	ledger ledger.Client,
+	stablecoin ledger.StablecoinProvider,
+	compliance ComplianceService,
 	webhookSecret string,
 ) *EscrowService {
 
 	return &EscrowService{
 		logger:        logger,
 		ledger:        ledger,
+		stablecoin:    stablecoin,
+		compliance:    compliance,
 		webhookSecret: webhookSecret,
 	}
 }

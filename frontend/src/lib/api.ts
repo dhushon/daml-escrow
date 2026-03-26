@@ -1,5 +1,24 @@
 const API_BASE = 'http://localhost:8081/api/v1';
 
+export interface Milestone {
+    label: string;
+    amount: number;
+    completed: boolean;
+}
+
+export interface EscrowResponse {
+    id: string;
+    buyer: string;
+    seller: string;
+    issuer: string;
+    mediator: string;
+    amount: number;
+    currency: string;
+    state: string;
+    currentMilestoneIndex: number;
+    milestones: Milestone[];
+}
+
 export async function fetchEscrows(user: string = 'Buyer') {
     const response = await fetch(`${API_BASE}/escrows?user=${user}`);
     if (!response.ok) throw new Error('Failed to fetch escrows');
@@ -7,7 +26,7 @@ export async function fetchEscrows(user: string = 'Buyer') {
 }
 
 export async function fetchProposals(user: string = 'Buyer') {
-    const response = await fetch(`${API_BASE}/escrows/proposals?user=${user}`);
+    const response = await fetch(`${API_BASE}/escrows?user=${user}&tab=proposals`); // Adjusted to use common endpoint if needed, or update backend
     if (!response.ok) throw new Error('Failed to fetch proposals');
     return response.json();
 }
@@ -30,33 +49,7 @@ export async function fetchMetrics(user: string = 'CentralBank') {
     return response.json();
 }
 
-export async function fetchConfig(user: string, key: string) {
-    const response = await fetch(`${API_BASE}/config?user=${user}&key=${key}`);
-    if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('Failed to fetch config');
-    }
-    return response.json();
-}
-
-export async function saveConfig(user: string, key: string, value: any) {
-    const response = await fetch(`${API_BASE}/config?user=${user}&key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(value)
-    });
-    if (!response.ok) throw new Error('Failed to save config');
-}
-
-export async function createEscrow(req: any) {
-    const response = await fetch(`${API_BASE}/escrows`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req)
-    });
-    if (!response.ok) throw new Error('Failed to create escrow');
-    return response.json();
-}
+// Lifecycle Actions (Phase 5 High-Assurance)
 
 export async function proposeEscrow(req: any) {
     const response = await fetch(`${API_BASE}/escrows/propose`, {
@@ -64,42 +57,60 @@ export async function proposeEscrow(req: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req)
     });
-    if (!response.ok) throw new Error('Failed to propose escrow');
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to propose escrow');
+    }
     return response.json();
 }
 
-export async function acceptProposal(id: string, user: string) {
-    const response = await fetch(`${API_BASE}/escrows/${id}/accept?user=${user}`, {
-        method: 'POST'
-    });
-    if (!response.ok) throw new Error('Failed to accept proposal');
-    return response.json();
-}
-
-export async function releaseFunds(id: string) {
-    const response = await fetch(`${API_BASE}/escrows/${id}/release`, {
-        method: 'POST'
-    });
-    if (!response.ok) throw new Error('Failed to release funds');
-}
-
-export async function raiseDispute(id: string) {
-    const response = await fetch(`${API_BASE}/escrows/${id}/resolve`, {
+export async function fundEscrow(id: string, custodyRef: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/fund?user=${user}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payoutToBuyer: 0, payoutToSeller: 0 }) // Mock dispute start
+        body: JSON.stringify({ custodyRef })
+    });
+    if (!response.ok) throw new Error('Failed to fund escrow');
+}
+
+export async function activateEscrow(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/activate?user=${user}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to activate escrow');
+}
+
+export async function confirmConditions(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/confirm?user=${user}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to confirm conditions');
+}
+
+export async function raiseDispute(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/dispute?user=${user}`, {
+        method: 'POST'
     });
     if (!response.ok) throw new Error('Failed to raise dispute');
 }
 
-export async function settlePayment(id: string) {
-    const response = await fetch(`${API_BASE}/settlements/${id}/settle`, {
+export async function ratifySettlement(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/ratify?user=${user}`, {
         method: 'POST'
     });
-    if (!response.ok) throw new Error('Failed to settle payment');
+    if (!response.ok) throw new Error('Failed to ratify settlement');
 }
 
-export async function createInvitation(inviterId: string, email: string, role: string, inviteeType: string, terms: any) {
+export async function finalizeSettlement(id: string, user: string) {
+    const response = await fetch(`${API_BASE}/escrows/${id}/finalize?user=${user}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to finalize settlement');
+}
+
+// Invitation Actions
+
+export async function createInvitation(inviterId: string, email: string, role: string, inviteeType: string, asset: any, terms: any) {
     const response = await fetch(`${API_BASE}/invites?user=${inviterId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,6 +119,7 @@ export async function createInvitation(inviterId: string, email: string, role: s
             inviteeEmail: email,
             inviteeRole: role,
             inviteeType,
+            asset,
             terms
         })
     });
@@ -117,6 +129,22 @@ export async function createInvitation(inviterId: string, email: string, role: s
     }
     return response.json();
 }
+
+export async function fetchInvitationByToken(token: string) {
+    const response = await fetch(`${API_BASE}/invites/token/${token}`);
+    if (!response.ok) throw new Error('Invitation not found or expired');
+    return response.json();
+}
+
+export async function claimInvitation(inviteId: string, token: string, user: string) {
+    const response = await fetch(`${API_BASE}/invites/token/${token}/claim?user=${user}`, {
+        method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to claim invitation');
+    return response.json();
+}
+
+// Identity
 
 export async function authenticateIdentity(jwt: string) {
     const response = await fetch(`${API_BASE}/auth/me`, {
@@ -130,19 +158,5 @@ export async function authenticateIdentity(jwt: string) {
     if (!response.ok) {
         throw new Error('Failed to authenticate and provision identity');
     }
-    return response.json();
-}
-
-export async function fetchInvitationByToken(token: string) {
-    const response = await fetch(`${API_BASE}/invites/token/${token}`);
-    if (!response.ok) throw new Error('Invitation not found or expired');
-    return response.json();
-}
-
-export async function claimInvitation(inviteId: string, userId: string) {
-    const response = await fetch(`${API_BASE}/invites/${inviteId}/claim?user=${userId}`, {
-        method: 'POST'
-    });
-    if (!response.ok) throw new Error('Failed to claim invitation');
     return response.json();
 }

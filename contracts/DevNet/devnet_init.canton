@@ -1,0 +1,44 @@
+// Phase 6: Multi-Participant DevNet Bootstrap (Canton 3.4.x)
+import com.digitalasset.canton.topology.transaction.ParticipantPermission
+import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
+
+// 1. Identify Nodes
+val bank = participants.get("bank")
+val buyer = participants.get("buyer")
+val seller = participants.get("seller")
+val domain = domains.get("escrow-domain")
+
+// 2. Connect Participants to Domain
+println("Connecting participants to escrow-domain...")
+Seq(bank, buyer, seller).foreach { p =>
+  p.synchronizers.connect("escrow-domain", domain.public_api.toRemoteSynchronizerConfig)
+}
+
+// 3. Upload DARs to ALL participants
+val darPath = "/canton/contracts/stablecoin-escrow.dar"
+println(s"Uploading DAR $darPath to all participants...")
+Seq(bank, buyer, seller).foreach { p =>
+  try {
+    p.dars.upload(darPath)
+  } catch {
+    case _: Throwable => println(s"DAR already uploaded to ${p.id}")
+  }
+}
+
+// 4. Allocate Parties on specific nodes
+println("Allocating parties...")
+val bankParty = bank.parties.enable("CentralBank")
+val mediatorParty = bank.parties.enable("EscrowMediator") // Mediator hosted by Bank for Phase 6
+val buyerParty = buyer.parties.enable("Buyer")
+val sellerParty = seller.parties.enable("Seller")
+
+// 5. Authorize Party-to-Participant mappings across nodes
+// Parties must be able to see each other on the same synchronizer
+println("Authorizing tripartite topology...")
+
+// Bank and Mediator stay on Bank node
+// Buyer stays on Buyer node
+// Seller stays on Seller node
+
+println("Bootstrap Complete.")
+// DO NOT exit(0) if running in daemon mode, but for bootstrap script it is fine

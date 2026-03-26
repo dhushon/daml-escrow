@@ -146,7 +146,14 @@ try {
 </Layout>
 
 <script>
-	import { releaseFunds, raiseDispute, acceptProposal } from '../lib/api';
+	import { 
+		confirmConditions, 
+		raiseDispute, 
+		fundEscrow, 
+		activateEscrow, 
+		ratifySettlement, 
+		finalizeSettlement 
+	} from '../lib/api';
 
 	const buttons = document.querySelectorAll('button[data-action]');
 	buttons.forEach(btn => {
@@ -156,18 +163,25 @@ try {
 			const id = target.getAttribute('data-id');
 			if (!id) return;
 
+			const urlParams = new URLSearchParams(window.location.search);
+			const user = urlParams.get('view') || 'Buyer';
+
 			const originalText = target.textContent;
 			target.disabled = true;
 			target.textContent = 'Processing...';
 
 			try {
-				if (action === 'release') await releaseFunds(id);
-				else if (action === 'dispute') await raiseDispute(id);
-				else if (action === 'accept') {
-					const urlParams = new URLSearchParams(window.location.search);
-					const user = urlParams.get('view') || 'Seller';
-					await acceptProposal(id, user);
+				if (action === 'fund') {
+					const ref = prompt("Enter Custody Reference (e.g. TX-123):", "TX-" + Math.floor(Math.random()*1000));
+					if (ref) await fundEscrow(id, ref, user);
+					else throw new Error("Reference required");
 				}
+				else if (action === 'activate') await activateEscrow(id, user);
+				else if (action === 'confirm') await confirmConditions(id, user);
+				else if (action === 'dispute') await raiseDispute(id, user);
+				else if (action === 'ratify') await ratifySettlement(id, user);
+				else if (action === 'disburse') await finalizeSettlement(id, user);
+				
 				window.location.reload();
 			} catch (err) {
 				alert('Action failed: ' + err.message);

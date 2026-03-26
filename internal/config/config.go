@@ -13,6 +13,7 @@ type Config struct {
 	Ledger struct {
 		Host    string `yaml:"host"`
 		Port    int    `yaml:"port"`
+		Nodes   map[string]ParticipantNode `yaml:"nodes"`
 		Packages struct {
 			Implementation string `yaml:"implementation"`
 			Interfaces     string `yaml:"interfaces"`
@@ -35,6 +36,11 @@ type Config struct {
 	Oracle struct {
 		WebhookSecret string `yaml:"webhookSecret"`
 	} `yaml:"oracle"`
+}
+
+type ParticipantNode struct {
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
 }
 
 func LoadConfig(path string) (*Config, error) {

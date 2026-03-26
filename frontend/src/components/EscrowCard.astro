@@ -4,47 +4,72 @@ import type { EscrowResponse } from '../lib/api';
 interface Props {
 	escrow: EscrowResponse;
 	isAdmin?: boolean;
+	userRole?: string; // 'Buyer', 'Seller', 'Mediator', 'Issuer'
 }
 
-const { escrow, isAdmin = false } = Astro.props;
+const { escrow, isAdmin = false, userRole = 'Buyer' } = Astro.props;
 
-const statusColors = {
-	Active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800',
-	Disputed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800',
+const statusColors: Record<string, string> = {
+	DRAFT: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
+	FUNDED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
+	ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800',
+	DISPUTED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800',
+	PROPOSED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800',
+	SETTLED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
 };
+
+// Normalize data from different templates
+const amount = escrow.amount || 0;
+const currency = escrow.currency || 'USD';
+const state = escrow.state || 'DRAFT';
+const currentMilestoneIndex = escrow.currentMilestoneIndex || 0;
+const milestones = escrow.milestones || [];
 ---
 
 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
 	<div class="p-5">
 		<div class="flex justify-between items-start mb-4">
 			<div>
-				<h3 class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Escrow ID</h3>
+				<h3 class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center group/tooltip">
+					Escrow ID
+					<svg class="w-3 h-3 ml-1 cursor-help text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+					<span class="absolute z-10 hidden group-hover/tooltip:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl max-w-[200px] -mt-12">The unique ledger address for this tripartite agreement.</span>
+				</h3>
 				<code class="text-xs text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded select-all transition-colors">{escrow.id.substring(0, 24)}...</code>
 			</div>
-			<span class={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColors[escrow.state]}`}>
-				{escrow.state}
+			<span class={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider group/state relative ${statusColors[state] || 'bg-slate-100'}`}>
+				{state}
+				<span class="absolute z-10 hidden group-hover/state:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl w-48 -left-20 mt-6 normal-case font-normal">
+					{state === 'ACTIVE' && "Funds are locked. Mediator validates completion."}
+					{state === 'PROPOSED' && "Settlement offered. Both parties must ratify."}
+					{state === 'DISPUTED' && "Adjudication phase. Mediator is investigating."}
+				</span>
 			</span>
 		</div>
 
 		<div class="grid grid-cols-2 gap-4 mb-6">
 			<div>
 				<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Amount</p>
-				<p class="text-xl font-black text-slate-800 dark:text-white">{escrow.amount} <span class="text-xs font-medium text-slate-400">{escrow.currency}</span></p>
+				<p class="text-xl font-black text-slate-800 dark:text-white">{amount} <span class="text-xs font-medium text-slate-400">{currency}</span></p>
 			</div>
 			<div class="text-right">
 				<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Milestones</p>
-				<p class="text-sm font-bold text-slate-700 dark:text-slate-300">{escrow.currentMilestoneIndex + 1} <span class="text-slate-400">/</span> {escrow.milestones ? escrow.milestones.length : 0}</p>
+				<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+					{milestones.length > 0 ? (currentMilestoneIndex + 1) : 0} 
+					<span class="text-slate-400">/</span> {milestones.length}
+				</p>
 			</div>
 		</div>
 
 		<div class="space-y-2.5">
-			{escrow.milestones && escrow.milestones.map((m, i) => (
+			{milestones.map((m, i) => (
 				<div class="flex items-center space-x-3 text-xs">
-					<div class={`w-2 h-2 rounded-full transition-all duration-500 ${m.completed ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : (i === escrow.currentMilestoneIndex ? 'bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-700')}`}></div>
+					<div class={`w-2 h-2 rounded-full transition-all duration-500 ${m.completed ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : (i === currentMilestoneIndex && state === 'ACTIVE' ? 'bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-700')}`}></div>
 					<span class={`font-medium ${m.completed ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-600 dark:text-slate-300'}`}>{m.label}</span>
 					<span class="ml-auto font-mono text-[10px] text-slate-400">{m.amount}</span>
 				</div>
 			))}
+			{milestones.length === 0 && <p class="text-[10px] italic text-slate-400">No milestones defined</p>}
 		</div>
 	</div>
 
@@ -54,24 +79,76 @@ const statusColors = {
 				Admin Oversight Only
 			</div>
 		) : (
-			<>
-				<button 
-					data-action="release" 
-					data-id={escrow.id}
-					class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-					disabled={escrow.state === 'Disputed'}
-				>
-					Approve
-				</button>
-				<button 
-					data-action="dispute" 
-					data-id={escrow.id}
-					class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-					disabled={escrow.state === 'Disputed'}
-				>
-					Dispute
-				</button>
-			</>
+			<div class="flex w-full gap-2">
+				{state === 'DRAFT' && userRole === 'Buyer' && (
+					<button 
+						data-action="fund" 
+						data-id={escrow.id}
+						class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+					>
+						Fund Contract
+					</button>
+				)}
+
+				{state === 'FUNDED' && userRole === 'Issuer' && (
+					<button 
+						data-action="activate" 
+						data-id={escrow.id}
+						class="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-500/20"
+					>
+						Activate
+					</button>
+				)}
+
+				{state === 'ACTIVE' && (
+					<>
+						{userRole === 'Mediator' && (
+							<button 
+								data-action="confirm" 
+								data-id={escrow.id}
+								class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-all active:scale-95"
+							>
+								Approve
+							</button>
+						)}
+						{(userRole === 'Buyer' || userRole === 'Seller') && (
+							<button 
+								data-action="dispute" 
+								data-id={escrow.id}
+								class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all active:scale-95"
+							>
+								Dispute
+							</button>
+						)}
+					</>
+				)}
+
+				{state === 'PROPOSED' && (userRole === 'Buyer' || userRole === 'Seller') && (
+					<button 
+						data-action="ratify" 
+						data-id={escrow.id}
+						class="flex-1 bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-700 transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+					>
+						Ratify Settlement
+					</button>
+				)}
+
+				{state === 'SETTLED' && userRole === 'Issuer' && (
+					<button 
+						data-action="disburse" 
+						data-id={escrow.id}
+						class="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-700 transition-all active:scale-95 shadow-lg shadow-purple-500/20"
+					>
+						Disburse Funds
+					</button>
+				)}
+
+				{state === 'SETTLED' && userRole !== 'Issuer' && (
+					<div class="w-full text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-lg">
+						Awaiting Disbursement
+					</div>
+				)}
+			</div>
 		)}
 	</div>
 </div>

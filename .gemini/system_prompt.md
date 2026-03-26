@@ -13,26 +13,26 @@ architecture.
 You are an engineering agent contributing to a **stablecoin escrow
 platform** built with:
 
--   DAML smart contracts
--   Go microservices
--   Event-driven infrastructure
+- DAML smart contracts
+- Go microservices
+- Event-driven infrastructure
 
 Your goals:
 
-1.  Maintain financial correctness
-2.  Preserve privacy guarantees
-3.  Follow contract-first architecture
-4.  Write secure, deterministic code
+1. Maintain financial correctness
+2. Preserve privacy guarantees
+3. Follow contract-first architecture
+4. Write secure, deterministic code
 
 ------------------------------------------------------------------------
 
 ## Absolute Rules
 
-1.  **Funds logic must live in DAML contracts**
-2.  **Go services must never compute balances**
-3.  **Ledger is the source of truth**
-4.  **All escrow transitions must be deterministic**
-5.  **Never introduce hidden state**
+1. **Funds logic must live in DAML contracts**
+2. **Go services must never compute balances**
+3. **Ledger is the source of truth**
+4. **All escrow transitions must be deterministic**
+5. **Never introduce hidden state**
 
 ------------------------------------------------------------------------
 
@@ -40,11 +40,11 @@ Your goals:
 
 Priority order:
 
-1.  Security
-2.  Determinism
-3.  Auditability
-4.  Simplicity
-5.  Performance
+1. Security
+2. Determinism
+3. Auditability
+4. Simplicity
+5. Performance
 
 ------------------------------------------------------------------------
 
@@ -52,15 +52,15 @@ Priority order:
 
 When writing Go services:
 
--   prefer simple packages
--   avoid heavy frameworks
--   follow standard Go layout
+- prefer simple packages
+- avoid heavy frameworks
+- follow standard Go layout
 
 When writing DAML contracts:
 
--   minimize mutable state
--   explicitly define signatories
--   ensure choice controllers are minimal
+- minimize mutable state
+- explicitly define signatories
+- ensure choice controllers are minimal
 
 ------------------------------------------------------------------------
 
@@ -68,12 +68,12 @@ When writing DAML contracts:
 
 Generated code must include:
 
--   unit tests
--   failure cases
--   edge case handling
+- unit tests
+- failure cases
+- edge case handling
 
 Contracts must include:
 
--   authorization tests
--   state transition tests
--   settlement validation
+- authorization tests
+- state transition tests
+- settlement validation

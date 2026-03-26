@@ -81,10 +81,12 @@ func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 func TestProcessOracleWebhook(t *testing.T) {
 	secret := "test-secret"
 	logger, _ := zap.NewDevelopment()
+	stablecoin := ledger.NewMockStablecoinProvider()
+	compliance := NewMockCompliance()
 	
 	t.Run("Valid Signature", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
-		svc := NewEscrowService(logger, mockLedger, secret)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{
 			EscrowID:       "escrow-123",
@@ -114,7 +116,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 
 	t.Run("Invalid Signature", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
-		svc := NewEscrowService(logger, mockLedger, secret)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{
 			EscrowID:       "escrow-123",
@@ -128,7 +130,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 
 	t.Run("Mismatched Milestone Index", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
-		svc := NewEscrowService(logger, mockLedger, secret)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{
 			EscrowID:       "escrow-123",
