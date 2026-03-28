@@ -81,7 +81,7 @@ build: ## Build Go binaries (API and Simulator)
 .PHONY: sync
 sync: build ## DISCOVER and EXPORT ledger state (Package IDs, Party IDs) to ledger-state.json
 	@echo "Exporting ledger state..."
-	./bin/ledger-sync -host localhost -port 7575 \
+	FORCE_DISCOVERY=true ./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
 		-out ledger-state.json
@@ -121,20 +121,35 @@ gcp-identity-down: ## Disable Identity Platform APIs (Clean)
 ## -- Testing --
 
 .PHONY: test
-test: ## Run Go unit tests
-	go test ./...
+test: ## Run Go unit tests (fast, no infra)
+	go test -v ./...
 
 .PHONY: integration-test
-integration-test: ## Run full-cycle ledger integration tests
-	@echo "Running integration tests..."
+integration-test: ## Run local integration tests (single-node sandbox)
+	@echo "Running local integration tests..."
 	@go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
 		./internal/ledger/json_base.go \
 		./internal/ledger/json_parser.go \
 		./internal/ledger/json_parties.go \
 		./internal/ledger/json_escrows.go \
-		./internal/ledger/daml_client.go \
+		./internal/ledger/json_stablecoin.go \
+		./internal/ledger/multi_client.go \
 		./internal/ledger/client.go \
-		./internal/ledger/stablecoin.go
+		./internal/services/config_service_int_test.go \
+		./internal/services/config_service.go
+
+.PHONY: distributed-test
+distributed-test: ## Run multi-node distributed tests (full topology)
+	@echo "Running multi-node distributed tests..."
+	@go test -v -tags distributed ./internal/ledger/multi_node_test.go \
+		./internal/ledger/json_base.go \
+		./internal/ledger/json_parser.go \
+		./internal/ledger/json_parties.go \
+		./internal/ledger/json_escrows.go \
+		./internal/ledger/json_stablecoin.go \
+		./internal/ledger/multi_client.go \
+		./internal/ledger/client.go
+
 
 
 ## -- Simulations --

@@ -1,13 +1,5 @@
 {
-  "generatedAt": "2026-03-25T16:55:02.920438-04:00",
-  "packageId": "18d08e81f601958adc214a33970fa3a06729cad1f4283d873cf0799ab77ac878",
-  "interfacePackageId": "c27305f41570a49eb794b3dcca9d5723334829719eba5752c6bca134df19f95b",
-  "parties": {
-    "Buyer": "Buyer::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
-    "CentralBank": "CentralBank::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
-    "EscrowMediator": "EscrowMediator::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
-    "Seller": "Seller::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
-    "sandbox": "sandbox::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e",
-    "u-google-oauth2-1774455364151342000": "u-google-oauth2-1774455364151342000::12209ffc8951ad9eddb463172ea0ffb70a4a348a59d9ba7427971a1ab1529aa4fb7e"
-  }
+  "packageId": "f3d1d52845d6df65d52cc0fcbb65d9f238e14d3298a47bd31fd2ed85d7e322f0",
+  "interfacePackageId": "487bf8c3df07f56647eb17dd991de8090d77dd0fc8a20f3e98549fdd3cd45519",
+  "lastDiscovery": "2026-03-28T05:05:00Z"
 }

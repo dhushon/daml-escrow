@@ -106,7 +106,7 @@ func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.escrowService.Fund(r.Context(), id, req.CustodyRef, userID); err != nil {
+	if err := h.escrowService.Fund(r.Context(), id, req.CustodyRef, req.HoldingCid, userID); err != nil {
 		h.logger.Error("fund failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -119,7 +119,7 @@ func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	if err := h.escrowService.Activate(r.Context(), id, userID); err != nil {
+	if _, err := h.escrowService.Activate(r.Context(), id, userID); err != nil {
 		h.logger.Error("activate failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -170,11 +170,12 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ledgerTerms := req.ToLedgerTerms()
-	if err := h.escrowService.ProposeSettlement(r.Context(), id, ledgerTerms, userID); err != nil {
+	if _, err := h.escrowService.ProposeSettlement(r.Context(), id, ledgerTerms, userID); err != nil {
 		h.logger.Error("propose settlement failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -183,7 +184,7 @@ func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	if err := h.escrowService.RatifySettlement(r.Context(), id, userID); err != nil {
+	if _, err := h.escrowService.RatifySettlement(r.Context(), id, userID); err != nil {
 		h.logger.Error("ratify failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -196,7 +197,7 @@ func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	if err := h.escrowService.FinalizeSettlement(r.Context(), id, userID); err != nil {
+	if _, err := h.escrowService.FinalizeSettlement(r.Context(), id, userID); err != nil {
 		h.logger.Error("finalize failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -48,6 +49,12 @@ func (r *ProposeEscrowRequest) Validate() error {
 }
 
 func (r *ProposeEscrowRequest) ToLedgerRequest() ledger.CreateEscrowRequest {
+	metadata := map[string]interface{}{
+		"schemaUrl": r.SchemaURL,
+		"payload":   r.Payload,
+	}
+	metadataJSON, _ := json.Marshal(metadata)
+
 	return ledger.CreateEscrowRequest{
 		Seller: r.Seller,
 		Asset: ledger.Asset{
@@ -63,23 +70,24 @@ func (r *ProposeEscrowRequest) ToLedgerRequest() ledger.CreateEscrowRequest {
 			ExpiryDate:           r.ExpiryDate,
 			GracePeriodDays:      r.GracePeriodDays,
 			DisputeWindowDays:    r.DisputeWindowDays,
-			PartialSchedule:      []ledger.Milestone{},
+			PartialSchedule:      []string{},
 		},
-		Metadata: ledger.EscrowMetadata{
-			SchemaURL: r.SchemaURL,
-			Payload:   r.Payload,
-		},
+		Metadata: string(metadataJSON),
 	}
 }
 
 // FundEscrowRequest is the API DTO for funding an escrow.
 type FundEscrowRequest struct {
 	CustodyRef string `json:"custodyRef"`
+	HoldingCid string `json:"holdingCid"`
 }
 
 func (r *FundEscrowRequest) Validate() error {
 	if strings.TrimSpace(r.CustodyRef) == "" {
 		return errors.New("custodyRef is required")
+	}
+	if strings.TrimSpace(r.HoldingCid) == "" {
+		return errors.New("holdingCid is required")
 	}
 	return nil
 }
@@ -158,7 +166,7 @@ func (r *CreateInvitationRequest) ToLedgerAssetAndTerms() (ledger.Asset, ledger.
 		ExpiryDate:           r.ExpiryDate,
 		GracePeriodDays:      r.GracePeriodDays,
 		DisputeWindowDays:    r.DisputeWindowDays,
-		PartialSchedule:      []ledger.Milestone{},
+		PartialSchedule:      []string{},
 	}
 	return asset, terms
 }

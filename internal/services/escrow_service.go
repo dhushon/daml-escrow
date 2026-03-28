@@ -46,12 +46,12 @@ func (s *EscrowService) ProposeEscrow(ctx context.Context, req ledger.CreateEscr
 	return s.ledger.ProposeEscrow(ctx, req)
 }
 
-func (s *EscrowService) Fund(ctx context.Context, id string, custodyRef string, userID string) error {
-	s.logger.Info("funding escrow", zap.String("id", id), zap.String("ref", custodyRef), zap.String("userID", userID))
-	return s.ledger.Fund(ctx, id, custodyRef, userID)
+func (s *EscrowService) Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error {
+	s.logger.Info("funding escrow", zap.String("id", id), zap.String("ref", custodyRef), zap.String("holdingCid", holdingCid), zap.String("userID", userID))
+	return s.ledger.Fund(ctx, id, custodyRef, holdingCid, userID)
 }
 
-func (s *EscrowService) Activate(ctx context.Context, id string, userID string) error {
+func (s *EscrowService) Activate(ctx context.Context, id string, userID string) (string, error) {
 	s.logger.Info("activating escrow", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.Activate(ctx, id, userID)
 }
@@ -66,20 +66,21 @@ func (s *EscrowService) RaiseDispute(ctx context.Context, id string, userID stri
 	return s.ledger.RaiseDispute(ctx, id, userID)
 }
 
-func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, proposal ledger.SettlementTerms, userID string) error {
-	s.logger.Info("proposing settlement", zap.String("id", id), zap.Any("proposal", proposal), zap.String("userID", userID))
+func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, proposal ledger.SettlementTerms, userID string) (string, error) {
+	s.logger.Info("proposing settlement", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.ProposeSettlement(ctx, id, proposal, userID)
 }
 
-func (s *EscrowService) RatifySettlement(ctx context.Context, id string, userID string) error {
+func (s *EscrowService) RatifySettlement(ctx context.Context, id string, userID string) (string, error) {
 	s.logger.Info("ratifying settlement", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.RatifySettlement(ctx, id, userID)
 }
 
-func (s *EscrowService) FinalizeSettlement(ctx context.Context, id string, userID string) error {
+func (s *EscrowService) FinalizeSettlement(ctx context.Context, id string, userID string) (string, error) {
 	s.logger.Info("finalizing settlement", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.FinalizeSettlement(ctx, id, userID)
 }
+
 
 func (s *EscrowService) Disburse(ctx context.Context, id string, userID string) error {
 	s.logger.Info("executing disbursement", zap.String("id", id), zap.String("userID", userID))
@@ -91,7 +92,7 @@ func (s *EscrowService) Cancel(ctx context.Context, id string, userID string) er
 	return s.ledger.Cancel(ctx, id, userID)
 }
 
-func (s *EscrowService) ExpireEscrow(ctx context.Context, id string, userID string) error {
+func (s *EscrowService) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	s.logger.Info("expiring escrow", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.ExpireEscrow(ctx, id, userID)
 }

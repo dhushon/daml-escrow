@@ -78,7 +78,7 @@ func main() {
 	defer configService.Close()
 
 	// Phase 6 Providers
-	stablecoinProvider := ledger.NewMockStablecoinProvider()
+	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
 	complianceService := services.NewMockCompliance()
 
 	escrowService := services.NewEscrowService(

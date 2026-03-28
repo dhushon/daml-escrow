@@ -5,6 +5,8 @@
 
 module Escrow.Interface where
 
+import Token.CIP56 qualified as CIP56
+
 -- Directive 03
 data EscrowState 
   = DRAFT 
@@ -18,12 +20,14 @@ data EscrowState
     deriving (Eq, Show)
 
 -- Directive 02
+-- Updated for Task 6.2: Real Stablecoin Integration
 data Asset = Asset with
   assetType  : Text -- stablecoin | tokenized_reserve | digital_asset
   assetId    : Text
   amount     : Decimal
   currency   : Text
   custodyRef : Optional Text
+  holdingCid : Optional (ContractId CIP56.Holding) -- The actual token contract
     deriving (Eq, Show)
 
 -- Directive 04
@@ -63,13 +67,19 @@ data View = View with
 interface Escrow where
   viewtype View
 
-  -- Choice definitions per Directive 05
-  -- Note: Controllers and guards are enforced by the interface choice definition
-  -- or the implementing template.
+  -- Method definitions
+  activateEscrow : Update (ContractId Escrow)
 
+  -- Choice definitions per Directive 05
+  
   choice GetStatus : View
     controller (view this).issuer, (view this).buyer, (view this).seller, (view this).mediator
     do return (view this)
+
+  -- Move to ACTIVE state once funds are locked
+  choice Activate : ContractId Escrow
+    controller (view this).issuer
+    do activateEscrow this
 
 -- ---------------------------------------------------------------------------
 -- Audit Event Interface (Directive 07)

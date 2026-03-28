@@ -1,10 +1,11 @@
-//go:build integration
-// +build integration
+//go:build distributed
+// +build distributed
 
 package ledger
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -67,6 +68,7 @@ func TestMultiNodeIntegration(t *testing.T) {
 				ConditionType:        "Binary",
 				ExpiryDate:           time.Now().Add(30 * 24 * time.Hour),
 			},
+			Metadata: "{\"test\": \"multi-node\"}",
 		}
 
 		// Note: We route through multiClient using "CentralBank" as userID
@@ -75,11 +77,22 @@ func TestMultiNodeIntegration(t *testing.T) {
 		require.NotNil(t, proposal)
 		t.Logf("Escrow proposed on Bank node: %s", proposal.ID)
 
-		// 2. Buyer Funds Escrow (Node 7576)
+		// 2. Create a Mock Holding for the Buyer (Find test package ID dynamically)
+		testPkgID, err := multiClient.SearchPackageID(ctx, "stablecoin-escrow-tests")
+		require.NoError(t, err)
+		holdingCid, err := multiClient.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
+			"owner":   multiClient.getParty(BuyerUser),
+			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
+			"issuer":  multiClient.getParty(CentralBankUser),
+			"assetId": req.Asset.AssetID,
+		})
+		require.NoError(t, err)
+
+		// 3. Buyer Funds Escrow (Node 7576)
 		// Buyer must see the proposal even though it was created on Bank node
 		// (In Canton, proposals are visible to all signatories/observers on their respective nodes)
 		t.Log("Step 2: Buyer Funds Escrow (on Buyer Node)...")
-		err = multiClient.Fund(ctx, proposal.ID, "DIST-CUST-001", BuyerUser)
+		err = multiClient.Fund(ctx, proposal.ID, "DIST-CUST-001", holdingCid, BuyerUser)
 		require.NoError(t, err)
 
 		escrow := waitForEscrowState(ctx, multiClient, BuyerUser, assetID, "FUNDED")

@@ -20,10 +20,23 @@ func TestLedgerIntegration(t *testing.T) {
 	if ledgerHost == "" {
 		ledgerHost = "127.0.0.1"
 	}
-	ledgerPort := 7575 // JSON API port
 
 	logger, _ := zap.NewDevelopment()
-	client := NewJsonLedgerClient(logger, ledgerHost, ledgerPort, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	
+	// Distributed topology nodes
+	bankClient := NewJsonLedgerClient(logger, ledgerHost, 7575, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	buyerClient := NewJsonLedgerClient(logger, ledgerHost, 7576, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	sellerClient := NewJsonLedgerClient(logger, ledgerHost, 7577, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	
+	bankClient.Verbose = false
+	buyerClient.Verbose = false
+	sellerClient.Verbose = false
+	
+	client := NewMultiLedgerClient(logger, map[string]Client{
+		"bank":   bankClient,
+		"buyer":  buyerClient,
+		"seller": sellerClient,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -33,7 +46,7 @@ func TestLedgerIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	waitForEscrowState := func(ctx context.Context, userID, assetID, expectedState string) *EscrowContract {
-		for retry := 0; retry < 20; retry++ {
+		for retry := 0; retry < 30; retry++ {
 			escrows, _ := client.ListEscrows(ctx, userID)
 			for _, e := range escrows {
 				if e.Asset.AssetID == assetID && e.State == expectedState {
@@ -83,7 +96,7 @@ func TestLedgerIntegration(t *testing.T) {
 	})
 
 	t.Run("High-Assurance Happy Path Lifecycle", func(t *testing.T) {
-		assetID := "USD-STABLE-001"
+		assetID := fmt.Sprintf("HAPPY-%d", time.Now().UnixNano())
 		// 1. Propose Escrow (DRAFT)
 		t.Log("Step 1: ProposeEscrow...")
 		req := CreateEscrowRequest{
@@ -100,10 +113,7 @@ func TestLedgerIntegration(t *testing.T) {
 				EvidenceRequired:     "MediatorAttestation",
 				ExpiryDate:           time.Now().Add(30 * 24 * time.Hour),
 			},
-			Metadata: EscrowMetadata{
-				SchemaURL: "https://stablecoin-escrow.io/schemas/grants.v1.json",
-				Payload:   map[string]interface{}{"grantId": "G-123"},
-			},
+			Metadata: "{\"schemaUrl\": \"https://stablecoin-escrow.io/schemas/grants.v1.json\", \"payload\": {\"grantId\": \"G-123\"}}",
 		}
 
 		proposal, err := client.ProposeEscrow(ctx, req)
@@ -111,9 +121,28 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NotNil(t, proposal)
 		t.Logf("Proposed escrow ID: %s", proposal.ID)
 
-		// 2. Fund (DRAFT -> FUNDED)
+		// 1.5 Seller Accepts Proposal (ID updates)
+		t.Log("Step 1.5: SellerAccept...")
+		acceptedID, err := client.SellerAccept(ctx, proposal.ID, SellerUser)
+		require.NoError(t, err)
+		require.NotEmpty(t, acceptedID)
+		proposal.ID = acceptedID
+
+		// 2. Create a Mock Holding for the Buyer (Find test package ID dynamically)
+		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
+		require.NoError(t, err)
+		holdingCid, err := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
+			"owner":   client.getParty(BuyerUser),
+			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
+			"issuer":  client.getParty(CentralBankUser),
+			"assetId": req.Asset.AssetID,
+		})
+		require.NoError(t, err)
+		t.Logf("Created mock holding: %s", holdingCid)
+
+		// 3. Fund (DRAFT -> FUNDED)
 		t.Log("Step 2: Fund...")
-		err = client.Fund(ctx, proposal.ID, "CUST-REF-999", BuyerUser)
+		err = client.Fund(ctx, proposal.ID, "CUST-REF-999", holdingCid, BuyerUser)
 		require.NoError(t, err)
 
 		// Fetch updated state
@@ -124,8 +153,10 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 3. Activate (FUNDED -> ACTIVE)
 		t.Log("Step 3: Activate...")
-		err = client.Activate(ctx, escrow.ID, CentralBankUser)
+		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
 		require.NoError(t, err)
+		require.NotEmpty(t, activeID)
+		escrow.ID = activeID // Update ID for subsequent steps
 
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
 		require.NotNil(t, escrow)
@@ -136,37 +167,61 @@ func TestLedgerIntegration(t *testing.T) {
 		err = client.ConfirmConditions(ctx, escrow.ID, EscrowMediatorUser)
 		require.NoError(t, err)
 
+		// 5. Wait for SETTLED (DisbursementOrder created)
+		t.Log("Step 5: Waiting for SETTLED state...")
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
 		require.NotNil(t, escrow)
 		require.Equal(t, "SETTLED", escrow.State)
+		require.NotNil(t, escrow)
+		require.Equal(t, "SETTLED", escrow.State)
 
-		// 5. Disburse (SETTLED -> Terminal)
-		t.Log("Step 5: Disburse...")
+		// 6. Disburse (SETTLED -> Terminal/Archived)
+		t.Log("Step 6: Disburse...")
 		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
 		require.NoError(t, err)
 
 		// Verify archive
 		time.Sleep(2 * time.Second) // wait for indexer
-		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED") // This will timeout and return nil if archived
-		require.Nil(t, escrow, "escrow should be archived")
+		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
+		require.Nil(t, escrow, "escrow should be archived after disbursement")
 		t.Log("Happy path completed successfully")
 	})
 
 	t.Run("High-Assurance Dispute & Ratification", func(t *testing.T) {
-		assetID := "USD-STABLE-002"
+		assetID := fmt.Sprintf("DISP-%d", time.Now().UnixNano())
 		// 1. Setup Active Escrow
 		req := CreateEscrowRequest{
 			Seller: SellerUser,
-			Asset: Asset{AssetType: "stablecoin", AssetID: assetID, Amount: 500.0, Currency: "USD"},
+			Asset: Asset{AssetType: "stablecoin", AssetID: assetID, Amount: 1000.0, Currency: "USD"},
 			Terms: EscrowTerms{ConditionDescription: "Disputed project", ConditionType: "Binary", ExpiryDate: time.Now().Add(30 * 24 * time.Hour)},
 		}
-		proposal, _ := client.ProposeEscrow(ctx, req)
-		client.Fund(ctx, proposal.ID, "REF-DISP", BuyerUser)
+		proposal, err := client.ProposeEscrow(ctx, req)
+		require.NoError(t, err)
+		
+		t.Log("Step 1.5: SellerAccept...")
+		acceptedID, err := client.SellerAccept(ctx, proposal.ID, SellerUser)
+		require.NoError(t, err)
+		proposal.ID = acceptedID
+
+		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
+		require.NoError(t, err)
+		holdingCid, err := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
+			"owner":   client.getParty(BuyerUser),
+			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
+			"issuer":  client.getParty(CentralBankUser),
+			"assetId": req.Asset.AssetID,
+		})
+		require.NoError(t, err)
+		
+		err = client.Fund(ctx, proposal.ID, "REF-DISP", holdingCid, BuyerUser)
+		require.NoError(t, err)
 		
 		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
 		require.NotNil(t, escrow)
 		
-		client.Activate(ctx, escrow.ID, CentralBankUser)
+		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err)
+		escrow.ID = activeID
 		
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
 		require.NotNil(t, escrow)
@@ -180,16 +235,18 @@ func TestLedgerIntegration(t *testing.T) {
 		require.NotNil(t, escrow, "Failed to reach DISPUTED state")
 		require.Equal(t, "DISPUTED", escrow.State)
 
-		// 3. Propose Settlement (DISPUTED -> PROPOSED)
+		// 2. Propose Settlement (DISPUTED -> PROPOSED)
 		t.Log("Step 2: ProposeSettlement...")
 		settlement := SettlementTerms{
 			SettlementType: "PartialSplit",
-			BuyerReturn:    200.0,
-			SellerPayment:  300.0,
-			MediatorFee:    0.0,
+			BuyerReturn:    400.0,
+			SellerPayment:  500.0,
+			MediatorFee:    100.0,
 		}
-		err = client.ProposeSettlement(ctx, escrow.ID, settlement, EscrowMediatorUser)
+		proposedID, err := client.ProposeSettlement(ctx, escrow.ID, settlement, EscrowMediatorUser)
 		require.NoError(t, err, "ProposeSettlement failed")
+		require.NotEmpty(t, proposedID)
+		escrow.ID = proposedID
 
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "PROPOSED")
 		require.NotNil(t, escrow, "Failed to reach PROPOSED state")
@@ -197,8 +254,10 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 4. Ratify Settlement (Buyer)
 		t.Log("Step 3: RatifySettlement (Buyer)...")
-		err = client.RatifySettlement(ctx, escrow.ID, BuyerUser)
+		ratifiedID, err := client.RatifySettlement(ctx, escrow.ID, BuyerUser)
 		require.NoError(t, err, "RatifySettlement (Buyer) failed")
+		require.NotEmpty(t, ratifiedID)
+		escrow.ID = ratifiedID
 
 		// Wait for BuyerAccepted to be true
 		escrow = waitForEscrowCondition(ctx, BuyerUser, assetID, "PROPOSED", func(e *EscrowContract) bool {
@@ -210,8 +269,10 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 5. Ratify Settlement (Seller)
 		t.Log("Step 4: RatifySettlement (Seller)...")
-		err = client.RatifySettlement(ctx, escrow.ID, SellerUser)
+		ratifiedID2, err := client.RatifySettlement(ctx, escrow.ID, SellerUser)
 		require.NoError(t, err, "RatifySettlement (Seller) failed")
+		require.NotEmpty(t, ratifiedID2)
+		escrow.ID = ratifiedID2
 
 		// Wait for SellerAccepted to be true
 		escrow = waitForEscrowCondition(ctx, BuyerUser, assetID, "PROPOSED", func(e *EscrowContract) bool {
@@ -222,8 +283,10 @@ func TestLedgerIntegration(t *testing.T) {
 
 		// 6. Finalize (PROPOSED -> SETTLED)
 		t.Log("Step 5: FinalizeSettlement...")
-		err = client.FinalizeSettlement(ctx, escrow.ID, EscrowMediatorUser) // Acts as orchestrator with multi-party rights
+		settledID, err := client.FinalizeSettlement(ctx, escrow.ID, EscrowMediatorUser)
 		require.NoError(t, err, "FinalizeSettlement failed")
+		require.NotEmpty(t, settledID)
+		escrow.ID = settledID
 
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
 		require.NotNil(t, escrow, "Failed to reach SETTLED state")
@@ -242,20 +305,39 @@ func TestLedgerIntegration(t *testing.T) {
 			Asset: Asset{AssetType: "stablecoin", AssetID: assetID, Amount: 100.0, Currency: "USD"},
 			Terms: EscrowTerms{ConditionDescription: "Timeout test", ConditionType: "Binary", ExpiryDate: time.Now().Add(30 * 24 * time.Hour)},
 		}
-		proposal, _ := client.ProposeEscrow(ctx, req)
-		client.Fund(ctx, proposal.ID, "REF-TIMEOUT", BuyerUser)
+		proposal, err := client.ProposeEscrow(ctx, req)
+		require.NoError(t, err)
+
+		t.Log("Step 1.5: SellerAccept...")
+		acceptedID, err := client.SellerAccept(ctx, proposal.ID, SellerUser)
+		require.NoError(t, err)
+		proposal.ID = acceptedID
+		
+		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
+		holdingCid, _ := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
+			"owner":   client.getParty(BuyerUser),
+			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
+			"issuer":  client.getParty(CentralBankUser),
+			"assetId": req.Asset.AssetID,
+		})
+		
+		client.Fund(ctx, proposal.ID, "REF-TIMEOUT", holdingCid, BuyerUser)
 		
 		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
 		require.NotNil(t, escrow)
 		
-		client.Activate(ctx, escrow.ID, CentralBankUser)
+		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
+		require.NoError(t, err)
+		escrow.ID = activeID
 		
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "ACTIVE")
 		require.NotNil(t, escrow)
 
 		t.Log("Exercising ExpireEscrow (Issuer path)...")
-		err = client.ExpireEscrow(ctx, escrow.ID, CentralBankUser)
+		settledID, err := client.ExpireEscrow(ctx, escrow.ID, CentralBankUser)
 		require.NoError(t, err)
+		require.NotEmpty(t, settledID)
+		escrow.ID = settledID
 
 		escrow = waitForEscrowState(ctx, BuyerUser, assetID, "SETTLED")
 		require.NotNil(t, escrow)

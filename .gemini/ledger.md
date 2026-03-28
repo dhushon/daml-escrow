@@ -6,34 +6,45 @@
 - **DPM Path:** Ensure `dpm` is in your path (typically `~/.dpm/bin/dpm`).
 - **Multi-Package Builds:** Use `dpm build --all` from the `contracts/` directory to build the entire suite.
 
-## 2. High-Assurance Escrow Lifecycle (Formal Model)
+## 2. Distributed Multi-Participant Topology (Phase 6)
 
-- **State Sequence:** ALL escrow contracts MUST follow the sequence: `DRAFT → FUNDED → ACTIVE → DISPUTED → PROPOSED → SETTLED`.
-- **Tripartite Authority:**
-  - **Issuer (Bank):** Signatory on ALL states. Must authorize final disbursement.
-  - **Buyer & Seller:** Co-signers on terms (`DRAFT`) and settlement ratification (`PROPOSED`).
-  - **Mediator:** Primary controller for condition confirmation and settlement proposals.
-- **Audit Logging:** Every state transition MUST emit an `EscrowEvent` interface instance for auditability.
+- **Node Specialization:** In a distributed environment, parties are hosted on specific nodes (e.g., `CentralBank` on `bank` node, `Buyer` on `buyer` node).
+- **Synchronizer Sovereignty:** All cross-node interactions MUST be authorized on the synchronizer topology store.
+- **Tripartite Authorization:** Topology mappings (`party_to_participant_mappings`) MUST be explicitly proposed and fully authorized by all involved participants to enable command submission.
+- **Deterministic Propagation:** NEVER rely on fixed `sleep` calls for topology. Use algorithmic verification:
+    - **Canton Script:** Loop `topology.party_to_participant_mappings.list` until all expected parties are visible on all nodes.
+    - **Go Client:** Implement `Discover()` with exponential backoff, checking for both Package IDs and all required Core Party IDs.
 
-## 3. Authorization & Identity (Phase 5+)
+## 3. Testing Hierarchy & Determinism
 
-- **Party ID Integrity:** Command submissions MUST use fully qualified Party IDs (e.g., `Buyer::1220abc...`).
-- **User ID Scoping:** The `userId` MUST match the sanitized Daml User ID derived from the external IdP (e.g., `u-google-sub-123`).
-- **JIT Provisioning Flow (SDK 3.4.x specific):**
-    1. **Allocation:** `POST /v2/parties` with `{ "partyIdHint": "id", "displayName": "..." }`.
-    2. **User Creation:** `POST /v2/users` with a nested user object.
-    3. **Rights Granting:** `POST /v2/users/{id}/rights` requires `userId` and `identityProviderId` in the body.
-- **Dynamic Resolution:** NEVER hardcode Party IDs. Always resolve via the `partyMap` cache refreshed from `/v2/parties`.
+- **Unit Tests (`go test ./...`):** Logic tests using mocks. MUST NOT require Docker or Network access.
+- **Local Integration (`-tags=integration`):** Single-node Sandbox testing. Validates contract logic against a real ledger API.
+- **Distributed Integration (`-tags=distributed`):** Multi-node Canton topology testing. Validates routing, cross-node authorization, and topology propagation.
+- **Infrastructure Isolation:** Use Go build tags to ensure `go test ./...` remains fast and infra-agnostic.
 
-## 4. JSON API V2 Serialization
+## 4. Multi-Node Routing & Identity
+
+- **Routing Logic:** The `MultiLedgerClient` MUST route commands to the node hosting the primary submitter. 
+- **Identity Redundancy:** `GetIdentity` MUST probe all nodes in the cluster to resolve users, as users may be provisioned on different participants depending on their role/email domain.
+- **JIT Provisioning:** Preferred node for provisioning should be determined by role (e.g., `bank.com` emails to the `bank` node).
+
+## 5. High-Assurance Escrow Lifecycle
+
+- **State Sequence:** ALL escrow contracts MUST follow: `DRAFT → FUNDED → ACTIVE → DISPUTED → PROPOSED → SETTLED`.
+- **Signatory Rules:**
+  - **Issuer (Bank):** Signatory on ALL states. 
+  - **Seller Acceptance:** Added `SellerAcceptedProposal` state to handle multi-stage co-signing without requiring all parties online simultaneously.
+- **Audit Logging:** Every state transition MUST emit an `EscrowEvent` interface instance.
+
+## 6. JSON API V2 Serialization
 
 - **Nullary Constructors:** Data constructors with no fields MUST be represented as a plain string: `"payload": "ApproveMilestoneArg"`.
 - **Zero-Argument Choices:** Choices with no parameters MUST use an empty object: `"choiceArgument": {}`.
-- **Interface Exercises:** Targeting an interface choice MUST use the Interface Package ID and Template ID in the `ExerciseCommand`.
+- **ActiveAtOffset:** ACS queries (`/v2/query`) MUST include `"activeAtOffset"` derived from the previous transaction response to ensure consistency.
 
-## 5. Stability & Performance
+## 7. Stability & Performance
 
 - **Dynamic Discovery:** Every ledger client MUST implement a `Discover(ctx)` phase to resolve Package IDs and Party IDs at runtime.
-- **Hardcoding Prohibited:** Do NOT hardcode Package IDs or Party IDs. Use variables populated during discovery.
+- **Hardcoding Prohibited:** Do NOT hardcode Package IDs or Party IDs.
 - **Timeout Management:** Complex transactions REQUIRE a minimum 120s client timeout.
-- **Retry Strategy:** `GetEscrow` operations should use a minimum of 15 retries with 2s delays to account for Canton indexing latency.
+- **Retry Strategy:** `GetEscrow` operations should use retries with exponential backoff to account for Canton indexing latency.

@@ -54,38 +54,36 @@ sequenceDiagram
     end
 ```
 
-## 3. Distributed Sovereignty API Pattern (Future Phase)
+## 2. Distributed Sovereignty API Pattern (Phase 6 Completed)
 
-To achieve maximum security and regulatory isolation, the platform will transition from a single API Gateway to a **Distributed Service Topology**.
+To achieve maximum security and regulatory isolation, the platform has transitioned to a **Distributed Service Topology**.
 
 ### A. Architectural Goals
-*   **Zero-Trust Isolation:** Each API service instance is "pinned" to exactly one Canton node and one set of regulatory credentials (Bank, Buyer, or Seller).
-*   **Universal Ledger SDK:** A shared internal Go package (`internal/ledger`) ensures all services interact with the ledger identically, maintaining consistency without duplication.
-*   **Role-Based Routing:** An intelligent API Gateway (e.g., Nginx, Traefik, or AWS ALB) inspects the user's JWT claims and routes traffic to the correct service.
+*   **Zero-Trust Isolation:** Each participant (Bank, Buyer, Seller) operates their own Canton node. 
+*   **Node Specialization:** Parties are "pinned" to their respective nodes. Command submission is only possible through the node hosting the party.
+*   **Multi-Node Routing:** The `MultiLedgerClient` intelligently routes commands to the correct node based on the user's role and identity.
+*   **Cross-Node Visibility:** Topology is synchronized across the cluster using the Synchronizer Topology Store, enabling observers on one node to see contracts created on another.
 
 ### B. Deployment Strategy
 ```mermaid
 graph TD
-    FE[Astro Frontend] --> GW[API Gateway / Router]
-    GW -- "@bank.com" --> BA[Bank API Service]
-    GW -- "@buyer.com" --> BU[Buyer API Service]
-    GW -- "@seller.com" --> SE[Seller API Service]
-
-    BA --> BN[Bank Canton Node: 7575]
-    BU --> UN[Buyer Canton Node: 7576]
-    SE --> SN[Seller Canton Node: 7577]
+    FE[Astro Frontend] --> GW[MultiLedgerClient Go]
+    GW -- "@bank.com" --> BN[Bank Canton Node: 7575]
+    GW -- "@buyer.com" --> UN[Buyer Canton Node: 7576]
+    GW -- "@seller.com" --> SN[Seller Canton Node: 7577]
 
     BN & UN & SN --- SY[Canton Synchronizer / Domain]
 ```
 
-### C. Execution Plan
-1.  **Containerization:** Decouple `escrow-api` from hardcoded node settings. Use environment variables (e.g., `LEDGER_NODE_ROLE=bank`) to determine the specific node context.
-2.  **Service Registry:** Each node instance registers its endpoint in a central service discovery tool.
-3.  **Gateway Policy:** Implement a Lua or Envoy filter to parse the `sub` or `email` claim from the OIDC token and forward the request to the correct downstream service.
+### C. Key Technical Breakthroughs (Phase 6)
+1.  **Tripartite Topology Authorization:** Explicit `propose` and `authorize` transactions ensure that all three nodes agree on party hosting before command submission.
+2.  **Deterministic Topology Propagation:** Replaced temporal `sleep` calls with algorithmic checks in both the Canton bootstrap script and the Go client `Discover()` phase.
+3.  **Unified Party Mapping:** The `MultiLedgerClient` aggregates party IDs from all participants into a single cache and synchronizes it back to all children, preventing `UNKNOWN_SUBMITTERS` errors.
+4.  **Resilient Identity Provisioning:** `GetIdentity` probes all nodes in the cluster to resolve users, ensuring high availability even if a node is temporarily unreachable.
 
 ---
 
-## 4. Decision Log & Branching
+## 3. Decision Log & Branching
 
 ### A. The Preparer-Approver Loop (Internal Governance)
 
@@ -97,12 +95,12 @@ When an invitation is issued to `user@datacloud.com`, the platform:
 
 1. **Extracts Domain:** Validates the suffix `datacloud.com`.
 2. **Associates Organization:** Automatically tags the invitation with the "DataCloud LLC" metadata.
-3. **Applies Corporate Policy:** Can enforce that only an `@datacloud.com` authenticated user can claim the role of "Seller Approver."
+3. **Applies Corporate Policy:** Only users with the correct domain can claim specific roles.
 
 ### C. Negative Outcomes & Resolution
 
-- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived. The system tracks this as a "Lost Opportunity" in metrics.
-- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work but Seller refuses to redo it, the **Mediator Process Lead** (`ML`) uses the Evidence metadata stored on-ledger to determine a fair payout ratio.
+- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived.
+- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work, the **Mediator Process Lead** (`ML`) adjudicates the dispute using on-ledger evidence.
 
 ## Phase 5: High-Assurance Identity & Adjudication (Completed)
 
@@ -133,10 +131,3 @@ sequenceDiagram
     CB->>L: Settle Payment
     L->>L: Funds Transferred to Seller
 ```
-
-### Key Technical Enhancements
-
-1. **Dynamic Discovery:** Eliminated hardcoded IDs. The backend now resolves Package and Party IDs at runtime via `ledger-state.json` or active metadata discovery.
-2. **OIDC-Daml Mapping:** Unified external identities (Google sub) with internal ledger handles (Daml User ID), ensuring authoritative matching.
-3. **Thread-Safe Multi-Tenancy:** Refactored the ledger client to support concurrent, independent user sessions without identity bleed.
-4. **Stakeholder Parity:** Both stakeholders can authoritatively raise disputes, ensuring balanced power dynamics.

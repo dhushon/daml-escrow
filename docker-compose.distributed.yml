@@ -29,9 +29,9 @@ services:
       - |
         set -e
         export PGPASSWORD=escrow
-        for db in canton_bank canton_buyer canton_seller canton_domain user_config; do
-          psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS $db;"
-          psql -h postgres -U escrow -d postgres -c "CREATE DATABASE $db;"
+        for db in canton_bank canton_buyer canton_seller canton_sequencer canton_mediator user_config; do
+          psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS $$db;"
+          psql -h postgres -U escrow -d postgres -c "CREATE DATABASE $$db;"
         done
         
         # Initialize User Config Schema

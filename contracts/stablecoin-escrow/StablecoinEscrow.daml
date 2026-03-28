@@ -1,11 +1,13 @@
 module StablecoinEscrow where
 
 import Escrow.Interface
+import Token.CIP56 qualified as CIP56
 import DA.Time qualified
 import DA.Date qualified
+import DA.Optional (fromSome)
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (EscrowProposal)
+-- DRAFT State (EscrowProposal) - Step 1: Issuer offers
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
@@ -17,34 +19,62 @@ template EscrowProposal
     terms    : EscrowTerms
     metadata : Text
   where
-    signatory issuer, buyer, seller
-    observer  mediator
+    signatory issuer
+    observer  buyer, seller, mediator
 
     ensure terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
 
     interface instance Escrow for EscrowProposal where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state = DRAFT, metadata
+      
+      activateEscrow = do
+        error "Cannot activate a DRAFT proposal. Must be FUNDED first."
 
-    choice Fund : ContractId EscrowContract
-      with custodyRef : Text
-      controller buyer
+    choice SellerAccept : ContractId SellerAcceptedProposal
+      controller seller
       do
-        create EscrowAuditLog with
-          escrowId = "TBD"
-          eventType = "EscrowFunded"
-          timestamp = DA.Time.time (DA.Date.date 2026 DA.Date.Mar 25) 0 0 0
-          actor = buyer
-          details = "Escrow funded with reference: " <> custodyRef
-
-        create EscrowContract with
-          issuer, buyer, seller, mediator
-          asset = asset with custodyRef = Some custodyRef
-          terms, metadata, state = FUNDED
+        create SellerAcceptedProposal with ..
 
     choice CancelProposal : ()
       controller buyer, seller
       do return ()
+
+-- ---------------------------------------------------------------------------
+-- DRAFT State (SellerAcceptedProposal) - Step 2: Seller authorizes
+-- ---------------------------------------------------------------------------
+template SellerAcceptedProposal
+  with
+    issuer   : Party
+    buyer    : Party
+    seller   : Party
+    mediator : Party
+    asset    : Asset
+    terms    : EscrowTerms
+    metadata : Text
+  where
+    signatory issuer, seller
+    observer  buyer, mediator
+
+    interface instance Escrow for SellerAcceptedProposal where
+      view = View with
+        issuer, buyer, seller, mediator, asset, terms, state = DRAFT, metadata
+      
+      activateEscrow = do
+        error "Cannot activate a proposal. Must be FUNDED first."
+
+    choice Fund : ContractId EscrowContract
+      with 
+        custodyRef : Text
+        holdingCid : ContractId CIP56.Holding
+      controller buyer
+      do
+        create EscrowContract with
+          issuer, buyer, seller, mediator
+          asset = asset with 
+            custodyRef = Some custodyRef
+            holdingCid = Some holdingCid
+          terms, metadata, state = FUNDED
 
 -- ---------------------------------------------------------------------------
 -- FUNDED / ACTIVE States (EscrowContract)
@@ -68,6 +98,18 @@ template EscrowContract
     interface instance Escrow for EscrowContract where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state, metadata
+      
+      activateEscrow = do
+        assertMsg "Escrow must be in FUNDED state to activate" (state == FUNDED)
+        assertMsg "Escrow must have a valid holding contract" (asset.holdingCid /= None)
+        
+        let hcid = fromSome asset.holdingCid
+        holding <- fetch hcid
+        let hv = view holding : CIP56.HoldingView
+        assertMsg "Holding amount must match escrow amount" (hv.amount == asset.amount)
+        
+        cid <- create this with state = ACTIVE
+        return (toInterfaceContractId @Escrow cid)
 
     choice ConfirmConditions : ContractId DisbursementOrder
       controller mediator
@@ -84,27 +126,10 @@ template EscrowContract
     choice RaiseDispute : ContractId DisputeRecord
       controller buyer
       do
-        assertMsg "Only ACTIVE or FUNDED can be disputed" (state == ACTIVE || state == FUNDED)
+        assertMsg "Can only dispute FUNDED or ACTIVE escrow" (state == ACTIVE || state == FUNDED)
         create DisputeRecord with
           issuer, buyer, seller, mediator, asset, terms, metadata
           raisingParty = buyer
-
-    choice ExpireEscrow : ContractId DisbursementOrder
-      controller issuer
-      do
-        create DisbursementOrder with
-          issuer, buyer, seller, mediator, asset, terms, metadata
-          settlement = SettlementTerms with
-            settlementType = "FullReturn"
-            buyerReturn = asset.amount
-            sellerPayment = 0.0
-            mediatorFee = 0.0
-
-    choice Activate : ContractId EscrowContract
-      controller issuer
-      do
-        assert (state == FUNDED)
-        create this with state = ACTIVE
 
 -- ---------------------------------------------------------------------------
 -- DISPUTED State (DisputeRecord)
@@ -120,12 +145,13 @@ template DisputeRecord
     metadata     : Text
     raisingParty : Party
   where
-    signatory issuer, buyer, seller
-    observer  mediator
+    signatory issuer, buyer, seller, mediator
 
     interface instance Escrow for DisputeRecord where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state = DISPUTED, metadata
+      
+      activateEscrow = do error "Already in dispute."
 
     choice ProposeSettlement : ContractId SettlementRecord
       with proposal : SettlementTerms
@@ -133,7 +159,8 @@ template DisputeRecord
       do
         assert (proposal.buyerReturn + proposal.sellerPayment + proposal.mediatorFee == asset.amount)
         create SettlementRecord with
-          issuer, buyer, seller, mediator, asset, terms, metadata, settlement = proposal
+          issuer, buyer, seller, mediator, asset, terms, metadata
+          settlement = proposal
           buyerAccepted = False
           sellerAccepted = False
 
@@ -159,23 +186,20 @@ template SettlementRecord
     interface instance Escrow for SettlementRecord where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state = PROPOSED, metadata
+      
+      activateEscrow = do error "Settlement proposed."
 
     choice RatifySettlement : ContractId SettlementRecord
       with actor : Party
       controller actor
       do
         assert (actor == buyer || actor == seller)
-        let newBuyerAccepted = if actor == buyer then True else buyerAccepted
-        let newSellerAccepted = if actor == seller then True else sellerAccepted
-        
-        if newBuyerAccepted && newSellerAccepted
-          then do
-            create this with buyerAccepted = True, sellerAccepted = True
-          else
-            create this with buyerAccepted = newBuyerAccepted, sellerAccepted = newSellerAccepted
+        if actor == buyer 
+          then create this with buyerAccepted = True
+          else create this with sellerAccepted = True
 
     choice FinalizeSettlement : ContractId DisbursementOrder
-      controller buyer, seller
+      controller mediator
       do
         assert (buyerAccepted && sellerAccepted)
         create DisbursementOrder with
@@ -185,7 +209,8 @@ template SettlementRecord
       controller buyer
       do
         create DisputeRecord with
-          issuer, buyer, seller, mediator, asset, terms, metadata, raisingParty = buyer
+          issuer, buyer, seller, mediator, asset, terms, metadata
+          raisingParty = buyer
 
 -- ---------------------------------------------------------------------------
 -- SETTLED State (DisbursementOrder)
@@ -201,15 +226,19 @@ template DisbursementOrder
     metadata   : Text
     settlement : SettlementTerms
   where
-    signatory issuer, buyer, seller
+    signatory issuer, mediator
+    observer  buyer, seller
 
     interface instance Escrow for DisbursementOrder where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state = SETTLED, metadata
+      
+      activateEscrow = do error "Already settled."
 
     choice Disburse : ()
       controller issuer
       do
+        -- In a real implementation, this would trigger actual token transfers
         return ()
 
 -- ---------------------------------------------------------------------------
@@ -217,20 +246,21 @@ template DisbursementOrder
 -- ---------------------------------------------------------------------------
 template EscrowInvitation
   with
-    inviter      : Party
-    mediator     : Party
     issuer       : Party
+    inviter      : Party
     inviteeEmail : Text
     inviteeRole  : Text -- "Buyer" or "Seller"
-    inviteeType  : Text 
+    inviteeType  : Text -- "Individual" or "Business"
     tokenHash    : Text
     asset        : Asset
     terms        : EscrowTerms
     metadata     : Text
+    mediator     : Party
   where
-    signatory inviter, mediator, issuer
+    signatory issuer
+    observer  inviter, mediator
 
-    choice Claim : ContractId EscrowProposal
+    choice ClaimInvitation : ContractId EscrowProposal
       with claimingParty : Party
       controller mediator
       do
@@ -239,23 +269,7 @@ template EscrowInvitation
           issuer
           buyer = if isInviteeBuyer then claimingParty else inviter
           seller = if isInviteeBuyer then inviter else claimingParty
-          mediator
-          asset
-          terms
-          metadata
+          mediator, asset, terms, metadata
 
--- ---------------------------------------------------------------------------
--- AUDIT LOG (EscrowAuditLog)
--- ---------------------------------------------------------------------------
-template EscrowAuditLog
-  with
-    escrowId  : Text
-    eventType : Text
-    timestamp : Time
-    actor     : Party
-    details   : Text
-  where
-    signatory actor
-
-    interface instance EscrowEvent for EscrowAuditLog where
-      view = EventView with escrowId, eventType, timestamp, actor, details
+-- Asset record is imported from Interface or defined here if simplified
+-- EscrowTerms record is imported from Interface

@@ -78,14 +78,34 @@ func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	return args.Get(0).(*ledger.UserIdentity), args.Error(1)
 }
 
+func (m *MockLedgerClient) GetInterfacePackageID() string {
+	return "mock-iface-pkg"
+}
+
+func (m *MockLedgerClient) DoRawRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
+	args := m.Called(ctx, method, path, body)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *MockLedgerClient) getParty(user string) string {
+	return "mock-party"
+}
+
+func (m *MockLedgerClient) getOffset() interface{} {
+	return nil
+}
+
 func TestProcessOracleWebhook(t *testing.T) {
 	secret := "test-secret"
 	logger, _ := zap.NewDevelopment()
-	stablecoin := ledger.NewMockStablecoinProvider()
 	compliance := NewMockCompliance()
 	
 	t.Run("Valid Signature", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
+		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{
@@ -116,6 +136,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 
 	t.Run("Invalid Signature", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
+		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{
@@ -130,6 +151,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 
 	t.Run("Mismatched Milestone Index", func(t *testing.T) {
 		mockLedger := new(MockLedgerClient)
+		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
 		req := ledger.OracleWebhookRequest{

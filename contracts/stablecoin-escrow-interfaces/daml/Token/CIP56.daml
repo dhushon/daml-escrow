@@ -1,0 +1,30 @@
+-- CIP56.daml
+-- 
+-- Standard Daml Interfaces for CIP-0056 Stablecoins on Canton.
+-- Simplified for standalone usage in the Escrow Platform.
+
+module Token.CIP56 where
+
+-- 1. Base Interface
+data BaseView = BaseView with
+  issuer : Party
+  assetId : Text
+  metadata : Text
+    deriving (Eq, Show)
+
+interface Base where
+  viewtype BaseView
+
+-- 2. Holding Interface
+data HoldingView = HoldingView with
+  owner : Party
+  amount : Decimal
+  base : BaseView
+    deriving (Eq, Show)
+
+interface Holding where
+  viewtype HoldingView
+
+  choice ArchiveHolding : ()
+    controller (view this).owner
+    do return ()
