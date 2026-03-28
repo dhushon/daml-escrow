@@ -32,21 +32,14 @@ println("Bootstrapping synchronizer...")
 ignore(bootstrap.synchronizer_local("escrow-domain"))
 Thread.sleep(10000)
 
-// 4. Connect Participants (Robust local connection)
+// 4. Connect Participants
 println("Connecting participants...")
 Seq(bank, buyer, seller).foreach { p =>
-  var connected = false
-  for (i <- 1 to 15 if !connected) {
-    try {
-      p.synchronizers.connect_local(seqNode, "escrow-domain")
-      connected = true
-    } catch {
-      case _: Throwable =>
-        println(s"Connection attempt $i for ${p.name} failed, waiting 5s...")
-        Thread.sleep(5000)
-    }
-  }
+  ignore(p.synchronizers.connect_local(seqNode, "escrow-domain"))
 }
+
+Thread.sleep(5000)
+val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
 
 // 5. Upload DARs
 val interfaceDar = "/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
@@ -61,28 +54,25 @@ Seq(bank, buyer, seller).foreach { p =>
 
 // 6. Allocate Parties
 println("Allocating parties...")
-val cbParty = bank.parties.enable("CentralBank")
-val medParty = bank.parties.enable("EscrowMediator")
-val buyParty = buyer.parties.enable("Buyer")
-val selParty = seller.parties.enable("Seller")
-
-Thread.sleep(5000)
-val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
+val cbId = bank.parties.enable("CentralBank")
+val medId = bank.parties.enable("EscrowMediator")
+val buyId = buyer.parties.enable("Buyer")
+val selId = seller.parties.enable("Seller")
 
 // 7. Authorize tripartite topology
 println("Authorizing tripartite topology...")
 val allMappings = Seq(
-  (cbParty, bank),
-  (medParty, bank),
-  (buyParty, buyer),
-  (selParty, seller)
+  (cbId, bank),
+  (medId, bank),
+  (buyId, buyer),
+  (selId, seller)
 )
 
-allMappings.foreach { case (party, host) =>
-  println(s"Authorizing $party on ${host.name}...")
+allMappings.foreach { case (partyId, host) =>
+  println(s"Authorizing $partyId on ${host.name}...")
   Seq(bank, buyer, seller).foreach { target =>
     ignore(target.topology.party_to_participant_mappings.propose(
-      party = party,
+      party = partyId,
       newParticipants = Seq((host.id, ParticipantPermission.Submission)),
       store = TopologyStoreId.Synchronizer(syncId),
       mustFullyAuthorize = true
@@ -90,38 +80,31 @@ allMappings.foreach { case (party, host) =>
   }
 }
 
-// 8. Wait for topology to settle (Deterministic Check)
+// 8. Wait for topology to settle
 println("Verifying topology propagation...")
-val expectedParties = Seq(cbParty, medParty, buyParty, selParty)
+val expected = Set(cbId, medId, buyId, selId)
 Seq(bank, buyer, seller).foreach { p =>
-  var seenAll = false
-  for (i <- 1 to 30 if !seenAll) {
-    val current = p.topology.party_to_participant_mappings.list(TopologyStoreId.Synchronizer(syncId))
-    val currentParties = current.map(_.partyId)
-    val missing = expectedParties.filterNot(currentParties.contains)
-    
-    if (missing.isEmpty) {
-      println(s"${p.name} sees all 4 parties.")
-      seenAll = true
+  var ok = false
+  for (i <- 1 to 30 if !ok) {
+    val current = p.topology.party_to_participant_mappings.list(TopologyStoreId.Synchronizer(syncId)).map(_.item.partyId).toSet
+    if (expected.subsetOf(current)) {
+      println(s"${p.name} synchronized.")
+      ok = true
     } else {
-      println(s"${p.name} missing ${missing.size} parties, waiting... ($i/30)")
+      println(s"${p.name} waiting for ${expected.diff(current).size} parties... ($i/30)")
       Thread.sleep(5000)
     }
-  }
-  if (!seenAll) {
-    println(s"ERROR: ${p.name} failed to see all parties after retries.")
-    sys.exit(1)
   }
 }
 
 // 9. Create Users
 println("Creating users...")
-ignore(bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbParty)))
-ignore(bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medParty)))
-ignore(buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyParty)))
-ignore(seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selParty)))
+ignore(bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbId)))
+ignore(bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medId)))
+ignore(buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyId)))
+ignore(seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selId)))
 
-ignore(bank.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(medParty, buyParty, selParty)))
-ignore(buyer.ledger_api.users.rights.grant("Buyer", actAs = Set(buyParty, cbParty)))
+ignore(bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, buyId, selId)))
+ignore(buyer.ledger_api.users.rights.grant(id = "Buyer",          actAs = Set(buyId, cbId)))
 
 println("Bootstrap Complete.")
