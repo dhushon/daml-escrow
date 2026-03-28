@@ -115,6 +115,8 @@ type LedgerMetrics struct {
 	SystemPerformance  SystemPerformance `json:"systemPerformance"`
 	AvgTimeToSettle    string            `json:"avgTimeToSettle"`
 	BottleneckStage    string            `json:"bottleneckStage"`
+	StageLatencies     map[string]int    `json:"stageLatencies"` // ms
+	SuccessRate        float64           `json:"successRate"`    // percentage
 }
 
 type ActivityPoint struct {

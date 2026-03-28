@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import RefreshSlider from '../components/RefreshSlider.astro';
+import OperationalVelocity from '../components/OperationalVelocity.astro';
 import { fetchMetrics, fetchConfig } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
@@ -176,32 +177,10 @@ const generateGraphPoints = (history: any[]) => {
 
 			{/* Section 3: Process Efficiency (High-Assurance) */}
 			<section>
-				<div class="flex justify-between items-center mb-6">
-					<h3 class="text-lg font-bold text-slate-800 dark:text-white">Process Efficiency</h3>
-					<span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Analytics Phase 6.3</span>
-				</div>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-					<div class="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-2xl border border-blue-100 dark:border-blue-800/30">
-						<p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Avg Time-to-Settle</p>
-						<p class="text-4xl font-black mt-2 text-blue-900 dark:text-blue-100">{metrics.avgTimeToSettle}</p>
-						<p class="text-[8px] font-bold text-blue-400 uppercase mt-1">Lifecycle Velocity</p>
-					</div>
-
-					<div class="md:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-						<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Current System Bottleneck</p>
-						<div class="flex items-center space-x-4">
-							<div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/30">
-								<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-12 0 9 9 0 0112 0z" />
-								</svg>
-							</div>
-							<div>
-								<p class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{metrics.bottleneckStage.replace('_', ' ')}</p>
-								<p class="text-xs font-medium text-slate-500">Stage has 42% higher latency than platform baseline.</p>
-							</div>
-						</div>
-					</div>
-				</div>
+				<OperationalVelocity 
+					latencies={metrics.stageLatencies} 
+					successRate={metrics.successRate} 
+				/>
 			</section>
 
 			{/* Section 4: API & System Performance */}

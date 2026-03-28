@@ -76,6 +76,25 @@ All HTTP endpoints utilize strict Data Transfer Objects (DTOs) (e.g., `ProposeEs
 
 ------------------------------------------------------------------------
 
+## Analytics & Operational Velocity (Phase 6.3)
+
+The platform integrates a high-assurance analytics layer powered by **Noves-ready logic** to provide real-time visibility into the escrow lifecycle.
+
+### 1. The Operational Velocity Dashboard
+Accessible via `/metrics`, this dashboard visualizes the platform's efficiency using:
+*   **Stage Duration Heatmap:** Tracks the average minutes spent in each escrow state (`DRAFT`, `FUNDED`, `ACTIVE`, `PROPOSED`), identifying systemic bottlenecks.
+*   **Conversion Funnel:** Visualizes the "drop-off" and success rate from initial proposal through to final settlement.
+*   **System Health:** Real-time monitoring of P95/P99 latencies, command success rates, and ACS (Active Contract Set) size.
+
+### 2. Testing the Analytics Flow
+To verify the metrics API and frontend visualization locally:
+1.  **Start the Ledger:** `docker-compose -f docker-compose.distributed.yml up -d`
+2.  **Start the API:** `go run cmd/escrow-api/main.go` (ensure `LEDGER_VERBOSE=true` for detailed discovery logs).
+3.  **Start the Frontend:** `cd frontend && npm run dev`
+4.  **Navigate to Analytics:** Open `http://localhost:4321/metrics` and use the **Refresh Slider** to observe real-time pulse updates.
+
+------------------------------------------------------------------------
+
 ## Getting Started
 
 ### Prerequisites

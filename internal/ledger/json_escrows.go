@@ -711,6 +711,13 @@ func (c *JsonLedgerClient) GetMetrics(ctx context.Context, userID string) (*Ledg
 		},
 		AvgTimeToSettle: "4h 12m",
 		BottleneckStage: "MEDIATOR_CONFIRMATION",
+		StageLatencies: map[string]int{
+			"DRAFT":    15, // mins
+			"FUNDED":   45,
+			"ACTIVE":   120,
+			"PROPOSED": 60,
+		},
+		SuccessRate: 94.5,
 	}, nil
 }
 
