@@ -1,0 +1,80 @@
+# Phase 6: Multi-Participant Distributed Topology (Local Docker)
+# Separate nodes for Bank, Buyer, and Seller to test distributed privacy and authority.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: escrow-postgres-dist
+    restart: always
+    environment:
+      POSTGRES_USER: escrow
+      POSTGRES_PASSWORD: escrow
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escrow -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Ensure clean DBs for each participant and the domain
+  db-init:
+    image: postgres:16
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        export PGPASSWORD=escrow
+        for db in canton_bank canton_buyer canton_seller canton_sequencer canton_mediator user_config; do
+          psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS $$db;"
+          psql -h postgres -U escrow -d postgres -c "CREATE DATABASE $$db;"
+        done
+        
+        # Initialize User Config Schema
+        psql -h postgres -U escrow -d user_config -c "
+          CREATE TABLE IF NOT EXISTS configs (
+            user_id TEXT NOT NULL,
+            config_key TEXT NOT NULL,
+            config_value JSONB NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, config_key)
+          );
+        "
+
+  # Distributed Canton Node
+  canton:
+    image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
+    container_name: escrow-ledger-dist
+    ports:
+      - "5001:5001"   # Bank Admin
+      - "5002:5002"   # Bank Ledger API
+      - "6001:6001"   # Buyer Admin
+      - "6002:6002"   # Buyer Ledger API
+      - "7001:7001"   # Seller Admin
+      - "7002:7002"   # Seller Ledger API
+      - "7575:7575"   # Bank HTTP API
+      - "7576:7576"   # Buyer HTTP API
+      - "7577:7577"   # Seller HTTP API
+    volumes:
+      - ./contracts:/canton/contracts
+    entrypoint: ["/app/bin/canton"]
+    command:
+      - "daemon"
+      - "--config"
+      - "/canton/contracts/DevNet/devnet.conf"
+      - "--bootstrap"
+      - "/canton/contracts/DevNet/devnet_init.canton"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      # Check Bank HTTP API (7575)
+      test: ["CMD-SHELL", "grep -q '1D97' /proc/net/tcp || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s

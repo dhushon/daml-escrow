@@ -4,6 +4,16 @@ server:
 ledger:
   host: "127.0.0.1"
   port: 7575
+  nodes:
+    bank:
+      host: "127.0.0.1"
+      port: 7575
+    buyer:
+      host: "127.0.0.1"
+      port: 7576
+    seller:
+      host: "127.0.0.1"
+      port: 7577
   packages:
     implementation: "stablecoin-escrow"
     interfaces: "stablecoin-escrow-interfaces"

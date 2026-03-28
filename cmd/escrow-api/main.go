@@ -37,27 +37,29 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	// Environment variable overrides
-	ledgerHost := cfg.Ledger.Host
-	if host := os.Getenv("LEDGER_HOST"); host != "" {
-		ledgerHost = host
-	}
-	ledgerPort := cfg.Ledger.Port
-	if port := os.Getenv("LEDGER_PORT"); port != "" {
-		if _, err := fmt.Sscanf(port, "%d", &ledgerPort); err != nil {
-			logger.Warn("failed to parse LEDGER_PORT, using default", zap.String("port", port), zap.Int("default", ledgerPort))
-		}
-	}
-
 	var ledgerClient ledger.Client
-	ledgerType := os.Getenv("LEDGER_TYPE")
-
-	if ledgerType == "grpc" {
-		logger.Info("using gRPC ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewDamlClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+	if len(cfg.Ledger.Nodes) > 0 {
+		logger.Info("initializing multi-node ledger clients")
+		clients := make(map[string]ledger.Client)
+		for name, node := range cfg.Ledger.Nodes {
+			logger.Info("initializing node", zap.String("name", name), zap.String("host", node.Host), zap.Int("port", node.Port))
+			clients[name] = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+		}
+		ledgerClient = ledger.NewMultiLedgerClient(logger, clients)
 	} else {
-		// Default to JSON API for better dynamic binding support
-		logger.Info("using JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
+		// Fallback to single node
+		ledgerHost := cfg.Ledger.Host
+		if host := os.Getenv("LEDGER_HOST"); host != "" {
+			ledgerHost = host
+		}
+		ledgerPort := cfg.Ledger.Port
+		if port := os.Getenv("LEDGER_PORT"); port != "" {
+			if _, err := fmt.Sscanf(port, "%d", &ledgerPort); err != nil {
+				logger.Warn("failed to parse LEDGER_PORT, using default", zap.String("port", port), zap.Int("default", ledgerPort))
+			}
+		}
+
+		logger.Info("using single JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
 
@@ -68,28 +70,35 @@ func main() {
 
 	// Initialize core services
 	metricsService := services.NewMetricsService()
-	
+
 	configService, err := services.NewConfigService(cfg.UserConfig.DSN)
 	if err != nil {
 		logger.Fatal("failed to initialize config service", zap.Error(err))
 	}
 	defer configService.Close()
 
+	// Phase 6 Providers
+	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
+	complianceService := services.NewMockCompliance()
+	analyticsService := services.NewAnalyticsService(logger)
+
 	escrowService := services.NewEscrowService(
-		logger,
-		ledgerClient,
-		cfg.Oracle.WebhookSecret,
+	        logger,
+	        ledgerClient,
+	        stablecoinProvider,
+	        complianceService,
+	        cfg.Oracle.WebhookSecret,
 	)
 
 	handler := api.NewHandler(
-		logger,
-		escrowService,
-		metricsService,
-		configService,
+	        logger,
+	        escrowService,
+	        metricsService,
+	        configService,
+	        analyticsService,
 	)
-
 	router := chi.NewRouter()
-	
+
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
 	router.Use(api.AuthMiddleware(cfg.Auth.Issuer, cfg.Auth.ClientID, cfg.Auth.Audience, logger))
@@ -122,8 +131,8 @@ func main() {
 
 		r.Get("/escrows", handler.ListEscrows)
 		r.Get("/escrows/{escrowID}", handler.GetEscrow)
+		r.Get("/escrows/{escrowID}/lifecycle", handler.GetEscrowLifecycle)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
-
 		r.Get("/metrics", handler.GetMetrics)
 		r.Get("/settlements", handler.ListSettlements)
 		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)

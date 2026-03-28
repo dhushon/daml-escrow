@@ -1,0 +1,110 @@
+// Phase 6: Multi-Participant DevNet Bootstrap (Canton 3.4.x)
+import com.digitalasset.canton.topology.transaction.ParticipantPermission
+import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
+
+// 1. Identify Nodes
+val bank = participants.all.find(_.name == "bank").get
+val buyer = participants.all.find(_.name == "buyer").get
+val seller = participants.all.find(_.name == "seller").get
+val seqNode = sequencers.all.find(_.name == "escrow-sequencer").get
+
+def ignore[T](f: => T): Unit = try { f; () } catch { case _: Throwable => () }
+
+// 2. Wait for nodes
+println("Waiting for nodes to be ready...")
+def waitReady(label: String, check: => Unit): Unit = {
+  var ready = false
+  for (i <- 1 to 30 if !ready) {
+    try { check; ready = true }
+    catch { case _: Throwable =>
+      println(s"$label not ready, waiting 3s... ($i/30)")
+      Thread.sleep(3000)
+    }
+  }
+}
+waitReady("bank", bank.health.status)
+waitReady("buyer", buyer.health.status)
+waitReady("seller", seller.health.status)
+waitReady("sequencer", seqNode.health.status)
+
+// 3. Bootstrap the synchronizer
+println("Bootstrapping synchronizer...")
+ignore(bootstrap.synchronizer_local("escrow-domain"))
+Thread.sleep(10000)
+
+// 4. Connect Participants
+println("Connecting participants...")
+Seq(bank, buyer, seller).foreach { p =>
+  ignore(p.synchronizers.connect_local(seqNode, "escrow-domain"))
+}
+
+Thread.sleep(5000)
+val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
+
+// 5. Upload DARs
+val interfaceDar = "/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
+val escrowDar    = "/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
+val testDar      = "/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
+
+Seq(bank, buyer, seller).foreach { p =>
+  ignore(p.dars.upload(interfaceDar))
+  ignore(p.dars.upload(escrowDar))
+  ignore(p.dars.upload(testDar))
+}
+
+// 6. Allocate Parties
+println("Allocating parties...")
+val cbId = bank.parties.enable("CentralBank")
+val medId = bank.parties.enable("EscrowMediator")
+val buyId = buyer.parties.enable("Buyer")
+val selId = seller.parties.enable("Seller")
+
+// 7. Authorize tripartite topology
+println("Authorizing tripartite topology...")
+val allMappings = Seq(
+  (cbId, bank),
+  (medId, bank),
+  (buyId, buyer),
+  (selId, seller)
+)
+
+allMappings.foreach { case (partyId, host) =>
+  println(s"Authorizing $partyId on ${host.name}...")
+  Seq(bank, buyer, seller).foreach { target =>
+    ignore(target.topology.party_to_participant_mappings.propose(
+      party = partyId,
+      newParticipants = Seq((host.id, ParticipantPermission.Submission)),
+      store = TopologyStoreId.Synchronizer(syncId),
+      mustFullyAuthorize = true
+    ))
+  }
+}
+
+// 8. Wait for topology to settle
+println("Verifying topology propagation...")
+val expected = Set(cbId, medId, buyId, selId)
+Seq(bank, buyer, seller).foreach { p =>
+  var ok = false
+  for (i <- 1 to 30 if !ok) {
+    val current = p.topology.party_to_participant_mappings.list(TopologyStoreId.Synchronizer(syncId)).map(_.item.partyId).toSet
+    if (expected.subsetOf(current)) {
+      println(s"${p.name} synchronized.")
+      ok = true
+    } else {
+      println(s"${p.name} waiting for ${expected.diff(current).size} parties... ($i/30)")
+      Thread.sleep(5000)
+    }
+  }
+}
+
+// 9. Create Users
+println("Creating users...")
+ignore(bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbId)))
+ignore(bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medId)))
+ignore(buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyId)))
+ignore(seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selId)))
+
+ignore(bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, buyId, selId)))
+ignore(buyer.ledger_api.users.rights.grant(id = "Buyer",          actAs = Set(buyId, cbId)))
+
+println("Bootstrap Complete.")

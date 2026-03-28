@@ -8,7 +8,7 @@ dependencies:
   - daml-script
 data-dependencies:
   - ../stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar
-  - ../stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.1.dar
+  - ../stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar
 build-options:
   - --target=2.1
 test-options:

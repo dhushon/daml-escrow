@@ -1,0 +1,179 @@
+---
+interface Props {
+	escrowId: string;
+}
+
+const { escrowId } = Astro.props;
+---
+
+<div class="lifecycle-container" data-escrow-id={escrowId}>
+	<div class="lifecycle-header">
+		<h3>Escrow Lifecycle Tracker</h3>
+		<span class="avg-time">Avg. Cycle: <span id="avg-time-val">...</span></span>
+	</div>
+	
+	<div id="lifecycle-steps" class="steps-list">
+		<div class="loading-spinner">Loading process map...</div>
+	</div>
+
+	<div class="lifecycle-footer">
+		<p>Current Hold: <span id="time-in-current">...</span></p>
+	</div>
+</div>
+
+<script>
+	import { fetchEscrowLifecycle } from '../lib/api';
+
+	async function updateLifecycle(container: HTMLElement) {
+		const id = container.getAttribute('data-escrow-id');
+		if (!id) return;
+
+		try {
+			const data = await fetchEscrowLifecycle(id);
+			const stepsList = container.querySelector('#lifecycle-steps');
+			if (!stepsList) return;
+
+			stepsList.innerHTML = data.steps.map((step: any) => `
+				<div class="step-item ${step.status.toLowerCase()}">
+					<div class="step-indicator">
+						<div class="dot"></div>
+						<div class="line"></div>
+					</div>
+					<div class="step-content">
+						<div class="step-title">${step.state}</div>
+						<div class="step-desc">${step.description}</div>
+						${step.timestamp ? `<div class="step-time">${new Date(step.timestamp).toLocaleString()}</div>` : ''}
+					</div>
+				</div>
+			`).join('');
+
+			const avgTime = container.querySelector('#avg-time-val');
+			const timeInCurrent = container.querySelector('#time-in-current');
+			if (avgTime) avgTime.textContent = data.avgTimeToComplete;
+			if (timeInCurrent) timeInCurrent.textContent = data.timeInCurrent;
+
+		} catch (e) {
+			console.error("Failed to load lifecycle", e);
+		}
+	}
+
+	// Initialize
+	const containers = document.querySelectorAll('.lifecycle-container');
+	containers.forEach(c => updateLifecycle(c as HTMLElement));
+</script>
+
+<style>
+	.lifecycle-container {
+		background: #1a1a1a;
+		border: 1px solid #333;
+		border-radius: 8px;
+		padding: 1.5rem;
+		color: #e0e0e0;
+		font-family: 'Inter', sans-serif;
+	}
+
+	.lifecycle-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.5rem;
+		border-bottom: 1px solid #333;
+		padding-bottom: 0.5rem;
+	}
+
+	.avg-time {
+		font-size: 0.8rem;
+		color: #888;
+	}
+
+	.steps-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.step-item {
+		display: flex;
+		gap: 1rem;
+		position: relative;
+	}
+
+	.step-indicator {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 20px;
+	}
+
+	.dot {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: #333;
+		border: 2px solid #444;
+		z-index: 2;
+	}
+
+	.line {
+		width: 2px;
+		flex-grow: 1;
+		background: #333;
+		margin: 4px 0;
+	}
+
+	.step-item:last-child .line {
+		display: none;
+	}
+
+	.step-content {
+		padding-bottom: 1.5rem;
+	}
+
+	.step-title {
+		font-weight: 600;
+		font-size: 0.9rem;
+		color: #888;
+	}
+
+	.step-desc {
+		font-size: 0.8rem;
+		color: #666;
+	}
+
+	.step-time {
+		font-size: 0.7rem;
+		color: #4caf50;
+		margin-top: 4px;
+	}
+
+	/* Status Styles */
+	.completed .dot {
+		background: #4caf50;
+		border-color: #4caf50;
+	}
+	.completed .line {
+		background: #4caf50;
+	}
+	.completed .step-title {
+		color: #e0e0e0;
+	}
+
+	.current .dot {
+		background: #2196f3;
+		border-color: #2196f3;
+		box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
+		animation: pulse 2s infinite;
+	}
+	.current .step-title {
+		color: #2196f3;
+	}
+	.current .step-desc {
+		color: #aaa;
+	}
+
+	@keyframes pulse {
+		0% { transform: scale(1); opacity: 1; }
+		50% { transform: scale(1.2); opacity: 0.7; }
+		100% { transform: scale(1); opacity: 1; }
+	}
+</style>

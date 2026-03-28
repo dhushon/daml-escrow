@@ -54,24 +54,58 @@ sequenceDiagram
     end
 ```
 
-## 2. Decision Logic & Branching
+## 2. Distributed Sovereignty API Pattern (Phase 6 Completed)
+
+To achieve maximum security and regulatory isolation, the platform has transitioned to a **Distributed Service Topology**.
+
+### A. Architectural Goals
+*   **Zero-Trust Isolation:** Each participant (Bank, Buyer, Seller) operates their own Canton node. 
+*   **Node Specialization:** Parties are "pinned" to their respective nodes. Command submission is only possible through the node hosting the party.
+*   **Multi-Node Routing:** The `MultiLedgerClient` intelligently routes commands to the correct node based on the user's role and identity.
+*   **Cross-Node Visibility:** Topology is synchronized across the cluster using the Synchronizer Topology Store, enabling observers on one node to see contracts created on another.
+
+### B. Deployment Strategy
+```mermaid
+graph TD
+    FE[Astro Frontend] --> GW[MultiLedgerClient Go]
+    GW -- "@bank.com" --> BN[Bank Canton Node: 7575]
+    GW -- "@buyer.com" --> UN[Buyer Canton Node: 7576]
+    GW -- "@seller.com" --> SN[Seller Canton Node: 7577]
+
+    BN & UN & SN --- SY[Canton Synchronizer / Domain]
+```
+
+### C. Key Technical Breakthroughs (Phase 6)
+1.  **Tripartite Topology Authorization:** Explicit `propose` and `authorize` transactions ensure that all three nodes agree on party hosting before command submission.
+2.  **Deterministic Topology Propagation:** Replaced temporal `sleep` calls with algorithmic checks in both the Canton bootstrap script and the Go client `Discover()` phase.
+3.  **Unified Party Mapping:** The `MultiLedgerClient` aggregates party IDs from all participants into a single cache and synchronizes it back to all children, preventing `UNKNOWN_SUBMITTERS` errors.
+4.  **Resilient Identity Provisioning:** `GetIdentity` probes all nodes in the cluster to resolve users, ensuring high availability even if a node is temporarily unreachable.
+
+---
+
+## 3. Decision Log & Branching
 
 ### A. The Preparer-Approver Loop (Internal Governance)
+
 By separating the **Contract Preparer** from the **Buyer Approver**, we enforce a "four-eyes" principle. A preparer (typically a procurement officer) can define terms, but only an authorized officer (Payer) can commit funds to the ledger.
 
 ### B. Business Email Logic (Onboarding)
+
 When an invitation is issued to `user@datacloud.com`, the platform:
-1.  **Extracts Domain:** Validates the suffix `datacloud.com`.
-2.  **Associates Organization:** Automatically tags the invitation with the "DataCloud LLC" metadata.
-3.  **Applies Corporate Policy:** Can enforce that only an `@datacloud.com` authenticated user can claim the role of "Seller Approver."
+
+1. **Extracts Domain:** Validates the suffix `datacloud.com`.
+2. **Associates Organization:** Automatically tags the invitation with the "DataCloud LLC" metadata.
+3. **Applies Corporate Policy:** Only users with the correct domain can claim specific roles.
 
 ### C. Negative Outcomes & Resolution
-- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived. The system tracks this as a "Lost Opportunity" in metrics.
-- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work but Seller refuses to redo it, the **Mediator Process Lead** (`ML`) uses the Evidence metadata stored on-ledger to determine a fair payout ratio.
+
+- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived.
+- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work, the **Mediator Process Lead** (`ML`) adjudicates the dispute using on-ledger evidence.
 
 ## Phase 5: High-Assurance Identity & Adjudication (Completed)
 
 ### Architectural Shift: The Adjudicator Model
+
 Moved from a simple "Buyer releases funds" model to a mediated "State Actor" model. Stakeholders (Buyer, Seller, Issuer) sign the agreement, while an independent Adjudicator (Mediator) authoritatively backs the evidence of completion.
 
 ```mermaid
@@ -97,9 +131,3 @@ sequenceDiagram
     CB->>L: Settle Payment
     L->>L: Funds Transferred to Seller
 ```
-
-### Key Technical Enhancements
-1.  **Dynamic Discovery:** Eliminated hardcoded IDs. The backend now resolves Package and Party IDs at runtime via `ledger-state.json` or active metadata discovery.
-2.  **OIDC-Daml Mapping:** Unified external identities (Google sub) with internal ledger handles (Daml User ID), ensuring authoritative matching.
-3.  **Thread-Safe Multi-Tenancy:** Refactored the ledger client to support concurrent, independent user sessions without identity bleed.
-4.  **Stakeholder Parity:** Both stakeholders can authoritatively raise disputes, ensuring balanced power dynamics.
