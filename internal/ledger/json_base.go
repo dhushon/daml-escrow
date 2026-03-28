@@ -32,7 +32,7 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int, implName, if
 	if host == "localhost" {
 		host = "127.0.0.1"
 	}
-	
+
 	c := &JsonLedgerClient{
 		logger: logger,
 		httpClient: &http.Client{
@@ -44,7 +44,7 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int, implName, if
 		InterfaceName: ifaceName,
 		Verbose:       os.Getenv("LEDGER_VERBOSE") == "true",
 	}
-	
+
 	return c
 }
 
@@ -92,57 +92,98 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 					zap.String("path", foundPath),
 					zap.String("packageId", c.PackageID),
 					zap.Int("partyCount", len(state.Parties)))
-				
-				// Only return early if we also have parties
-				if len(state.Parties) > 0 {
-					return nil
+
+				// If we have packages, verify they exist on ledger
+				respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+				if err == nil {
+					var listResponse struct {
+						PackageIds []string `json:"packageIds"`
+					}
+					if err := json.Unmarshal(respBody, &listResponse); err == nil {
+						found := false
+						for _, pid := range listResponse.PackageIds {
+							if pid == c.PackageID {
+								found = true
+								break
+							}
+						}
+						if found && len(state.Parties) > 0 {
+							c.logger.Info("ledger state verified against live ledger")
+							return nil
+						}
+					}
 				}
+				c.logger.Warn("ledger state file package ID not found on ledger, forcing active discovery")
 			}
 		}
 	}
 
 	// 2. Fallback to active discovery if file missing or invalid
-	c.logger.Info("ledger-state.json not found or invalid, performing active discovery...")
-
-	// In JSON API V2, we can't easily get package names via the public API.
-	// We'll look for the IDs we know from the DAR build if discovery fails,
-	// or we'll assume the latest ones uploaded are ours if we're in a clean env.
-	
-	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
-	if err != nil {
-		return fmt.Errorf("failed to list packages: %w", err)
-	}
+	c.logger.Info("performing active package discovery...")
 
 	var pids []string
-	var listResponse struct {
-		PackageIds []string `json:"packageIds"`
-	}
-	if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
-		pids = listResponse.PackageIds
-	}
-
-	if len(pids) == 0 {
-		return fmt.Errorf("no packages found on ledger")
-	}
-
-	// Strategy: If we can't get names, and we have a very small number of packages,
-	// we might be able to guess. But better to rely on ledger-state.json.
-	// For now, if discovery is forced, we'll just log that active name discovery is limited.
-	c.logger.Warn("active package name discovery is limited in JSON API V2; relying on ledger-state.json is recommended")
-
-	if c.PackageID == "" || c.InterfacePackageID == "" {
-		// Last resort: check if we have hardcoded hints for this environment
-		if c.PackageID == "" {
-			c.PackageID = "07a6865290a4d9ec5879c4b084806f0ebe5f8429902d49e00a631ef24b54b379"
+	var found bool
+	for i := 0; i < 20; i++ {
+		respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+		if err == nil {
+			var listResponse struct {
+				PackageIds []string `json:"packageIds"`
+			}
+			if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
+				pids = listResponse.PackageIds
+				found = true
+				break
+			}
 		}
-		if c.InterfacePackageID == "" {
-			c.InterfacePackageID = "487bf8c3df07f56647eb17dd991de8090d77dd0fc8a20f3e98549fdd3cd45519"
-		}
-		c.logger.Info("using hardcoded package ID fallbacks", zap.String("packageId", c.PackageID))
+		c.logger.Debug("waiting for packages to propagate...", zap.Int("retry", i))
+		time.Sleep(5 * time.Second)
 	}
 
-	// 3. Resolve Party IDs
-	return c.refreshPartyMap(ctx)
+	if !found {
+		return fmt.Errorf("failed to discover any packages on ledger after retries")
+	}
+
+	// Heuristic: The newest package is often at the end. 
+	// In Task 6.2, we know we are looking for the version that contains our Escrow templates.
+	if len(pids) > 0 {
+		c.PackageID = pids[len(pids)-1]
+		c.logger.Info("discovered stablecoin-escrow package", 
+			zap.String("packageId", c.PackageID),
+			zap.Int("totalPackages", len(pids)))
+	}
+
+	// Interface is usually the first one uploaded in our bootstrap scripts
+	if len(pids) > 1 {
+		c.InterfacePackageID = pids[0]
+	} else {
+		c.InterfacePackageID = c.PackageID
+	}
+
+	// 3. Resolve Party IDs (refreshPartyMap will also retry if parties missing)
+	if err := c.refreshPartyMap(ctx); err != nil {
+		return err
+	}
+
+	// 4. Deterministic Template Readiness Check
+	// The package listing might return the ID before the node is ready to accept commands for it.
+	// We'll perform a dry-run query for the EscrowProposal template.
+	c.logger.Info("waiting for template readiness on node...")
+	templateID := fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal")
+	query := map[string]interface{}{
+		"templateIds": []string{templateID},
+	}
+
+	for i := 0; i < 20; i++ {
+		_, err := c.doRawRequest(ctx, "POST", "/v2/query", query)
+		if err == nil {
+			c.logger.Info("template is ready", zap.String("template", templateID))
+			return nil
+		}
+		c.logger.Debug("template not ready, retrying...", zap.Int("retry", i))
+		time.Sleep(3 * time.Second)
+	}
+
+	return fmt.Errorf("template %s failed to become ready after retries", templateID)
 }
 
 func (c *JsonLedgerClient) SearchPackageID(ctx context.Context, name string) (string, error) {
@@ -241,7 +282,7 @@ func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
-	
+
 	// Capture offset if present in response
 	var offsetCapture struct {
 		Transaction struct {

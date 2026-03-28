@@ -244,29 +244,26 @@ func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*U
 }
 
 func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
-	// Try to provision on the node based on email domain, fallback to buyer
-	node := "buyer"
-	if strings.Contains(email, "bank.com") {
-		node = "bank"
-	} else if strings.Contains(email, "seller.com") {
-		node = "seller"
-	}
+	var lastIdentity *UserIdentity
+	var lastErr error
 
-	identity, err := m.clients[node].ProvisionUser(ctx, oktaSub, email)
-	if err != nil && (strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial tcp")) {
-		m.logger.Warn("provisioning failed due to connection error, trying fallback", zap.String("node", node), zap.Error(err))
-		// Try other nodes
-		for _, alt := range []string{"buyer", "bank", "seller"} {
-			if alt == node {
-				continue
-			}
-			identity, err = m.clients[alt].ProvisionUser(ctx, oktaSub, email)
-			if err == nil {
-				return identity, nil
+	// Broadcast provisioning to ALL nodes to ensure global visibility
+	for _, node := range []string{"bank", "buyer", "seller"} {
+		if client, ok := m.clients[node]; ok {
+			identity, err := client.ProvisionUser(ctx, oktaSub, email)
+			if err != nil {
+				m.logger.Warn("provisioning failed on node", zap.String("node", node), zap.Error(err))
+				lastErr = err
+			} else {
+				lastIdentity = identity
 			}
 		}
 	}
-	return identity, err
+
+	if lastIdentity != nil {
+		return lastIdentity, nil
+	}
+	return nil, fmt.Errorf("failed to provision user on any node: %w", lastErr)
 }
 
 func (m *MultiLedgerClient) CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error) {

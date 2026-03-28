@@ -145,7 +145,8 @@ template DisputeRecord
     metadata     : Text
     raisingParty : Party
   where
-    signatory issuer, buyer, seller, mediator
+    signatory issuer, buyer, seller
+    observer  mediator
 
     interface instance Escrow for DisputeRecord where
       view = View with
@@ -180,8 +181,7 @@ template SettlementRecord
     buyerAccepted  : Bool
     sellerAccepted : Bool
   where
-    signatory issuer, mediator
-    observer  buyer, seller
+    signatory issuer, buyer, seller, mediator
 
     interface instance Escrow for SettlementRecord where
       view = View with
@@ -226,8 +226,7 @@ template DisbursementOrder
     metadata   : Text
     settlement : SettlementTerms
   where
-    signatory issuer, mediator
-    observer  buyer, seller
+    signatory issuer, buyer, seller, mediator
 
     interface instance Escrow for DisbursementOrder where
       view = View with

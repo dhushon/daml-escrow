@@ -55,9 +55,18 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.Contains(t, identity.DamlUserID, "google-oauth2")
 		require.NotEmpty(t, identity.DamlPartyID)
 
-		// 2. Fetch Identity
-		fetched, err := client.GetIdentity(ctx, googleSub)
-		require.NoError(t, err)
+		// 2. Fetch Identity (Deterministic Polling)
+		t.Log("Waiting for identity to become visible on ledger...")
+		var fetched *UserIdentity
+		var pollErr error
+		for i := 0; i < 20; i++ {
+			fetched, pollErr = client.GetIdentity(ctx, googleSub)
+			if pollErr == nil && fetched != nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		require.NoError(t, pollErr, "Identity failed to propagate after polling")
 		require.NotNil(t, fetched)
 		require.Equal(t, identity.DamlPartyID, fetched.DamlPartyID)
 		
