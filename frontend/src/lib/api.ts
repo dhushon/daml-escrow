@@ -49,6 +49,12 @@ export async function fetchMetrics(user: string = 'CentralBank') {
     return response.json();
 }
 
+export async function fetchEscrowLifecycle(id: string, user: string = 'Buyer') {
+    const response = await fetch(`${API_BASE}/escrows/${id}/lifecycle?user=${user}`);
+    if (!response.ok) throw new Error('Failed to fetch lifecycle');
+    return response.json();
+}
+
 // Lifecycle Actions (Phase 5 High-Assurance)
 
 export async function proposeEscrow(req: any) {

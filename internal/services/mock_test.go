@@ -238,5 +238,25 @@ func (m *MockStablecoinProvider) VerifyTransfer(ctx context.Context, id string) 
 	return args.Bool(0), args.Error(1)
 }
 
+// Analytics Mock
+type MockAnalyticsService struct {
+	mock.Mock
+}
+
+func (m *MockAnalyticsService) ConfirmDeposit(ctx context.Context, tx string, amt float64, cur string) (bool, error) {
+	args := m.Called(ctx, tx, amt, cur)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockAnalyticsService) GetEscrowLifecycle(ctx context.Context, id string, state string) (EscrowLifecycleMetadata, error) {
+	args := m.Called(ctx, id, state)
+	return args.Get(0).(EscrowLifecycleMetadata), args.Error(1)
+}
+
+func (m *MockAnalyticsService) GetWalletHistory(ctx context.Context, addr string) ([]map[string]interface{}, error) {
+	args := m.Called(ctx, addr)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
+}
+
 var _ ledger.Client = (*MockLedgerClient)(nil)
 var _ ledger.StablecoinProvider = (*MockStablecoinProvider)(nil)

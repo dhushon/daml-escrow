@@ -80,22 +80,23 @@ func main() {
 	// Phase 6 Providers
 	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
 	complianceService := services.NewMockCompliance()
+	analyticsService := services.NewAnalyticsService(logger)
 
 	escrowService := services.NewEscrowService(
-		logger,
-		ledgerClient,
-		stablecoinProvider,
-		complianceService,
-		cfg.Oracle.WebhookSecret,
+	        logger,
+	        ledgerClient,
+	        stablecoinProvider,
+	        complianceService,
+	        cfg.Oracle.WebhookSecret,
 	)
 
 	handler := api.NewHandler(
-		logger,
-		escrowService,
-		metricsService,
-		configService,
+	        logger,
+	        escrowService,
+	        metricsService,
+	        configService,
+	        analyticsService,
 	)
-
 	router := chi.NewRouter()
 
 	router.Use(api.LoggingMiddleware(logger))
@@ -130,8 +131,8 @@ func main() {
 
 		r.Get("/escrows", handler.ListEscrows)
 		r.Get("/escrows/{escrowID}", handler.GetEscrow)
+		r.Get("/escrows/{escrowID}/lifecycle", handler.GetEscrowLifecycle)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
-
 		r.Get("/metrics", handler.GetMetrics)
 		r.Get("/settlements", handler.ListSettlements)
 		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)

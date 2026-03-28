@@ -44,18 +44,19 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 - [x] Cross-node integration tests (Shared logic for local and distributed).
 - [x] Deterministic topology propagation checks in bootstrap.
 
-**Task 6.2: Real Stablecoin Integration (CIP-0056)**
+**Task 6.2: Real Stablecoin Integration (CIP-0056) (IN PROGRESS)**
 
-- [ ] Integrate **CIP-0056** "holding" and "transfer" interfaces into DAML contracts.
+- [x] Integrate **CIP-0056** "holding" and "transfer" interfaces into DAML contracts.
+- [x] Implement simulation logic for high-assurance token disbursement.
 - [ ] Research and adapt **OpenZeppelin Canton-Stablecoin** templates for CDP-style vaults.
 - [ ] Connect with **USDCx** (BitGo/Circle) mock/testnet assets for collateral pledging.
-- [ ] Implement **Splice Validator API** integration for external signing and automated agent workflows.
 
-**Task 6.3: Analytics & Validation (Noves)**
+**Task 6.3: Analytics & Validation (Noves) (IN PROGRESS)**
 
-- [ ] Integrate **Noves Data & Analytics API** for real-time deposit confirmation.
-- [ ] Implement "Lock Validation" logic: Confirm funds are on-ledger before activating the escrow.
-- [ ] Build transaction history and wallet metrics dashboard using Noves indexed data.
+- [x] Integrate **Noves Data & Analytics API** simulation for real-time deposit confirmation.
+- [x] Build **LifecycleTracker** process map logic in backend service.
+- [x] Create **LifecycleTracker.astro** frontend component for stepwise visualization.
+- [ ] Build full-cycle metrics dashboard (time-to-complete, bottleneck analysis) using Noves indexed data.
 
 ------------------------------------------------------------------------
 

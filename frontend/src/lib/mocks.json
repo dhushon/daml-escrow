@@ -1,0 +1,30 @@
+{
+  "escrowId": "HAPPY-123456789",
+  "currentState": "ACTIVE",
+  "steps": [
+    {
+      "state": "DRAFT",
+      "status": "COMPLETED",
+      "timestamp": "2026-03-28T10:00:00Z",
+      "description": "Escrow terms proposed by Issuer"
+    },
+    {
+      "state": "FUNDED",
+      "status": "COMPLETED",
+      "timestamp": "2026-03-28T10:15:00Z",
+      "description": "Buyer locked funds in custody (Noves Verified)"
+    },
+    {
+      "state": "ACTIVE",
+      "status": "CURRENT",
+      "description": "Issuer activated the escrow"
+    },
+    {
+      "state": "SETTLED",
+      "status": "PENDING",
+      "description": "Conditions met, funds disbursed"
+    }
+  ],
+  "timeInCurrent": "15m",
+  "avgTimeToComplete": "24h"
+}

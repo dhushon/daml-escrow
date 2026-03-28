@@ -11,18 +11,20 @@ import (
 )
 
 type Handler struct {
-	logger         *zap.Logger
-	escrowService  *services.EscrowService
-	metricsService *services.MetricsService
-	configService  *services.ConfigService
+	logger           *zap.Logger
+	escrowService    *services.EscrowService
+	metricsService   *services.MetricsService
+	configService    *services.ConfigService
+	analyticsService *services.AnalyticsService
 }
 
-func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService) *Handler {
+func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService, analyticsService *services.AnalyticsService) *Handler {
 	return &Handler{
-		logger:         logger,
-		escrowService:  escrowService,
-		metricsService: metricsService,
-		configService:  configService,
+		logger:           logger,
+		escrowService:    escrowService,
+		metricsService:   metricsService,
+		configService:    configService,
+		analyticsService: analyticsService,
 	}
 }
 
@@ -119,6 +121,27 @@ func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "escrowID")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 
+	// Task 6.3: Analytics & Validation (Noves)
+	// 1. Fetch escrow to get deposit details
+	escrow, err := h.escrowService.GetEscrow(r.Context(), id, userID)
+	if err != nil {
+		h.logger.Error("failed to fetch escrow for activation", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Validate deposit on-ledger via Noves
+	// We use the custodyRef as the transaction hash for this high-assurance prototype
+	if escrow.Asset.CustodyRef != "" {
+		ok, err := h.analyticsService.ConfirmDeposit(r.Context(), escrow.Asset.CustodyRef, escrow.Asset.Amount, escrow.Asset.Currency)
+		if err != nil || !ok {
+			h.logger.Warn("Noves deposit validation failed", zap.String("escrowID", id), zap.Error(err))
+			http.Error(w, "deposit not yet confirmed on-ledger", http.StatusPreconditionFailed)
+			return
+		}
+	}
+
+	// 3. Proceed with activation
 	if _, err := h.escrowService.Activate(r.Context(), id, userID); err != nil {
 		h.logger.Error("activate failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -348,6 +371,28 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	health := h.metricsService.GetHealth()
 	h.renderJSON(w, health)
+}
+
+func (h *Handler) GetEscrowLifecycle(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "escrowID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	// Fetch escrow to get current state
+	escrow, err := h.escrowService.GetEscrow(r.Context(), id, userID)
+	if err != nil {
+		h.logger.Error("failed to fetch escrow for lifecycle", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	lifecycle, err := h.analyticsService.GetEscrowLifecycle(r.Context(), id, escrow.State)
+	if err != nil {
+		h.logger.Error("failed to fetch lifecycle metadata", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderJSON(w, lifecycle)
 }
 
 func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
