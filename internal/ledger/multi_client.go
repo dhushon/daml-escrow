@@ -115,7 +115,7 @@ func (m *MultiLedgerClient) GetPartyMap() map[string]string {
 	return copy
 }
 
-func (m *MultiLedgerClient) getParty(user string) string {
+func (m *MultiLedgerClient) GetParty(user string) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -125,8 +125,8 @@ func (m *MultiLedgerClient) getParty(user string) string {
 	return user
 }
 
-func (m *MultiLedgerClient) getOffset() interface{} {
-	return m.clients["bank"].getOffset()
+func (m *MultiLedgerClient) GetOffset() interface{} {
+	return m.clients["bank"].GetOffset()
 }
 
 func (m *MultiLedgerClient) GetInterfacePackageID() string {

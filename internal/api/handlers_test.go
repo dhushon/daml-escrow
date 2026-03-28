@@ -11,11 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// We use anonymous interface mocks to keep API tests isolated from service-layer test files
-type mockAnalytics struct {
-	getLifecycleFn func(id, state string) (interface{}, error)
-}
-
 func TestHandler_GetHealth(t *testing.T) {
 	// 1. Setup minimal handler
 	logger := zap.NewNop()

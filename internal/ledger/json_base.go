@@ -191,7 +191,7 @@ func (c *JsonLedgerClient) SetPartyMap(m map[string]string) {
 	}
 }
 
-func (c *JsonLedgerClient) getOffset() interface{} {
+func (c *JsonLedgerClient) GetOffset() interface{} {
 	return nil
 }
 

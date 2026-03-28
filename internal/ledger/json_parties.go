@@ -40,7 +40,7 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	return nil
 }
 
-func (c *JsonLedgerClient) getParty(user string) string {
+func (c *JsonLedgerClient) GetParty(user string) string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

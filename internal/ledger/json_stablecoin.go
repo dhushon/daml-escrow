@@ -22,7 +22,7 @@ func NewJsonStablecoinProvider(logger *zap.Logger, client Client) *JsonStablecoi
 
 func (p *JsonStablecoinProvider) CreateWallet(ctx context.Context, userID string) (string, error) {
 	p.logger.Info("creating virtual wallet reference", zap.String("userID", userID))
-	return p.client.getParty(userID), nil
+	return p.client.GetParty(userID), nil
 }
 
 func (p *JsonStablecoinProvider) GetBalance(ctx context.Context, walletID string, currency string) (float64, error) {

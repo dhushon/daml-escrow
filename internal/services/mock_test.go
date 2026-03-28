@@ -191,11 +191,11 @@ func (m *MockLedgerClient) CreateContract(ctx context.Context, userID string, te
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockLedgerClient) getParty(user string) string {
+func (m *MockLedgerClient) GetParty(user string) string {
 	return "mock-party-" + user
 }
 
-func (m *MockLedgerClient) getOffset() interface{} {
+func (m *MockLedgerClient) GetOffset() interface{} {
 	return nil
 }
 

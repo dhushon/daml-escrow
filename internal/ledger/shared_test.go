@@ -101,9 +101,9 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
 		require.NoError(t, err)
 		holdingCid, err := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
-			"owner":   client.getParty(BuyerUser),
+			"owner":   client.GetParty(BuyerUser),
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
-			"issuer":  client.getParty(CentralBankUser),
+			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
 		})
 		require.NoError(t, err)
@@ -173,9 +173,9 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
 		require.NoError(t, err)
 		holdingCid, err := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
-			"owner":   client.getParty(BuyerUser),
+			"owner":   client.GetParty(BuyerUser),
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
-			"issuer":  client.getParty(CentralBankUser),
+			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
 		})
 		require.NoError(t, err)
@@ -282,9 +282,9 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		
 		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
 		holdingCid, _ := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
-			"owner":   client.getParty(BuyerUser),
+			"owner":   client.GetParty(BuyerUser),
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
-			"issuer":  client.getParty(CentralBankUser),
+			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
 		})
 		

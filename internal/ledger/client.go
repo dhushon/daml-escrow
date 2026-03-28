@@ -185,8 +185,8 @@ type Client interface {
 	// Utilities
 	CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error)
 	SearchPackageID(ctx context.Context, name string) (string, error)
-	getParty(user string) string
-	getOffset() interface{}
+	GetParty(user string) string
+	GetOffset() interface{}
 	GetInterfacePackageID() string
 	DoRawRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error)
 

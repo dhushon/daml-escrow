@@ -16,10 +16,10 @@ import (
 // ---------------------------------------------------------------------------
 
 func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error) {
-	buyerParty := c.getParty(BuyerUser)
-	cbParty := c.getParty(CentralBankUser)
-	sellerParty := c.getParty(req.Seller)
-	mediatorParty := c.getParty(EscrowMediatorUser)
+	buyerParty := c.GetParty(BuyerUser)
+	cbParty := c.GetParty(CentralBankUser)
+	sellerParty := c.GetParty(req.Seller)
+	mediatorParty := c.GetParty(EscrowMediatorUser)
 
 	payload := map[string]interface{}{
 		"issuer":   cbParty,
@@ -56,7 +56,7 @@ func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRe
 }
 
 func (c *JsonLedgerClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("seller-accept-%d", time.Now().UnixNano()),
@@ -83,7 +83,7 @@ func (c *JsonLedgerClient) SellerAccept(ctx context.Context, id string, userID s
 }
 
 func (c *JsonLedgerClient) Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("fund-%d", time.Now().UnixNano()),
@@ -111,7 +111,7 @@ func (c *JsonLedgerClient) Fund(ctx context.Context, id string, custodyRef strin
 }
 
 func (c *JsonLedgerClient) Activate(ctx context.Context, id string, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("activate-%d", time.Now().UnixNano()),
@@ -172,7 +172,7 @@ func (c *JsonLedgerClient) extractNewContractID(resp []byte) (string, error) {
 }
 
 func (c *JsonLedgerClient) ConfirmConditions(ctx context.Context, id string, userID string) error {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("confirm-%d", time.Now().UnixNano()),
@@ -196,7 +196,7 @@ func (c *JsonLedgerClient) ConfirmConditions(ctx context.Context, id string, use
 }
 
 func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string, userID string) error {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("dispute-%d", time.Now().UnixNano()),
@@ -220,7 +220,7 @@ func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string, userID s
 }
 
 func (c *JsonLedgerClient) ProposeSettlement(ctx context.Context, id string, proposal SettlementTerms, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("propose-settlement-%d", time.Now().UnixNano()),
@@ -254,7 +254,7 @@ func (c *JsonLedgerClient) ProposeSettlement(ctx context.Context, id string, pro
 }
 
 func (c *JsonLedgerClient) RatifySettlement(ctx context.Context, id string, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("ratify-%d", time.Now().UnixNano()),
@@ -283,7 +283,7 @@ func (c *JsonLedgerClient) RatifySettlement(ctx context.Context, id string, user
 }
 
 func (c *JsonLedgerClient) FinalizeSettlement(ctx context.Context, id string, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("finalize-%d", time.Now().UnixNano()),
@@ -310,7 +310,7 @@ func (c *JsonLedgerClient) FinalizeSettlement(ctx context.Context, id string, us
 }
 
 func (c *JsonLedgerClient) Disburse(ctx context.Context, id string, userID string) error {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("disburse-%d", time.Now().UnixNano()),
@@ -334,7 +334,7 @@ func (c *JsonLedgerClient) Disburse(ctx context.Context, id string, userID strin
 }
 
 func (c *JsonLedgerClient) Cancel(ctx context.Context, id string, userID string) error {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("cancel-%d", time.Now().UnixNano()),
@@ -358,7 +358,7 @@ func (c *JsonLedgerClient) Cancel(ctx context.Context, id string, userID string)
 }
 
 func (c *JsonLedgerClient) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("expire-%d", time.Now().UnixNano()),
@@ -385,7 +385,7 @@ func (c *JsonLedgerClient) ExpireEscrow(ctx context.Context, id string, userID s
 }
 
 func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	offset, err := c.getLedgerEnd(ctx)
 	if err != nil {
 		return nil, err
@@ -502,7 +502,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 }
 
 func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error) {
-	claimantParty := c.getParty(claimantID)
+	claimantParty := c.GetParty(claimantID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("claim-%d", time.Now().UnixNano()),
@@ -532,9 +532,9 @@ func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string,
 }
 
 func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
-	inviterParty := c.getParty(inviterID)
-	mediatorParty := c.getParty(EscrowMediatorUser)
-	issuerParty := c.getParty(CentralBankUser)
+	inviterParty := c.GetParty(inviterID)
+	mediatorParty := c.GetParty(EscrowMediatorUser)
+	issuerParty := c.GetParty(CentralBankUser)
 
 	tokenHash := fmt.Sprintf("hash-%d", time.Now().UnixNano())
 
@@ -593,7 +593,7 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 }
 
 func (c *JsonLedgerClient) ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	offset, err := c.getLedgerEnd(ctx)
 	if err != nil {
 		return nil, err
@@ -685,7 +685,7 @@ func (c *JsonLedgerClient) GetMetrics(ctx context.Context, userID string) (*Ledg
 }
 
 func (c *JsonLedgerClient) ListSettlements(ctx context.Context) ([]*EscrowSettlement, error) {
-	party := c.getParty(CentralBankUser)
+	party := c.GetParty(CentralBankUser)
 	offset, err := c.getLedgerEnd(ctx)
 	if err != nil {
 		return nil, err
@@ -750,7 +750,7 @@ func (c *JsonLedgerClient) SettlePayment(ctx context.Context, settlementID strin
 }
 
 func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	offset, err := c.getLedgerEnd(ctx)
 	if err != nil {
 		return nil, err
@@ -812,7 +812,7 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 }
 
 func (c *JsonLedgerClient) CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error) {
-	party := c.getParty(userID)
+	party := c.GetParty(userID)
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("create-%d", time.Now().UnixNano()),

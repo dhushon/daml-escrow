@@ -132,11 +132,11 @@ func (c *DamlClient) SearchPackageID(ctx context.Context, name string) (string, 
 	return "", fmt.Errorf("gRPC not implemented")
 }
 
-func (c *DamlClient) getParty(user string) string {
+func (c *DamlClient) GetParty(user string) string {
 	return user
 }
 
-func (c *DamlClient) getOffset() interface{} {
+func (c *DamlClient) GetOffset() interface{} {
 	return nil
 }
 
