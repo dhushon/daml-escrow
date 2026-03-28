@@ -41,6 +41,16 @@ Module-specific configuration variables MUST be prefixed with the module name (e
 - **Dynamic Bindings:** All contract references (Package IDs) and participant identifiers (Party IDs) MUST be resolved at runtime during the startup discovery phase.
 - **Resilience:** Systems must survive ledger resets and contract re-builds by automatically re-synchronizing their identity maps and version tags from the authoritative ledger metadata.
 
-## 9. Modular Integration Pattern
+## 10. Testing & Validation Hierarchy (Phase 6)
 
-Large ledger clients MUST be refactored into modular files (`base`, `parser`, `parties`, `escrows`). Shared structs must reside in `base` or `generated` packages.
+- **MANDATORY:** All features MUST include tests in one of the three established tiers:
+    1.  **Unit Tier (`go test ./...`):** Logic-only, using mocks (e.g., `MockLedgerClient`). MUST be fast and require zero network/Docker access.
+    2.  **Integration Tier (`-tags=integration`):** Single-node Sandbox validation. Ensures smart contract logic is correct against a live API.
+    3.  **Distributed Tier (`-tags=distributed`):** Multi-node Canton topology validation. Focuses on cross-node authorization, routing, and topology propagation.
+- **Shared Logic:** Reuse core lifecycle validation logic (e.g., `shared_test.go`) across Integration and Distributed tiers to ensure behavioral consistency.
+
+## 11. Distributed Identity & Routing
+
+- **Zero-Trust Routing:** The `MultiLedgerClient` MUST act as a smart gateway, routing commands to the specific participant node hosting the user's party.
+- **Identity Probing:** Systems MUST NOT assume a user exists on a single node. User lookups MUST be performed across the cluster cluster until found or all nodes exhausted.
+- **Deterministic Readiness:** Infrastructure scripts (Canton bootstrap) MUST NOT use temporal waits (`sleep`). They MUST use deterministic polling of the topology state until the required conditions (e.g., cross-node party visibility) are met.
