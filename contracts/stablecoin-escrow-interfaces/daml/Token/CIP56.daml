@@ -37,6 +37,24 @@ interface Transferable where
     with newOwner : Party
     controller (view this).owner
     do
-      -- In a real implementation, this would create a new holding
-      -- For interface purposes, we just return a new ID
+      error "Implementation required"
+
+-- 4. Lockable Interface
+data LockView = LockView with
+  locker : Party
+  context : Text
+    deriving (Eq, Show)
+
+interface Lockable where
+  viewtype HoldingView
+
+  choice Lock : ContractId Lockable
+    with locker : Party, context : Text
+    controller (view this).owner
+    do
+      error "Implementation required"
+
+  choice Unlock : ContractId Lockable
+    controller (view this).owner
+    do
       error "Implementation required"
