@@ -116,10 +116,10 @@ Seq(bank, buyer, seller).foreach { p =>
 
 // 9. Create Users
 println("Creating users...")
-ignore(bank.ledger_api.users.create("CentralBank", Some(cbParty)))
-ignore(bank.ledger_api.users.create("EscrowMediator", Some(medParty)))
-ignore(buyer.ledger_api.users.create("Buyer", Some(buyParty)))
-ignore(seller.ledger_api.users.create("Seller", Some(selParty)))
+ignore(bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbParty)))
+ignore(bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medParty)))
+ignore(buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyParty)))
+ignore(seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selParty)))
 
 ignore(bank.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(medParty, buyParty, selParty)))
 ignore(buyer.ledger_api.users.rights.grant("Buyer", actAs = Set(buyParty, cbParty)))

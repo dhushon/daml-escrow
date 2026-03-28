@@ -127,28 +127,12 @@ test: ## Run Go unit tests (fast, no infra)
 .PHONY: integration-test
 integration-test: ## Run local integration tests (single-node sandbox)
 	@echo "Running local integration tests..."
-	@go test -v -tags integration ./internal/ledger/ledger_integration_test.go \
-		./internal/ledger/json_base.go \
-		./internal/ledger/json_parser.go \
-		./internal/ledger/json_parties.go \
-		./internal/ledger/json_escrows.go \
-		./internal/ledger/json_stablecoin.go \
-		./internal/ledger/multi_client.go \
-		./internal/ledger/client.go \
-		./internal/services/config_service_int_test.go \
-		./internal/services/config_service.go
+	@go test -v -tags integration ./internal/ledger/... ./internal/services/...
 
 .PHONY: distributed-test
 distributed-test: ## Run multi-node distributed tests (full topology)
 	@echo "Running multi-node distributed tests..."
-	@go test -v -tags distributed ./internal/ledger/multi_node_test.go \
-		./internal/ledger/json_base.go \
-		./internal/ledger/json_parser.go \
-		./internal/ledger/json_parties.go \
-		./internal/ledger/json_escrows.go \
-		./internal/ledger/json_stablecoin.go \
-		./internal/ledger/multi_client.go \
-		./internal/ledger/client.go
+	@go test -v -tags distributed ./internal/ledger/...
 
 
 

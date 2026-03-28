@@ -29,18 +29,20 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 
 ### Achievements
 
-1. **Multi-Participant Infrastructure:** Created `contracts/DevNet/devnet.conf` and `devnet_init.canton` for distributed topology.
+1. **Multi-Participant Infrastructure:** Created `contracts/DevNet/devnet.conf` and robust `devnet_init.canton` for distributed topology with deterministic propagation checks.
 2. **Local Distributed Environment:** Added `docker-compose.distributed.yml` to enable local testing of separate Bank, Buyer, and Seller nodes.
 3. **Frontend Lifecycle Alignment:** Refactored `api.ts` and `EscrowCard.astro` to support the full high-assurance state machine (`DRAFT` → `FUNDED` → `ACTIVE` → `DISPUTED` → `PROPOSED` → `SETTLED`).
-4. **Distributed Gateway:** Implemented `MultiLedgerClient` in Go for role-based node routing.
+4. **Distributed Gateway:** Implemented `MultiLedgerClient` in Go for role-based node routing and resilient identity resolution across clusters.
+5. **Testing Hierarchy:** Established three-tier testing strategy: Unit (Fast/Mocks), Integration (Single-node), and Distributed (Multi-node).
 
 ### Tasks
 
-**Task 6.1: Multi-Participant Setup**
+**Task 6.1: Multi-Participant Setup (COMPLETE)**
 
 - [x] Distributed Canton topology configuration (Local).
 - [x] Distributed Go API Gateway / Multi-Client support.
-- [x] Cross-node integration tests.
+- [x] Cross-node integration tests (Shared logic for local and distributed).
+- [x] Deterministic topology propagation checks in bootstrap.
 
 **Task 6.2: Real Stablecoin Integration (CIP-0056)**
 
