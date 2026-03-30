@@ -14,7 +14,11 @@ cd daml-escrow
 *   **DPM**: [Daml Package Manager](https://docs.digitalasset.com/build/3.4/dpm/dpm.html) for contract builds.
 
 ### External API Configuration (Action Required)
-The platform utilizes several external services. Create a `.env` file in the root:
+The platform utilizes several external services. 
+
+👉 **[Mandatory: Setup Google Cloud Identity Platform (GCIP)](./IDENTITY_GCP.md)**
+
+Create a `.env` file in the root:
 ```bash
 # Auth0 / Okta Configuration
 AUTH_ISSUER=https://<your-tenant>.auth0.com/
