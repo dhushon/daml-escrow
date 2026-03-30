@@ -103,12 +103,41 @@ type EscrowSettlement struct {
 }
 
 type LedgerMetrics struct {
-	TotalEscrows       int     `json:"totalEscrows"`
-	TotalActiveEscrows int     `json:"totalActiveEscrows"`
-	TotalValueInEscrow float64 `json:"totalValueInEscrow"`
-	ActiveEscrows      int     `json:"activeEscrows"`
-	DisputedEscrows    int     `json:"disputedEscrows"`
-	SettledVolume      float64 `json:"settledVolume"`
+	TotalEscrows       int               `json:"totalEscrows"`
+	TotalActiveEscrows int               `json:"totalActiveEscrows"`
+	TotalValueInEscrow float64           `json:"totalValueInEscrow"`
+	ActiveEscrows      int               `json:"activeEscrows"`
+	DisputedEscrows    int               `json:"disputedEscrows"`
+	SettledVolume      float64           `json:"settledVolume"`
+	ActivityHistory    []ActivityPoint   `json:"activityHistory"`
+	LedgerHealth       LedgerHealth      `json:"ledgerHealth"`
+	TPSHistory         []ActivityPoint   `json:"tpsHistory"`
+	SystemPerformance  SystemPerformance `json:"systemPerformance"`
+	AvgTimeToSettle    string            `json:"avgTimeToSettle"`
+	BottleneckStage    string            `json:"bottleneckStage"`
+	StageLatencies     map[string]int    `json:"stageLatencies"` // ms
+	SuccessRate        float64           `json:"successRate"`    // percentage
+}
+
+type ActivityPoint struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+type LedgerHealth struct {
+	TPS                 float64 `json:"tps"`
+	CommandSuccessRate  float64 `json:"commandSuccessRate"`
+	ActiveContracts     int     `json:"activeContracts"`
+	IdentitiesAllocated int     `json:"identitiesAllocated"`
+}
+
+type SystemPerformance struct {
+	ApiLatencyMs int     `json:"apiLatencyMs"`
+	P95LatencyMs int     `json:"p95LatencyMs"`
+	P99LatencyMs int     `json:"p99LatencyMs"`
+	CpuUsage     float64 `json:"cpuUsage"`
+	MemoryUsage  float64 `json:"memoryUsage"`
+	Uptime       string  `json:"uptime"`
 }
 
 type Wallet struct {

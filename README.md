@@ -4,6 +4,8 @@
 
 This project implements a **high-assurance, privacy-preserving stablecoin escrow platform** using **DAML (Digital Asset Modeling Language)** and a **Canton distributed ledger**. It follows a rigorous formal escrow process designed for tokenized reserves.
 
+👉 **[Get Started with Installation & Setup](./GET_STARTED.md)**
+
 ------------------------------------------------------------------------
 
 ## High-Assurance Architecture
@@ -24,7 +26,7 @@ graph TD
 
 This platform is built on the **Canton Network**, a privacy-enabled, interoperable blockchain designed for institutional finance. It leverages industry-standard protocols to ensure secure B2B stablecoin pledging and escrow:
 
-* **CIP-0056 Token Standard:** Implements the "holding" and "transfer" interfaces required for secure, interoperable stablecoin movement (e.g., USDCx via BitGo/Circle).
+* **CIP-0056 Token Standard:** Implements the "holding", "lockable", and "transferable" interfaces required for secure, interoperable stablecoin movement (e.g., USDCx via BitGo/Circle).
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
 * **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.
@@ -48,9 +50,9 @@ stateDiagram-v2
 
 ------------------------------------------------------------------------
 
-## Key Features (Phase 5 Refactor)
+## Key Features
 
-### 1. Robust State Machine
+### 1. Robust State Machine (Phase 5)
 
 Strict transition guards ensure funds cannot be released until conditions are met or bilateral agreement is reached in a dispute.
 
@@ -60,41 +62,35 @@ Strict transition guards ensure funds cannot be released until conditions are me
 * **DISPUTED:** Adjudication phase initiated.
 * **PROPOSED:** Mediated settlement awaiting party ratification.
 
-### 2. Tripartite Authority Model
+### 2. Distributed Sovereignty (Phase 6)
 
-* **Issuer (Bank):** Signatory on all states; controls final disbursement.
-* **Buyer & Seller:** Co-signers on terms and settlement ratification.
-* **Mediator:** Authoritative adjudicator for conditions and settlement proposals.
+The platform has transitioned from a single-node sandbox to a **tripartite distributed topology**, enforcing strict data sovereignty and authority:
 
-### 3. Self-Healing Integration
+*   **Tripartite Authority Model:** Every escrow requires co-signature from **Buyer**, **Seller**, and **Issuer (Bank)**. This prevents unauthorized state transitions and ensures institutional compliance.
+*   **Multi-Node Isolation:** Each participant operates their own **Canton Node**, ensuring that private contract data (e.g., specific terms or evidence) only resides on the participants' infrastructure.
+*   **Intelligent Routing:** The Go backend utilizes a `MultiLedgerClient` to intelligently route commands to the specific node hosting the primary submitter, maintaining zero-trust isolation.
+
+### 3. CIP-0056 & Institutional Tokens
+
+Native support for **CIP-0056** ensures the platform can interoperate with real stablecoins:
+*   **Lockable Interface:** Assets are cryptographically locked in the escrow contract, preventing double-spending while the escrow is `ACTIVE`.
+*   **Transferable Interface:** Final settlement triggers authoritative transfers using standardized token choices, ensuring compatibility with major institutional issuers.
+
+### 4. Self-Healing Integration
 
 The Go backend features a **Dynamic Discovery Engine** that automatically resolves Package IDs and Party IDs at runtime, ensuring the stack is environment-agnostic and resilient to ledger resets.
 
-### 4. API Request Validation & DTOs
-
-All HTTP endpoints utilize strict Data Transfer Objects (DTOs) (e.g., `ProposeEscrowRequest`, `FundEscrowRequest`) with explicit `.Validate()` methods before interacting with the core ledger services. This isolates business logic from malformed or dirty web payloads and prevents mass-assignment vulnerabilities.
-
 ------------------------------------------------------------------------
 
-## Getting Started
+## Analytics & Operational Velocity (Phase 6.3)
 
-### Prerequisites
+The platform integrates a high-assurance analytics layer powered by **Noves-ready logic** to provide real-time visibility into the escrow lifecycle.
 
-* **Go 1.24+**
-* **Java 17 (LTS)**
-* **DPM (Daml Package Manager)**
-* **Docker & Docker Compose**
-
-### Development Environment
-
-```bash
-# Start the full stack (Ledger + API + Frontend)
-make up
-
-# Run verification suite
-make test
-make integration-test
-```
+### 1. The Operational Velocity Dashboard
+Accessible via `/metrics`, this dashboard visualizes the platform's efficiency using:
+*   **Stage Duration Heatmap:** Tracks the average minutes spent in each escrow state (`DRAFT`, `FUNDED`, `ACTIVE`, `PROPOSED`), identifying systemic bottlenecks.
+*   **Conversion Funnel:** Visualizes the "drop-off" and success rate from initial proposal through to final settlement.
+*   **System Health:** Real-time monitoring of P95/P99 latencies, command success rates, and ACS (Active Contract Set) size.
 
 ------------------------------------------------------------------------
 
@@ -105,3 +101,4 @@ make integration-test
 * `/contracts`: Multi-package Daml structure (Interfaces, Implementation, Tests).
 * `/frontend`: Astro-based dashboard with DataCloud LNF styling.
 * `ESCROW-PROCESS.md`: The formal process specification.
+* `REGULATORY_CONFORMANCE.md`: Details on GDPR/CCPA and data sovereignty.

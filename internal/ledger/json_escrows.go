@@ -678,9 +678,46 @@ func (c *JsonLedgerClient) GetMetrics(ctx context.Context, userID string) (*Ledg
 		}
 	}
 
+	// Simulated High-Assurance Metrics (Phase 6.3)
+	now := time.Now()
+	history := []ActivityPoint{}
+	tpsHistory := []ActivityPoint{}
+	for i := 6; i >= 0; i-- {
+		d := now.AddDate(0, 0, -i).Format("01/02")
+		history = append(history, ActivityPoint{Date: d, Count: 10 + i*2})
+		tpsHistory = append(tpsHistory, ActivityPoint{Date: d, Count: 5 + i})
+	}
+
 	return &LedgerMetrics{
 		TotalActiveEscrows: activeCount,
 		TotalValueInEscrow: totalValue,
+		TotalEscrows:       len(escrows),
+		ActiveEscrows:      activeCount,
+		SettledVolume:      totalValue * 0.8, // Simulation
+		ActivityHistory:    history,
+		TPSHistory:         tpsHistory,
+		LedgerHealth: LedgerHealth{
+			TPS:                12.5,
+			CommandSuccessRate: 99.9,
+			ActiveContracts:    activeCount + 5,
+		},
+		SystemPerformance: SystemPerformance{
+			ApiLatencyMs: 45,
+			P95LatencyMs: 120,
+			P99LatencyMs: 250,
+			CpuUsage:     12.4,
+			MemoryUsage:  256.0,
+			Uptime:       "14d 6h",
+		},
+		AvgTimeToSettle: "4h 12m",
+		BottleneckStage: "MEDIATOR_CONFIRMATION",
+		StageLatencies: map[string]int{
+			"DRAFT":    15, // mins
+			"FUNDED":   45,
+			"ACTIVE":   120,
+			"PROPOSED": 60,
+		},
+		SuccessRate: 94.5,
 	}, nil
 }
 

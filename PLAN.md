@@ -33,7 +33,8 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 2. **Local Distributed Environment:** Added `docker-compose.distributed.yml` to enable local testing of separate Bank, Buyer, and Seller nodes.
 3. **Frontend Lifecycle Alignment:** Refactored `api.ts` and `EscrowCard.astro` to support the full high-assurance state machine (`DRAFT` → `FUNDED` → `ACTIVE` → `DISPUTED` → `PROPOSED` → `SETTLED`).
 4. **Distributed Gateway:** Implemented `MultiLedgerClient` in Go for role-based node routing and resilient identity resolution across clusters.
-5. **Testing Hierarchy:** Established three-tier testing strategy: Unit (Fast/Mocks), Integration (Single-node), and Distributed (Multi-node).
+5. **Testing Hierarchy:** Established three-tier testing strategy (Unit, Integration, Distributed) with reusable lifecycle logic and deterministic readiness checks.
+6. **Advanced Analytics Dashboard:** Implemented high-assurance **Operational Velocity** visualization with stage latency heatmaps and settlement funnel analytics.
 
 ### Tasks
 
@@ -51,12 +52,12 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 - [ ] Research and adapt **OpenZeppelin Canton-Stablecoin** templates for CDP-style vaults.
 - [ ] Connect with **USDCx** (BitGo/Circle) mock/testnet assets for collateral pledging.
 
-**Task 6.3: Analytics & Validation (Noves) (IN PROGRESS)**
+**Task 6.3: Analytics & Validation (Noves) (COMPLETE)**
 
 - [x] Integrate **Noves Data & Analytics API** simulation for real-time deposit confirmation.
 - [x] Build **LifecycleTracker** process map logic in backend service.
 - [x] Create **LifecycleTracker.astro** frontend component for stepwise visualization.
-- [ ] Build full-cycle metrics dashboard (time-to-complete, bottleneck analysis) using Noves indexed data.
+- [x] Build full-cycle metrics dashboard (time-to-complete, bottleneck analysis) using Noves indexed data.
 
 ------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import RefreshSlider from '../components/RefreshSlider.astro';
+import OperationalVelocity from '../components/OperationalVelocity.astro';
 import { fetchMetrics, fetchConfig } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
@@ -174,7 +175,15 @@ const generateGraphPoints = (history: any[]) => {
 				</div>
 			</section>
 
-			{/* Section 3: API & System Performance */}
+			{/* Section 3: Process Efficiency (High-Assurance) */}
+			<section>
+				<OperationalVelocity 
+					latencies={metrics.stageLatencies} 
+					successRate={metrics.successRate} 
+				/>
+			</section>
+
+			{/* Section 4: API & System Performance */}
 			<section>
 				<div class="flex justify-between items-center mb-6">
 					<h3 class="text-lg font-bold text-slate-800 dark:text-white">API & System Performance</h3>
