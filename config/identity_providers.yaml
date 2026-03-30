@@ -1,0 +1,18 @@
+# Identity Providers Map (Task 9.1)
+# Maps domains to GCIP Tenants and Provider IDs
+
+providers:
+  datacloud.com:
+    type: SAML
+    issuer: https://saml.datacloud.com
+    tenantId: datacloud-tenant-xyz
+    description: DataCloud Corporate SSO
+  bank.com:
+    type: SAML
+    issuer: https://sso.bank.com
+    tenantId: bank-tenant-abc
+    description: Global Bank Infrastructure
+  default:
+    type: OIDC
+    issuer: https://accounts.google.com
+    description: Google Public Identity

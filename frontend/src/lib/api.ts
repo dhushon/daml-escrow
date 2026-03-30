@@ -55,6 +55,12 @@ export async function fetchEscrowLifecycle(id: string, user: string = 'Buyer') {
     return response.json();
 }
 
+export async function discoverAuth(email: string) {
+    const response = await fetch(`${API_BASE}/auth/discover?email=${encodeURIComponent(email)}`);
+    if (!response.ok) throw new Error('Failed to discover auth provider');
+    return response.json();
+}
+
 // Lifecycle Actions (Phase 5 High-Assurance)
 
 export async function proposeEscrow(req: any) {

@@ -73,6 +73,7 @@ func AuthMiddleware(issuer, clientId, audience string, logger *zap.Logger) func(
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Bypass auth for health, swagger, and anonymous token endpoints
 			if strings.HasPrefix(r.URL.Path, "/api/v1/health") || 
+			   strings.HasPrefix(r.URL.Path, "/api/v1/auth/discover") ||
 			   strings.HasPrefix(r.URL.Path, "/swagger") ||
 			   strings.HasPrefix(r.URL.Path, "/api/v1/invites/token/") {
 				// Special Case: In AUTH_DEV_MODE, we still want to inject the Dev User 

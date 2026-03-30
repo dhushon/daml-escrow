@@ -15,7 +15,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	// 1. Setup minimal handler
 	logger := zap.NewNop()
 	metrics := services.NewMetricsService()
-	h := NewHandler(logger, nil, metrics, nil, nil)
+	h := NewHandler(logger, nil, metrics, nil, nil, nil)
 
 	t.Run("Health returns 200 and UP status", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v1/health", nil)

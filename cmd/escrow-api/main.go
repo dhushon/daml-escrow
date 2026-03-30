@@ -81,7 +81,10 @@ func main() {
 	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
-
+	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
+	if err != nil {
+	        logger.Fatal("failed to initialize identity service", zap.Error(err))
+	}
 	escrowService := services.NewEscrowService(
 	        logger,
 	        ledgerClient,
@@ -96,7 +99,9 @@ func main() {
 	        metricsService,
 	        configService,
 	        analyticsService,
+	        identityService,
 	)
+
 	router := chi.NewRouter()
 
 	router.Use(api.LoggingMiddleware(logger))
@@ -109,9 +114,11 @@ func main() {
 
 	// API Routes
 	router.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", handler.GetHealth)
-		r.Get("/auth/me", handler.GetIdentity)
-		r.Get("/config", handler.GetConfig)
+	        r.Get("/health", handler.GetHealth)
+	        r.Get("/auth/me", handler.GetIdentity)
+	        r.Get("/auth/discover", handler.DiscoverAuth)
+	        r.Get("/config", handler.GetConfig)
+
 		r.Post("/config", handler.SaveConfig)
 
 		r.Get("/invites", handler.ListInvitations)

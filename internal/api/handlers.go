@@ -16,15 +16,17 @@ type Handler struct {
 	metricsService   *services.MetricsService
 	configService    *services.ConfigService
 	analyticsService *services.AnalyticsService
+	identityService  *services.IdentityService
 }
 
-func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService, analyticsService *services.AnalyticsService) *Handler {
+func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService, analyticsService *services.AnalyticsService, identityService *services.IdentityService) *Handler {
 	return &Handler{
 		logger:           logger,
 		escrowService:    escrowService,
 		metricsService:   metricsService,
 		configService:    configService,
 		analyticsService: analyticsService,
+		identityService:  identityService,
 	}
 }
 
@@ -341,6 +343,17 @@ func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 // Identity & Health
 // ---------------------------------------------------------------------------
+
+func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "email parameter required", http.StatusBadRequest)
+		return
+	}
+
+	provider := h.identityService.DiscoverProvider(r.Context(), email)
+	h.renderJSON(w, provider)
+}
 
 func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	sub, ok := r.Context().Value(AuthSubKey).(string)
