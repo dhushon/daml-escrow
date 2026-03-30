@@ -1,5 +1,5 @@
 # 1. Initialize Google Identity Platform
-resource "google_identity_platform_project_default_config" "default" {
+resource "google_identity_platform_config" "default" {
   provider = google-beta
   project  = var.project_id
 }
@@ -15,35 +15,30 @@ resource "google_identity_platform_default_supported_idp_config" "google" {
 }
 
 # 3. Provision Enterprise SAML Tenants
-# Each enterprise gets a dedicated GCIP Tenant for isolation
 resource "google_identity_platform_tenant" "enterprise_tenant" {
   provider     = google-beta
   for_each     = var.enterprise_clients
   project      = var.project_id
   display_name = each.value.name
   
-  # Allow password signup for testing, though SAML is primary
   allow_password_signup = true
 }
 
 # 4. Example SAML IdP Config for DataCloud
-# In a real environment, metadata and certificates would be injected here.
-resource "google_identity_platform_tenant_idp_config" "datacloud_saml" {
-  provider   = google-beta
-  project    = var.project_id
-  name       = "saml.datacloud"
-  tenant     = google_identity_platform_tenant.enterprise_tenant["datacloud"].name
+resource "google_identity_platform_tenant_saml_idp_config" "datacloud_saml" {
+  provider     = google-beta
+  project      = var.project_id
+  name         = "saml.datacloud" # Must start with 'saml.'
+  tenant       = google_identity_platform_tenant.enterprise_tenant["datacloud"].name
   display_name = "DataCloud SSO"
-  enabled    = true
-  idp_id     = "saml.datacloud"
+  enabled      = true
+  idp_id       = "saml.datacloud" # Logical ID for HRD
   
-  idp_config {
-    idp_entity_id = "https://sts.windows.net/datacloud-uuid/"
-    sso_url       = "https://login.microsoftonline.com/datacloud-uuid/saml2"
-    
-    idp_certificates {
-      x509_certificate = "MII..." # Placeholder
-    }
+  idp_entity_id = "https://sts.windows.net/datacloud-uuid/"
+  sso_url       = "https://login.microsoftonline.com/datacloud-uuid/saml2"
+  
+  idp_certificates {
+    x509_certificate = "MII..." # Placeholder
   }
 
   sp_config {
