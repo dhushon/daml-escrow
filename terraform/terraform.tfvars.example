@@ -1,0 +1,22 @@
+# terraform.tfvars.example
+# Rename this to terraform.tfvars and fill in your actual values.
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# Google OIDC Credentials (from GCP Console > APIs & Services > Credentials)
+google_client_id     = "your-google-client-id.apps.googleusercontent.com"
+google_client_secret = "your-google-client-secret"
+
+# Enterprise SAML Clients
+# These will be provisioned as dedicated GCIP Tenants
+enterprise_clients = {
+  "datacloud" = {
+    name   = "DataCloud LLC"
+    domain = "datacloud.com"
+  },
+  "bank" = {
+    name   = "Global Bank Corp"
+    domain = "bank.com"
+  }
+}
