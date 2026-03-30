@@ -1,10 +1,12 @@
 # 1. Initialize Google Identity Platform
 resource "google_identity_platform_project_default_config" "default" {
-  project = var.project_id
+  provider = google-beta
+  project  = var.project_id
 }
 
 # 2. Configure Retail OIDC (Google)
 resource "google_identity_platform_default_supported_idp_config" "google" {
+  provider      = google-beta
   project       = var.project_id
   enabled       = true
   idp_id        = "google.com"
@@ -15,6 +17,7 @@ resource "google_identity_platform_default_supported_idp_config" "google" {
 # 3. Provision Enterprise SAML Tenants
 # Each enterprise gets a dedicated GCIP Tenant for isolation
 resource "google_identity_platform_tenant" "enterprise_tenant" {
+  provider     = google-beta
   for_each     = var.enterprise_clients
   project      = var.project_id
   display_name = each.value.name
@@ -26,6 +29,7 @@ resource "google_identity_platform_tenant" "enterprise_tenant" {
 # 4. Example SAML IdP Config for DataCloud
 # In a real environment, metadata and certificates would be injected here.
 resource "google_identity_platform_tenant_idp_config" "datacloud_saml" {
+  provider   = google-beta
   project    = var.project_id
   name       = "saml.datacloud"
   tenant     = google_identity_platform_tenant.enterprise_tenant["datacloud"].name
