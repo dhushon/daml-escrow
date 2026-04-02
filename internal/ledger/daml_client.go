@@ -120,7 +120,7 @@ func (c *DamlClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIden
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 
-func (c *DamlClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
+func (c *DamlClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 

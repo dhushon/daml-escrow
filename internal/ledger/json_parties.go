@@ -97,7 +97,7 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	}, nil
 }
 
-func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
+func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	damlUserID := sanitizeSub(oktaSub)
 
 	// 1. Allocate Party
@@ -134,16 +134,32 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		return nil, fmt.Errorf("failed to create daml user: %w", err)
 	}
 
-	// 3. Grant actAs Rights
+	// 3. Prepare Rights (JIT Mapping)
+	grants := []map[string]interface{}{
+		{
+			"type":  "actAs",
+			"party": allocatedParty,
+		},
+	}
+
+	// Map Scopes to Ledger Authorities (Directive 11)
+	for _, scope := range scopes {
+		if scope == "system:admin" {
+			// Grant access to the Central Bank's party for administrative actions
+			bankParty := c.GetParty("CentralBank")
+			if bankParty != "" && bankParty != "CentralBank" {
+				grants = append(grants, map[string]interface{}{
+					"type":  "actAs",
+					"party": bankParty,
+				})
+			}
+		}
+	}
+
 	rightsBody := map[string]interface{}{
 		"userId":             damlUserID,
 		"identityProviderId": "",
-		"grant": []map[string]interface{}{
-			{
-				"type":  "actAs",
-				"party": allocatedParty,
-			},
-		},
+		"grant":              grants,
 	}
 	rightsPath := fmt.Sprintf("/v2/users/%s/rights", damlUserID)
 	_, err = c.doRawRequest(ctx, "POST", rightsPath, rightsBody)
@@ -156,7 +172,10 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	c.partyMap[damlUserID] = allocatedParty
 	c.mu.Unlock()
 
-	c.logger.Info("provisioned new identity", zap.String("oktaSub", oktaSub), zap.String("damlParty", allocatedParty))
+	c.logger.Info("provisioned new identity", 
+		zap.String("oktaSub", oktaSub), 
+		zap.String("damlParty", allocatedParty),
+		zap.Strings("scopes", scopes))
 
 	return &UserIdentity{
 		OktaSub:     oktaSub,

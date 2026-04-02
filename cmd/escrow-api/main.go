@@ -17,6 +17,7 @@ import (
 	_ "daml-escrow/docs"
 
 	chi "github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
@@ -106,8 +107,28 @@ func main() {
 
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
-	router.Use(api.AuthMiddleware(cfg.Auth.Issuer, cfg.Auth.ClientID, cfg.Auth.Audience, logger))
 
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:4321", "http://127.0.0.1:4321", "http://0.0.0.0:4321"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Dev-User", "Origin"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	// Initialize OIDC Verifier (only if not in bypass mode to allow offline dev)
+	var verifier api.TokenVerifier
+	isDevBypass := cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass
+	if !isDevBypass {
+	        var err error
+	        verifier, err = api.NewRealVerifier(context.Background(), cfg.Auth.Issuer, cfg.Auth.Audience)
+	        if err != nil {
+	                logger.Fatal("failed to initialize OIDC verifier", zap.Error(err), zap.String("issuer", cfg.Auth.Issuer))
+	        }
+	}
+
+	router.Use(api.AuthMiddleware(cfg.Auth, verifier, logger))
 	router.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
 	))

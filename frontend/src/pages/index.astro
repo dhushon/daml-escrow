@@ -2,48 +2,104 @@
 import Layout from '../layouts/Layout.astro';
 import EscrowCard from '../components/EscrowCard.astro';
 import InviteModal from '../components/InviteModal.astro';
-import IdentityDiscovery from '../components/IdentityDiscovery.astro';
 import { fetchEscrows, fetchProposals } from '../lib/api';
 
-const authCookie = Astro.cookies.get('auth_token');
-const isAuthenticated = !!authCookie?.value;
+const userEmail = Astro.cookies.get('user_email')?.value;
+const userScopes = (Astro.cookies.get('user_scopes')?.value || '').split(',');
+const isAuthenticated = !!userEmail;
 
 const adminCookie = Astro.cookies.get('admin-mode');
-const isAdmin = adminCookie?.value === 'true';
+const isAdmin = adminCookie?.value === 'true' || userScopes.includes('system:admin');
 
 const view = Astro.url.searchParams.get('view') || 'Buyer';
 const tab = Astro.url.searchParams.get('tab') || 'active';
-const targetUser = isAdmin ? 'EscrowMediator' : view;
+
+// Determine Effective Role for UI
+let effectiveRole = 'Guest';
+if (userScopes.includes('system:admin')) {
+	effectiveRole = view === 'Buyer' ? 'Issuer' : 'Mediator';
+} else if (userScopes.includes('escrow:write')) {
+	effectiveRole = view;
+}
 
 let escrows = [];
 let proposals = [];
 let error = null;
 
-try {
-	if (isAuthenticated) {
+if (isAuthenticated) {
+	try {
 		if (tab === 'active') {
-			escrows = await fetchEscrows(targetUser);
+			escrows = await fetchEscrows();
 		} else {
-			proposals = await fetchProposals(targetUser);
+			proposals = await fetchProposals();
 		}
+	} catch (e) {
+		error = e.message;
 	}
-} catch (e) {
-	error = e.message;
 }
 ---
 
 <Layout title="Dashboard | Stablecoin Escrow">
 	{!isAuthenticated ? (
-		<div class="py-24">
-			<IdentityDiscovery />
+		/* Public Landing Page */
+		<div class="max-w-4xl mx-auto py-20 text-center">
+			<div class="inline-flex items-center space-x-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-8 border border-blue-100 dark:border-blue-800">
+				<span class="relative flex h-2 w-2">
+					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+					<span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+				</span>
+				<span>High-Assurance Financial Infrastructure</span>
+			</div>
+			<h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter mb-6">
+				Privacy-Preserving <br/><span class="text-blue-600">Stablecoin Escrows</span>
+			</h1>
+			<p class="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed mb-12">
+				A high-assurance platform powered by Daml smart contracts and Canton distributed ledgers. 
+				Secure your digital assets with programmatic multi-party settlement.
+			</p>
+			
+			<div class="flex flex-col md:flex-row justify-center gap-4">
+				<a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl shadow-blue-500/30 transition-all transform active:scale-95 text-lg">
+					Get Started
+				</a>
+				<button class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold py-4 px-8 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-lg">
+					View Documentation
+				</button>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-24">
+				<div class="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+					<div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center text-green-600 mb-4">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04 \
+						M12 21.75c-2.676 0-5.216-.584-7.499-1.632A12.02 12.02 0 013 12c0-5.392 3.478-9.938 8.288-11.538.356-.108.74-.108 1.096 0A11.977 11.955 0 0121 12c0 5.392-3.478 9.938-8.288 11.538-.356.108-.74.108-1.096 0z" /></svg>
+					</div>
+					<h3 class="font-bold text-slate-900 dark:text-white mb-2">Immutable Logic</h3>
+					<p class="text-sm text-slate-500">Escrow terms enforced by cryptographically signed Daml bytecode.</p>
+				</div>
+				<div class="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+					<div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 mb-4">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+					</div>
+					<h3 class="font-bold text-slate-900 dark:text-white mb-2">Sovereign Data</h3>
+					<p class="text-sm text-slate-500">Distributed multi-node architecture ensures no single party controls your data.</p>
+				</div>
+				<div class="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+					<div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-600 mb-4">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+					</div>
+					<h3 class="font-bold text-slate-900 dark:text-white mb-2">Instant Settlement</h3>
+					<p class="text-sm text-slate-500">Automated milestone verification via trusted Oracles and stablecoin rails.</p>
+				</div>
+			</div>
 		</div>
 	) : (
-		<>
+		/* Authenticated Dashboard */
+		<div id="dashboard-content">
 			<div class="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
 				<div>
 					<div class="flex items-center space-x-2 mb-1">
-						<span class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
-						<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+						<span id="role-indicator" class={`w-2 h-2 rounded-full ${isAdmin ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'}`}></span>
+						<span id="role-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
 							{isAdmin ? 'System-Wide Oversight' : `${view} Perspective`}
 						</span>
 					</div>
@@ -51,22 +107,19 @@ try {
 				</div>
 				
 				<div class="flex items-center space-x-4">
-					{!isAdmin && (
-						<div class="inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-[10px] font-black uppercase tracking-widest">
-							<a href={`/?view=Buyer&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Buyer</a>
-							<a href={`/?view=Seller&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Seller</a>
-						</div>
-					)}
+					<div id="view-toggle" class={`inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-[10px] font-black uppercase tracking-widest ${isAdmin ? 'hidden' : ''}`}>
+						<a href={`/?view=Buyer&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Buyer</a>
+						<a href={`/?view=Seller&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Seller</a>
+					</div>
 				</div>
 			</div>
 
-			{/* Tab Navigation */}
 			<div class="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
 				<a 
 					href={`/?view=${view}&tab=active`} 
 					class={`pb-4 px-6 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${tab === 'active' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
 				>
-					Active Contracts ({isAdmin ? 'Mediating' : 'Running'})
+					Active Contracts
 				</a>
 				<a 
 					href={`/?view=${view}&tab=proposals`} 
@@ -84,21 +137,21 @@ try {
 
 			{tab === 'active' ? (
 				(escrows || []).length === 0 && !error ? (
-					<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl transition-all duration-300">
+					<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
 						<div class="mx-auto w-16 h-16 text-slate-300 dark:text-slate-700 mb-6">
-							<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"></path></svg>
+							<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"></path></svg>
 						</div>
 						<h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">No active escrows</h3>
 						<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Agreements will appear here once proposals are accepted.</p>
 					</div>
 				) : (
 					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-						{(escrows || []).filter(e => e !== null).map(e => <EscrowCard escrow={e} isAdmin={isAdmin} />)}
+						{(escrows || []).filter(e => e !== null).map(e => <EscrowCard escrow={e} isAdmin={isAdmin} userRole={effectiveRole} />)}
 					</div>
 				)
 			) : (
 				(proposals || []).length === 0 && !error ? (
-					<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl transition-all duration-300">
+					<div class="text-center py-24 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
 						<h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">No pending proposals</h3>
 						<p class="text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto italic">Start a new draft agreement to begin the escrow process.</p>
 						<div class="flex justify-center gap-4 mt-6">
@@ -153,10 +206,10 @@ try {
 					</div>
 				)
 			)}
-
-			<InviteModal />
-		</>
+		</div>
 	)}
+
+	<InviteModal />
 </Layout>
 
 <script>
@@ -168,6 +221,18 @@ try {
 		ratifySettlement, 
 		finalizeSettlement 
 	} from '../lib/api';
+	import { getSession } from '../lib/auth';
+
+	// Client-side Hydration & Role Check
+	const session = getSession();
+	if (session) {
+		const isAdmin = session.scopes.includes('system:admin');
+		if (isAdmin) {
+			document.cookie = "admin-mode=true; path=/; max-age=3600";
+		} else {
+			document.cookie = "admin-mode=false; path=/; max-age=3600";
+		}
+	}
 
 	const buttons = document.querySelectorAll('button[data-action]');
 	buttons.forEach(btn => {
@@ -187,14 +252,14 @@ try {
 			try {
 				if (action === 'fund') {
 					const ref = prompt("Enter Custody Reference (e.g. TX-123):", "TX-" + Math.floor(Math.random()*1000));
-					if (ref) await fundEscrow(id, ref, user);
+					if (ref) await fundEscrow(id, ref);
 					else throw new Error("Reference required");
 				}
-				else if (action === 'activate') await activateEscrow(id, user);
-				else if (action === 'confirm') await confirmConditions(id, user);
-				else if (action === 'dispute') await raiseDispute(id, user);
-				else if (action === 'ratify') await ratifySettlement(id, user);
-				else if (action === 'disburse') await finalizeSettlement(id, user);
+				else if (action === 'activate') await activateEscrow(id);
+				else if (action === 'confirm') await confirmConditions(id);
+				else if (action === 'dispute') await raiseDispute(id);
+				else if (action === 'ratify') await ratifySettlement(id);
+				else if (action === 'disburse') await finalizeSettlement(id);
 				
 				window.location.reload();
 			} catch (err) {

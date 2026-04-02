@@ -39,6 +39,19 @@ go.work.sum
 
 # env file
 .env
+.env.*
+
+# Sensitive Configuration
+*.yaml
+!**/daml.yaml
+!**/*.example
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
 
 # Editor/IDE
 .java-version

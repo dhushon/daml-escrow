@@ -20,3 +20,15 @@ enterprise_clients = {
     domain = "bank.com"
   }
 }
+
+# Okta Configuration
+# okta_org_name: The first part of your Okta URL (e.g., dev-123456)
+# okta_base_url: The second part of your Okta URL (e.g., okta.com or oktapreview.com)
+# okta_api_token: Created in Okta Admin Console > Security > API > Tokens
+okta_org_name  = "your-okta-org-name"
+okta_base_url  = "okta.com"
+okta_api_token = "your-okta-api-token"
+
+# Feature Toggles
+enable_google_idp = false
+enable_okta_idp   = true

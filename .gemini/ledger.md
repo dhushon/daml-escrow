@@ -22,11 +22,14 @@
 - **Distributed Integration (`-tags=distributed`):** Multi-node Canton topology testing. Validates routing, cross-node authorization, and topology propagation.
 - **Infrastructure Isolation:** Use Go build tags to ensure `go test ./...` remains fast and infra-agnostic.
 
-## 4. Multi-Node Routing & Identity
+## 4. Multi-Node Routing & Identity Bridge
 
+- **Identity Bridge:** The platform uses an OIDC-to-Ledger mapping strategy. External JWT assertions are cryptographically verified and used to drive Just-In-Time (JIT) ledger provisioning.
+- **Scope-to-Permission Mapping:** OIDC scopes (e.g., `system:admin`) are mapped directly to ledger-level rights (e.g., `actAs CentralBank`). This ensures that external identities carry cryptographically enforceable authority on the synchronizer.
+- **Home Realm Discovery (HRD):** Domain-based routing determines the correct IdP (Okta/SAML) and tracks identity origin via the `origin_domain` claim.
 - **Routing Logic:** The `MultiLedgerClient` MUST route commands to the node hosting the primary submitter. 
 - **Identity Redundancy:** `GetIdentity` MUST probe all nodes in the cluster to resolve users, as users may be provisioned on different participants depending on their role/email domain.
-- **JIT Provisioning:** Preferred node for provisioning should be determined by role (e.g., `bank.com` emails to the `bank` node).
+- **Detailed Documentation:** For complete details on the identity bridge, JIT provisioning, and HRD strategies, see [**IDENTITY.md**](../IDENTITY.md).
 
 ## 5. High-Assurance Escrow Lifecycle
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -11,9 +12,9 @@ type Config struct {
 		Port int `yaml:"port"`
 	} `yaml:"server"`
 	Ledger struct {
-		Host    string `yaml:"host"`
-		Port    int    `yaml:"port"`
-		Nodes   map[string]ParticipantNode `yaml:"nodes"`
+		Host     string                 `yaml:"host"`
+		Port     int                    `yaml:"port"`
+		Nodes    map[string]ParticipantNode `yaml:"nodes"`
 		Packages struct {
 			Implementation string `yaml:"implementation"`
 			Interfaces     string `yaml:"interfaces"`
@@ -28,14 +29,18 @@ type Config struct {
 	UserConfig struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"userConfig"`
-	Auth struct {
-		Issuer   string `yaml:"issuer"`
-		ClientID string `yaml:"clientId"`
-		Audience string `yaml:"audience"`
-	} `yaml:"auth"`
+	Auth   AuthConfig `yaml:"auth"`
 	Oracle struct {
 		WebhookSecret string `yaml:"webhookSecret"`
 	} `yaml:"oracle"`
+}
+
+type AuthConfig struct {
+	Issuer      string `yaml:"issuer"`
+	ClientID    string `yaml:"clientId"`
+	Audience    string `yaml:"audience"`
+	Environment string `yaml:"-"` // Loaded from env
+	AuthBypass  bool   `yaml:"-"` // Loaded from env
 }
 
 type ParticipantNode struct {
@@ -55,6 +60,15 @@ func LoadConfig(path string) (*Config, error) {
 	if err := decoder.Decode(&cfg); err != nil {
 		return nil, err
 	}
+
+	// Load additional auth fields from environment variables
+	cfg.Auth.Environment = os.Getenv("ENVIRONMENT")
+	if cfg.Auth.Environment == "" {
+		cfg.Auth.Environment = "production"
+	}
+
+	authBypassStr := os.Getenv("AUTH_BYPASS")
+	cfg.Auth.AuthBypass, _ = strconv.ParseBool(authBypassStr) // Defaults to false on error
 
 	return &cfg, nil
 }

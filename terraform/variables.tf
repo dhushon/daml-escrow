@@ -37,3 +37,36 @@ variable "enterprise_clients" {
     }
   }
 }
+
+# --- Okta Variables ---
+
+variable "okta_org_name" {
+  description = "Okta Organization Name (e.g., dev-123456)"
+  type        = string
+}
+
+variable "okta_base_url" {
+  description = "Okta Base URL (e.g., okta.com, oktapreview.com)"
+  type        = string
+  default     = "okta.com"
+}
+
+variable "okta_api_token" {
+  description = "Okta API Token"
+  type        = string
+  sensitive   = true
+}
+
+# --- Feature Toggles ---
+
+variable "enable_google_idp" {
+  description = "Toggle to enable/disable Google Cloud Identity Platform resources"
+  type        = bool
+  default     = true
+}
+
+variable "enable_okta_idp" {
+  description = "Toggle to enable/disable Okta Identity Provider resources"
+  type        = bool
+  default     = true
+}

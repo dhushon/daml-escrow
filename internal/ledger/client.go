@@ -164,13 +164,20 @@ type OracleWebhookRequest struct {
 }
 
 type HealthResponse struct {
-	Status      string  `json:"status"`
-	Version     string  `json:"version"`
-	Uptime      string  `json:"uptime"`
-	StartTime   string  `json:"startTime"`
-	CPUUsage    float64 `json:"cpuUsage"`
-	MemoryUsage float64 `json:"memoryUsage"`
-	Goroutines  int     `json:"goroutines"`
+	Status      string                   `json:"status"`
+	Version     string                   `json:"version"`
+	Uptime      string                   `json:"uptime"`
+	StartTime   string                   `json:"startTime"`
+	CPUUsage    float64                  `json:"cpuUsage"`
+	MemoryUsage float64                  `json:"memoryUsage"`
+	Goroutines  int                      `json:"goroutines"`
+	Services    map[string]ServiceHealth `json:"services"`
+}
+
+type ServiceHealth struct {
+	Status      string `json:"status"` // UP, DOWN, DEGRADED
+	Message     string `json:"message,omitempty"`
+	LatencyMs   int64  `json:"latencyMs,omitempty"`
 }
 
 type Client interface {
@@ -209,7 +216,7 @@ type Client interface {
 	SettlePayment(ctx context.Context, settlementID string) error
 	ListWallets(ctx context.Context, userID string) ([]*Wallet, error)
 	GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error)
-	ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error)
+	ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error)
 
 	// Utilities
 	CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error)

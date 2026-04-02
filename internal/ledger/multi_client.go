@@ -243,14 +243,14 @@ func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*U
 	return nil, fmt.Errorf("identity not found on any node: %s", oktaSub)
 }
 
-func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
+func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	var lastIdentity *UserIdentity
 	var lastErr error
 
 	// Broadcast provisioning to ALL nodes to ensure global visibility
 	for _, node := range []string{"bank", "buyer", "seller"} {
 		if client, ok := m.clients[node]; ok {
-			identity, err := client.ProvisionUser(ctx, oktaSub, email)
+			identity, err := client.ProvisionUser(ctx, oktaSub, email, scopes)
 			if err != nil {
 				m.logger.Warn("provisioning failed on node", zap.String("node", node), zap.Error(err))
 				lastErr = err

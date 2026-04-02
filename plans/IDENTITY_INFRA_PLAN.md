@@ -1,51 +1,55 @@
-# Identity & Infrastructure Plan: Phase 6 Prep
+# Integrated Identity & Health Strategy (Phase 9)
 
-## 1. Google Cloud Identity Platform (GCIP) - Terraform Structure
-Focus: Initializing the IdP and configuring the Home Realm Discovery (HRD) foundation.
+## 1. System Health Architecture (Deep Aggregation)
 
-```hcl
-# main.tf (Skeleton)
-resource "google_identity_platform_project_default_config" "default" {
-  project = var.project_id
-}
+### 1.1 Single Source of Truth
+The Go Backend API serves as the authoritative source for system health. The frontend MUST NOT query underlying infrastructure (Postgres, Ledger Nodes) directly.
 
-# Retail OIDC (Google)
-resource "google_identity_platform_default_supported_idp_config" "google" {
-  enabled = true
-  idp_id  = "google.com"
-  client_id     = var.google_client_id
-  client_secret = var.google_client_secret
-}
+### 1.2 Recursive Dependency Checks
+The `/api/v1/health` endpoint performs a recursive check of its active dependencies:
+- **Database (Postgres)**: Verified via `PingContext`.
+- **Ledger (Canton)**: Verified via metadata package search.
+- **Oracle**: Verified via configuration/secret validation.
 
-# Enterprise SAML Tenant Template
-resource "google_identity_platform_tenant" "enterprise_tenant" {
-  for_each     = var.enterprise_clients
-  display_name = each.value.name
-  project      = var.project_id
-}
-```
+### 1.3 Resilience & Timeouts
+- **Timeout Requirement**: Every sub-service health check MUST implement a strict context timeout (default: 2 seconds).
+- **Graceful Degradation**: If a non-critical dependency is slow or unreachable, the API MUST return a `DEGRADED` status instead of hanging or crashing.
 
-## 2. Home Realm Discovery (HRD) Logic
-**Flow:**
-1. User enters email on `onboard.astro` or `login.astro`.
-2. Frontend calls `GET /api/v1/auth/discovery?email=user@company.com`.
-3. Backend checks `domain_mappings` table:
-   - If `company.com` -> Return `SAML` + `TenantID`.
-   - If `gmail.com` -> Return `OIDC` (Google).
-4. Frontend redirects to the appropriate provider.
+---
 
-## 3. Pluggable KYC (Mock Implementation)
-**Interface:**
-```go
-type ComplianceService interface {
-    VerifyIdentity(ctx context.Context, identity UserIdentity) (bool, error)
-}
+## 2. Notification & Onboarding UX
 
-// MockCompliance always returns true for Phase 6.
-type MockCompliance struct{}
-func (m *MockCompliance) VerifyIdentity(...) (bool, error) { return true, nil }
-```
+### 2.1 Stateful Deep-Linking
+To support notifications like "Your contract needs review," the platform implements a stateful redirect flow:
+1.  **Capture**: The login gateway detects a `returnTo` parameter.
+2.  **Persistence**: The destination is stored in `sessionStorage` across the OIDC redirect handshake.
+3.  **Transit**: After successful Just-In-Time (JIT) provisioning, the user is automatically transited to the target record.
 
-## 4. Invitation Logic: Select vs. Create
-- **Existing Account:** If the authenticated `sub` already has a `DamlUserID` mapping, the invitation links the existing Party.
-- **Novel Account:** If the `sub` is new, the system allocates a `partyIdHint` based on the email domain (e.g. `Buyer_DataCloud_xyz`) and provisions a new Daml User.
+### 2.2 Secure Invitation Bridge (Private Onboarding)
+To secure open email exchanges, the platform uses a cryptographic binding model:
+- **Opaque Tokens**: Invitation links use high-entropy hashes. No PII (emails) or contract IDs are exposed in the URL.
+- **Identity Binding**: The backend verifies that the `email` claim in the verified OIDC JWT matches the `inviteeEmail` stored on the ledger for that token.
+- **Privacy Gating**: Contract amounts and sensitive terms are withheld from the UI until the identity-binding check is successfully completed.
+
+---
+
+## 3. Distributed Identity Management
+
+### 3.1 Home Realm Discovery (HRD)
+The system uses domain-based routing to select the correct Identity Provider:
+- **Corporate Domains**: Routed via SAML to institutional providers.
+- **Public Domains**: Routed via OIDC to the primary Okta instance.
+
+### 3.2 Origin Tracking
+Every identity assertion is tagged with its `origin_domain` (extracted from JWT or email suffix) to enable multi-tenant auditing and ledger-level partitioning.
+
+---
+
+## 4. Operational Baseline (Runtime)
+
+### 4.1 Database Scaling
+Due to the persistent connection pools required by multiple Canton participant nodes, mediators, and sequencers, the runtime database MUST be configured with a minimum `max_connections` of 500.
+
+### 4.2 Security Guards
+- **CORS**: The API must explicitly allow the frontend's origin and support the `X-Dev-User` header for development bypass testing.
+- **OIDC Verification**: Every request must be verified against the provider's JWKS; insecure parsing is strictly prohibited in non-dev environments.

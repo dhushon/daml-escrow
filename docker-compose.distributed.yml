@@ -6,6 +6,7 @@ services:
     image: postgres:16
     container_name: escrow-postgres-dist
     restart: always
+    command: ["postgres", "-c", "max_connections=500"]
     environment:
       POSTGRES_USER: escrow
       POSTGRES_PASSWORD: escrow

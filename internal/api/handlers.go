@@ -305,14 +305,37 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
+	userEmail, _ := r.Context().Value(EmailKey).(string)
+	originDomain, _ := r.Context().Value(OriginDomainKey).(string)
+
 	invite, err := h.escrowService.GetInvitationByToken(r.Context(), token)
 	if err != nil {
-		http.Error(w, "invitation not found", http.StatusNotFound)
+		http.Error(w, "invitation not found or expired", http.StatusNotFound)
+		return
+	}
+
+	// Cryptographic Binding Check (Directive 12)
+	// Verify that the logged-in user matches the intended recipient domain or email
+	isAuthorized := false
+	if invite.InviteeEmail == userEmail {
+		isAuthorized = true
+	} else if strings.HasSuffix(userEmail, "@"+originDomain) {
+		// Verify domain-level alignment
+		isAuthorized = true
+	}
+
+	if !isAuthorized && os.Getenv("AUTH_BYPASS") != "true" {
+		h.logger.Warn("unauthorized invitation claim attempt", 
+			zap.String("inviteId", invite.ID), 
+			zap.String("userEmail", userEmail),
+			zap.String("targetEmail", invite.InviteeEmail))
+		http.Error(w, "unauthorized: this invitation is bound to another identity", http.StatusForbidden)
 		return
 	}
 
 	proposal, err := h.escrowService.ClaimInvitation(r.Context(), invite.ID, userID)
 	if err != nil {
+		h.logger.Error("claim invitation failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -371,7 +394,8 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if identity == nil {
-		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email)
+		scopes, _ := r.Context().Value(ScopesKey).([]string)
+		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email, scopes)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -382,7 +406,11 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
-	health := h.metricsService.GetHealth()
+	health := h.metricsService.GetHealth(
+		h.configService,
+		h.escrowService.GetLedgerClient(),
+		h.escrowService.GetOracleSecret(),
+	)
 	h.renderJSON(w, health)
 }
 

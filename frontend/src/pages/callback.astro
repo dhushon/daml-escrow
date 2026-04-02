@@ -1,0 +1,46 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Authenticating... | Stablecoin Escrow">
+	<div class="flex flex-col items-center justify-center mt-40 space-y-6">
+		<div class="relative w-20 h-20">
+			<div class="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+			<div class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+		</div>
+		<div class="text-center">
+			<h2 class="text-2xl font-bold text-slate-800 dark:text-white">Finalizing Authentication</h2>
+			<p class="text-slate-500 mt-2">Provisioning your high-assurance identity on the ledger...</p>
+		</div>
+	</div>
+</Layout>
+
+<script>
+	import { finalizeAuthentication, getRedirect } from '../lib/auth';
+
+	async function init() {
+		// 1. Extract token from fragment (#access_token=...)
+		const hash = window.location.hash.substring(1);
+		const params = new URLSearchParams(hash);
+		const accessToken = params.get('access_token');
+
+		if (!accessToken) {
+			console.error('No access token found in URL');
+			window.location.href = '/login?error=no_token';
+			return;
+		}
+
+		try {
+			// 2. Finalize: Call backend /auth/me to provision user on DAML
+			await finalizeAuthentication(accessToken);
+			
+			// 3. Success: Transit to deep link
+			window.location.href = getRedirect();
+		} catch (err) {
+			console.error('Authentication finalization failed', err);
+			window.location.href = '/login?error=provision_failed';
+		}
+	}
+
+	init();
+</script>

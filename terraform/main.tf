@@ -1,11 +1,13 @@
 # 1. Initialize Google Identity Platform
 resource "google_identity_platform_config" "default" {
+  count    = var.enable_google_idp ? 1 : 0
   provider = google-beta
   project  = var.project_id
 }
 
 # 2. Configure Retail OIDC (Google)
 resource "google_identity_platform_default_supported_idp_config" "google" {
+  count         = var.enable_google_idp ? 1 : 0
   provider      = google-beta
   project       = var.project_id
   enabled       = true
@@ -16,9 +18,9 @@ resource "google_identity_platform_default_supported_idp_config" "google" {
 
 # 3. Provision Enterprise Tenants
 resource "google_identity_platform_tenant" "enterprise_tenant" {
+  for_each     = var.enable_google_idp ? var.enterprise_clients : {}
   provider     = google-beta
-  for_each     = var.enterprise_clients
-  project      = var.project_id
+  project       = var.project_id
   display_name = each.value.name
   
   allow_password_signup = true
@@ -26,7 +28,7 @@ resource "google_identity_platform_tenant" "enterprise_tenant" {
 
 # 5. Output Tenant IDs for Go API Consumption
 output "tenant_ids" {
-  value = {
+  value = var.enable_google_idp ? {
     for k, v in google_identity_platform_tenant.enterprise_tenant : k => v.name
-  }
+  } : {}
 }

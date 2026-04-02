@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import GoogleLogin from '../components/GoogleLogin.astro';
+import Footer from '../components/Footer.astro';
 
 interface Props {
 	title: string;
@@ -22,48 +23,22 @@ const userEmail = Astro.cookies.get('user_email')?.value;
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
-		{/* Google Identity Services */}
-		<script src="https://accounts.google.com/gsi/client" async defer></script>
 	</head>
 	<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
 		<nav class="bg-white border-b border-slate-200 p-4 shadow-sm dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-50">
 			<div class="container mx-auto flex justify-between items-center">
 				<div class="flex items-center space-x-3">
-					<img src="/favicon.svg" alt="Logo" class="w-10 h-10" />
-					<h1 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">Stablecoin Escrow</h1>
+					<a href="/" class="flex items-center space-x-3">
+						<img src="/favicon.svg" alt="Logo" class="w-10 h-10" />
+						<h1 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">Stablecoin Escrow</h1>
+					</a>
 				</div>
-				<div class="flex items-center space-x-6 text-sm font-semibold">
-					<a href="/" class="hover:text-blue-600 transition-colors">
-						{isAdmin ? 'Total Escrows' : 'My Escrows'}
-					</a>
-					<a href="/settlements" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">
-						{isAdmin ? 'Total Settlements' : 'Settlements'}
-					</a>
-					<a href="/metrics" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Metrics</a>
-					
-					{!isAdmin && (
-						<>
-							<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-							<a href="/compose" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all">Compose +</a>
-							<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Wallets</a>
-						</>
-					)}
-
-					<button id="admin-toggle" class="ml-4 px-3 py-1 rounded border border-slate-200 dark:border-slate-700 text-[10px] uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors cursor-pointer">
-						Admin: <span id="admin-status">OFF</span>
-					</button>
-
-					<div class="ml-6 pl-6 border-l border-slate-200 dark:border-slate-800">
-						{userEmail ? (
-							<div class="flex items-center space-x-2">
-								<div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">
-									{userEmail.charAt(0).toUpperCase()}
-								</div>
-								<span class="text-xs text-slate-600 dark:text-slate-400">{userEmail}</span>
-							</div>
-						) : (
-							<GoogleLogin />
-						)}
+				<div id="main-nav" class="flex items-center space-x-6 text-sm font-semibold">
+					<a href="/" class="hover:text-blue-600 transition-colors">Home</a>
+					<!-- Authenticated links will be injected here -->
+					<div id="auth-nav" class="flex items-center space-x-6">
+						<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+						<a href="/login" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">Sign In</a>
 					</div>
 				</div>
 			</div>
@@ -71,35 +46,44 @@ const userEmail = Astro.cookies.get('user_email')?.value;
 		<main class="container mx-auto p-6 flex-grow">
 			<slot />
 		</main>
-		<footer class="p-8 border-t border-slate-200 dark:border-slate-800 text-center text-slate-500 dark:text-slate-400 text-xs font-medium transition-colors">
-			Built with Daml 3.x + Astro + Go • Powered by DataCloud
-		</footer>
+		<Footer />
 		<script>
-			const toggle = document.getElementById('admin-toggle');
-			const status = document.getElementById('admin-status');
-			
-			function getCookie(name) {
-				const value = `; ${document.cookie}`;
-				const parts = value.split(`; ${name}=`);
-				if (parts.length === 2) return parts.pop().split(';').shift();
-			}
+			import { getSession, clearSession } from '../lib/auth';
 
-			let isAdmin = getCookie('admin-mode') === 'true';
-			updateUI();
+			const authNav = document.getElementById('auth-nav');
+			const session = getSession();
 
-			toggle?.addEventListener('click', () => {
-				isAdmin = !isAdmin;
-				document.cookie = `admin-mode=${isAdmin}; path=/; max-age=31536000`;
-				updateUI();
-				window.location.reload();
-			});
+			if (session && authNav) {
+				const { identity, scopes } = session;
+				const isAdmin = scopes.includes('system:admin');
+				const canWrite = scopes.includes('escrow:write');
+				
+				// Inject Protected Links
+				authNav.insertAdjacentHTML('beforebegin', `
+					<a href="/" class="hover:text-blue-600 transition-colors">${isAdmin ? 'Total Escrows' : 'My Escrows'}</a>
+					<a href="/settlements" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Settlements</a>
+					<a href="/metrics" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Metrics</a>
+				`);
 
-			function updateUI() {
-				if (status) status.textContent = isAdmin ? 'ON' : 'OFF';
-				if (toggle) {
-					toggle.classList.toggle('border-blue-500', isAdmin);
-					toggle.classList.toggle('text-blue-500', isAdmin);
-				}
+				authNav.innerHTML = `
+					<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
+					${canWrite ? '<a href="/compose" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all">Compose +</a>' : ''}
+					<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Wallets</a>
+					<div class="ml-6 pl-6 border-l border-slate-200 dark:border-slate-800 flex items-center space-x-3">
+						<div class="flex flex-col items-end">
+							<span class="text-xs font-bold text-slate-900 dark:text-white">${identity.email}</span>
+							<span class="text-[10px] text-slate-500 uppercase tracking-tighter">${identity.damlPartyId.split('::')[0]}</span>
+						</div>
+						<button id="logout-btn" class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-200 transition-colors cursor-pointer">
+							${identity.email.charAt(0).toUpperCase()}
+						</button>
+					</div>
+				`;
+
+				document.getElementById('logout-btn')?.addEventListener('click', () => {
+					clearSession();
+					window.location.href = '/login';
+				});
 			}
 		</script>
 	</body>
