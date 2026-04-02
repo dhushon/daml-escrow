@@ -51,11 +51,24 @@ func (m *MultiLedgerClient) Discover(ctx context.Context) error {
 	var lastErr error
 	for retry := 0; retry < 10; retry++ {
 		newMap := make(map[string]string)
+		discoveredClients := make(map[Client]bool)
+
 		for _, client := range m.clients {
+			// Skip if we've already discovered this physical client (important for Sandbox)
+			if discoveredClients[client] {
+				// Still aggregate mappings from the already discovered client
+				for k, v := range client.GetPartyMap() {
+					newMap[k] = v
+				}
+				continue
+			}
+
 			if err := client.Discover(ctx); err != nil {
 				lastErr = err
 				continue
 			}
+			discoveredClients[client] = true
+
 			// Aggregate party mappings from this node
 			for k, v := range client.GetPartyMap() {
 				newMap[k] = v
@@ -252,6 +265,11 @@ func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, e
 		if client, ok := m.clients[node]; ok {
 			identity, err := client.ProvisionUser(ctx, oktaSub, email, scopes)
 			if err != nil {
+				// If the party already exists, we consider this a success for this node
+				if strings.Contains(err.Error(), "Party already exists") || strings.Contains(err.Error(), "already exists") {
+					m.logger.Debug("identity already exists on node", zap.String("node", node), zap.String("oktaSub", oktaSub))
+					continue
+				}
 				m.logger.Warn("provisioning failed on node", zap.String("node", node), zap.Error(err))
 				lastErr = err
 			} else {
