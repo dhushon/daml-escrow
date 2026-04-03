@@ -118,9 +118,20 @@ export async function loginAsRole(role: string) {
 export async function finalizeAuthentication(token: string) {
     const identity = await authenticateIdentity(token);
     
-    // Extract scopes from JWT (in a real app, use a JWT library)
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const scopes = payload.scp || [];
+    // Extract scopes from JWT (only if it's a real 3-part token)
+    let scopes: string[] = [];
+    const parts = token.split('.');
+    if (parts.length === 3) {
+        try {
+            const payload = JSON.parse(atob(parts[1]));
+            scopes = payload.scp || [];
+        } catch (e) {
+            console.warn('Failed to parse JWT scopes, using defaults');
+        }
+    } else {
+        // Default scopes for bypass/dummy tokens
+        scopes = ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin'];
+    }
 
     const session: AuthSession = {
         token,

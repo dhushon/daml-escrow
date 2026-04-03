@@ -131,7 +131,11 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	}
 	_, err = c.doRawRequest(ctx, "POST", "/v2/users", userBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create daml user: %w", err)
+		if strings.Contains(err.Error(), "already exists") {
+			c.logger.Warn("user already exists on ledger, skipping creation", zap.String("userId", damlUserID))
+		} else {
+			return nil, fmt.Errorf("failed to create daml user: %w", err)
+		}
 	}
 
 	// 3. Prepare Rights (JIT Mapping)

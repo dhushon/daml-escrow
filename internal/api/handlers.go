@@ -391,7 +391,8 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 
 	identity, err := h.escrowService.GetIdentity(r.Context(), sub)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		h.logger.Error("failed to get identity", zap.String("sub", sub), zap.Error(err))
+		http.Error(w, "internal error: identity lookup failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -399,7 +400,8 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 		scopes, _ := r.Context().Value(ScopesKey).([]string)
 		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email, scopes)
 		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			h.logger.Error("failed to provision user", zap.String("sub", sub), zap.Error(err))
+			http.Error(w, "internal error: user provisioning failed", http.StatusInternalServerError)
 			return
 		}
 	}

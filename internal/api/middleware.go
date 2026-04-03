@@ -42,6 +42,9 @@ func (rw *responseWriter) WriteHeader(code int) {
 func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Deep Debug: Log every attempt
+			logger.Debug("raw_request_received", zap.String("method", r.Method), zap.String("path", r.URL.Path))
+			
 			start := time.Now()
 			next.ServeHTTP(w, r)
 			logger.Info(
@@ -94,8 +97,19 @@ func NewRealVerifier(ctx context.Context, issuer, audience string) (TokenVerifie
 func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Handle CORS pre-flight
+			if r.Method == http.MethodOptions {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Check for the new, explicit development bypass first.
 			isDevBypass := authConfig.Environment == "dev" && authConfig.AuthBypass
+
+			logger.Debug("auth_middleware_check", 
+				zap.String("method", r.Method), 
+				zap.String("path", r.URL.Path), 
+				zap.Bool("is_dev_bypass", isDevBypass))
 
 			// Bypass auth for health, swagger, and anonymous token endpoints
 			if strings.HasPrefix(r.URL.Path, "/api/v1/health") ||

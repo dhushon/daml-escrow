@@ -121,7 +121,7 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 				await loginAsRole(role);
 				window.location.href = getRedirect();
 			} catch (err: any) {
-				alert('Bypass failed. Is the Go API running in dev bypass mode?');
+				alert('Bypass failed: ' + err.message);
 			}
 		});
 	});

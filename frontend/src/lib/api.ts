@@ -1,6 +1,8 @@
 const API_BASE = 'http://localhost:8081/api/v1';
 
 function getAuthHeaders() {
+    if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
+
     const data = localStorage.getItem('auth_session');
     if (!data) return { 'Content-Type': 'application/json' };
     const session = JSON.parse(data);
@@ -196,7 +198,8 @@ export async function authenticateIdentity(jwt: string) {
     });
     
     if (!response.ok) {
-        throw new Error('Failed to authenticate and provision identity');
+        const errorText = await response.text();
+        throw new Error(`Auth failed (${response.status}): ${errorText || 'Unknown error'}`);
     }
     return response.json();
 }

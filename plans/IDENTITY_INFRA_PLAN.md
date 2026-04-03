@@ -53,3 +53,22 @@ Due to the persistent connection pools required by multiple Canton participant n
 ### 4.2 Security Guards
 - **CORS**: The API must explicitly allow the frontend's origin and support the `X-Dev-User` header for development bypass testing.
 - **OIDC Verification**: Every request must be verified against the provider's JWKS; insecure parsing is strictly prohibited in non-dev environments.
+
+---
+
+## 5. Next Steps (Roadmap)
+
+### 5.1 Step 1: Security Hardening (Production Transition)
+- **CORS Pruning**: Revert `AllowedOrigins: ["*"]` to a strict whitelist of the authorized frontend origin.
+- **Strict Verification**: Remove `ParseUnverified` fallback. The API must 'fail closed' on any invalid OIDC signature.
+- **Hardened Readiness**: Restore contract-specific template discovery in the ledger client to ensure commands only fire when the indexer is ready.
+
+### 5.2 Step 2: Direct Identity Testing (Locked Configuration)
+- **Lockdown Mode**: Configure testing environment for `ENVIRONMENT=dev` with `AUTH_BYPASS=false`.
+- **Verified Handshake**: Validate the full OIDC handshake loop using real JWTs from a development Okta authorization server.
+- **Provider Parity**: Ensure the identity bridge correctly handles both OIDC (Google/Okta) and SAML (Enterprise) assertions without bypass assistance.
+
+### 5.3 Step 3: Advanced Discovery & 'Invite Now' Mechanics
+- **Identity Directory**: Implement an API to enumerate or validate ledger-provisioned identities for counterparty selection.
+- **Cryptographic Invites**: Implement the 'Invite Now' workflow where a user provides a target email, generating an opaque token cryptographically bound to that specific identity suffix.
+- **Role Alignment**: Ensure that provisioned roles (Buyer, Seller, etc.) are strictly checked against ledger-level contract participation before allowing transitions.
