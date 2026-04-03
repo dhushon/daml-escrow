@@ -28,6 +28,7 @@ enterprise_clients = {
 okta_org_name  = "your-okta-org-name"
 okta_base_url  = "okta.com"
 okta_api_token = "your-okta-api-token"
+okta_test_user_password = "your-test-password"
 
 # Feature Toggles
 enable_google_idp = false

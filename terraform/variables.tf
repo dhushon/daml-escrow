@@ -57,6 +57,13 @@ variable "okta_api_token" {
   sensitive   = true
 }
 
+variable "okta_test_user_password" {
+  description = "Common password for Okta test personas"
+  type        = string
+  default     = "Stablecoin2026!"
+  sensitive   = true
+}
+
 # --- Feature Toggles ---
 
 variable "enable_google_idp" {

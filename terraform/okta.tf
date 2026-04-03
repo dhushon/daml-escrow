@@ -24,6 +24,79 @@ resource "okta_group" "bank" {
   description = "Institutional members (Issuer) for settlement and disbursement"
 }
 
+# --- Okta Users (Consistent Test Personas) ---
+
+resource "okta_user" "joey" {
+  count              = var.enable_okta_idp ? 1 : 0
+  first_name         = "Joey"
+  last_name          = "Buyer"
+  login              = "joey@buyer.com"
+  email              = "joey@buyer.com"
+  password           = var.okta_test_user_password
+}
+
+resource "okta_user" "jimmy" {
+  count              = var.enable_okta_idp ? 1 : 0
+  first_name         = "Jimmy"
+  last_name          = "Seller"
+  login              = "jimmy@seller.com"
+  email              = "jimmy@seller.com"
+  password           = var.okta_test_user_password
+}
+
+resource "okta_user" "sally" {
+  count              = var.enable_okta_idp ? 1 : 0
+  first_name         = "Sally"
+  last_name          = "Mediator"
+  login              = "sally@mediator.com"
+  email              = "sally@mediator.com"
+  password           = var.okta_test_user_password
+}
+
+resource "okta_user" "bob" {
+  count              = var.enable_okta_idp ? 1 : 0
+  first_name         = "Bob"
+  last_name          = "Banker"
+  login              = "bob@banker.com"
+  email              = "bob@banker.com"
+  password           = var.okta_test_user_password
+}
+
+resource "okta_user" "invited" {
+  count              = var.enable_okta_idp ? 1 : 0
+  first_name         = "Invited"
+  last_name          = "User"
+  login              = "invited-seller@vdatacloud.com"
+  email              = "invited-seller@vdatacloud.com"
+  password           = var.okta_test_user_password
+}
+
+# --- Group Memberships ---
+
+resource "okta_group_memberships" "buyer_members" {
+  count    = var.enable_okta_idp ? 1 : 0
+  group_id = okta_group.buyers[0].id
+  users    = [okta_user.joey[0].id]
+}
+
+resource "okta_group_memberships" "seller_members" {
+  count    = var.enable_okta_idp ? 1 : 0
+  group_id = okta_group.sellers[0].id
+  users    = [okta_user.jimmy[0].id]
+}
+
+resource "okta_group_memberships" "mediator_members" {
+  count    = var.enable_okta_idp ? 1 : 0
+  group_id = okta_group.mediators[0].id
+  users    = [okta_user.sally[0].id]
+}
+
+resource "okta_group_memberships" "bank_members" {
+  count    = var.enable_okta_idp ? 1 : 0
+  group_id = okta_group.bank[0].id
+  users    = [okta_user.bob[0].id]
+}
+
 # --- OIDC Application (Single Page App / Web) ---
 
 resource "okta_app_oauth" "escrow_platform" {
