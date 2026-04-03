@@ -8,19 +8,14 @@ interface Props {
 }
 
 const { title } = Astro.props;
-
-const adminCookie = Astro.cookies.get('admin-mode');
-const isAdmin = adminCookie?.value === 'true';
-const userEmail = Astro.cookies.get('user_email')?.value;
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="Stablecoin Escrow Dashboard" />
 		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
@@ -43,10 +38,26 @@ const userEmail = Astro.cookies.get('user_email')?.value;
 				</div>
 			</div>
 		</nav>
+
+		<style is:global>
+			.user-dropdown {
+				display: none;
+			}
+			.user-dropdown.show {
+				display: block;
+				animation: slideIn 0.2s ease-out;
+			}
+			@keyframes slideIn {
+				from { opacity: 0; transform: translateY(-10px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+		</style>
+
 		<main class="container mx-auto p-6 flex-grow">
 			<slot />
 		</main>
 		<Footer />
+
 		<script>
 			import { getSession, clearSession } from '../lib/auth';
 
@@ -69,16 +80,69 @@ const userEmail = Astro.cookies.get('user_email')?.value;
 					<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
 					${canWrite ? '<a href="/compose" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all">Compose +</a>' : ''}
 					<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Wallets</a>
-					<div class="ml-6 pl-6 border-l border-slate-200 dark:border-slate-800 flex items-center space-x-3">
-						<div class="flex flex-col items-end">
-							<span class="text-xs font-bold text-slate-900 dark:text-white">${identity.email}</span>
-							<span class="text-[10px] text-slate-500 uppercase tracking-tighter">${identity.damlPartyId.split('::')[0]}</span>
-						</div>
-						<button id="logout-btn" class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-200 transition-colors cursor-pointer">
-							${identity.email.charAt(0).toUpperCase()}
+					
+					<!-- User Identity Pill & Dropdown -->
+					<div class="relative ml-6 pl-6 border-l border-slate-200 dark:border-slate-800 flex items-center">
+						<button id="user-pill" class="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 rounded-2xl transition-all cursor-pointer group border-none bg-transparent outline-none">
+							<div class="flex flex-col items-end">
+								<span class="text-xs font-bold text-slate-900 dark:text-white">${identity.email}</span>
+								<span class="text-[10px] text-slate-500 uppercase tracking-tighter">${identity.damlPartyId.split('::')[0]}</span>
+							</div>
+							<div class="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold group-hover:bg-blue-200 transition-colors shadow-sm">
+								${identity.email.charAt(0).toUpperCase()}
+							</div>
 						</button>
+
+						<!-- Dropdown Menu -->
+						<div id="user-menu" class="user-dropdown absolute top-full right-0 mt-3 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-[100] overflow-hidden text-left">
+							<div class="p-6 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-left">
+								<p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Sovereign Identity</p>
+								<div class="space-y-4">
+									<div>
+										<label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 text-left">DAML User ID</label>
+										<code class="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-100 dark:border-slate-800 block truncate font-mono text-blue-600 dark:text-blue-400">${identity.damlUserId}</code>
+									</div>
+									<div>
+										<label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 text-left">Canton Party ID</label>
+										<code class="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-100 dark:border-slate-800 block truncate font-mono text-slate-600 dark:text-slate-300">${identity.damlPartyId}</code>
+									</div>
+								</div>
+							</div>
+							
+							<div class="p-2 space-y-1">
+								<div class="px-4 py-3 flex items-center justify-between border-b border-slate-50 dark:border-slate-800 mb-1">
+									<span class="text-xs font-bold text-slate-700 dark:text-slate-300">Affiliation</span>
+									<span class="text-[10px] font-black text-blue-500 uppercase tracking-widest">${identity.email.split('@')[1]}</span>
+								</div>
+								
+								<!-- Dynamic Actions -->
+								${!identity.email.endsWith('@gmail.com') && !identity.email.endsWith('@icloud.com') && !session.isBypass ? `
+									<a href="https://integrator-6277421.okta.com/enduser/settings" target="_blank" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+										<span>Change Password</span>
+									</a>
+								` : ''}
+
+								<button id="logout-btn" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-colors cursor-pointer border-none bg-transparent outline-none">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+									<span>Sign Out</span>
+								</button>
+							</div>
+						</div>
 					</div>
 				`;
+
+				const pill = document.getElementById('user-pill');
+				const menu = document.getElementById('user-menu');
+
+				pill?.addEventListener('click', (e) => {
+					e.stopPropagation();
+					menu?.classList.toggle('show');
+				});
+
+				document.addEventListener('click', () => {
+					menu?.classList.remove('show');
+				});
 
 				document.getElementById('logout-btn')?.addEventListener('click', () => {
 					clearSession();
