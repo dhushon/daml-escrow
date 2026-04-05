@@ -126,6 +126,14 @@ func (m *MockLedgerClient) ListInvitations(ctx context.Context, userID string) (
 	return args.Get(0).([]*EscrowInvitation), args.Error(1)
 }
 
+func (m *MockLedgerClient) GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error) {
+	args := m.Called(ctx, tokenHash)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*EscrowInvitation), args.Error(1)
+}
+
 func (m *MockLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
 	args := m.Called(ctx, oktaSub)
 	if args.Get(0) == nil {
@@ -206,6 +214,35 @@ func (m *MockLedgerClient) GetPartyMap() map[string]string {
 }
 
 func (m *MockLedgerClient) SetPartyMap(map[string]string) {}
+
+// LEGACY
+func (m *MockLedgerClient) CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*EscrowContract), args.Error(1)
+}
+
+func (m *MockLedgerClient) ReleaseFunds(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
+	return args.Error(0)
+}
+
+func (m *MockLedgerClient) ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error {
+	args := m.Called(ctx, id, b, s, userID)
+	return args.Error(0)
+}
+
+func (m *MockLedgerClient) RefundBuyer(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockLedgerClient) RefundBySeller(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
 
 // Stablecoin Mocks
 type MockStablecoinProvider struct {

@@ -2,6 +2,7 @@ package services
 
 import (
 	"daml-escrow/internal/ledger"
+	"fmt"
 	"testing"
 	"time"
 
@@ -49,5 +50,39 @@ func TestMetricsService(t *testing.T) {
 		
 		mockDB.ExpectationsWereMet()
 		mockLedger.AssertExpectations(t)
+	})
+
+	t.Run("GetHealth - Database Down", func(t *testing.T) {
+		db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
+		defer db.Close()
+		configSvc := &ConfigService{db: db}
+		mockDB.ExpectPing().WillReturnError(fmt.Errorf("db connection refused"))
+
+		mockLedger := new(ledger.MockLedgerClient)
+		mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("pkg-123", nil)
+
+		health := svc.GetHealth(configSvc, mockLedger, "test-secret")
+		
+		assert.Equal(t, "DEGRADED", health.Status)
+		assert.Equal(t, "DOWN", health.Services["database"].Status)
+		assert.Contains(t, health.Services["database"].Message, "db connection refused")
+		assert.Equal(t, "UP", health.Services["ledger"].Status)
+	})
+
+	t.Run("GetHealth - Ledger Down", func(t *testing.T) {
+		db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
+		defer db.Close()
+		configSvc := &ConfigService{db: db}
+		mockDB.ExpectPing()
+
+		mockLedger := new(ledger.MockLedgerClient)
+		mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("", fmt.Errorf("ledger timed out"))
+
+		health := svc.GetHealth(configSvc, mockLedger, "test-secret")
+		
+		assert.Equal(t, "DEGRADED", health.Status)
+		assert.Equal(t, "DOWN", health.Services["ledger"].Status)
+		assert.Contains(t, health.Services["ledger"].Message, "ledger timed out")
+		assert.Equal(t, "UP", health.Services["database"].Status)
 	})
 }

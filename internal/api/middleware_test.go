@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"daml-escrow/internal/config"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,20 +30,20 @@ func (m *MockVerifier) Verify(ctx context.Context, token string) (*oidc.IDToken,
 func TestAuthMiddleware_Bypass(t *testing.T) {
 	logger := zap.NewNop()
 	
-	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sub := r.Context().Value(AuthSubKey)
-		email := r.Context().Value(EmailKey)
-		assert.NotNil(t, sub)
-		assert.NotNil(t, email)
-		w.WriteHeader(http.StatusOK)
-	})
-
 	t.Run("Bypass enabled in dev", func(t *testing.T) {
 		authCfg := config.AuthConfig{
 			Environment: "dev",
 			AuthBypass:  true,
 		}
 		
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sub := r.Context().Value(AuthSubKey)
+			email := r.Context().Value(EmailKey)
+			assert.NotNil(t, sub)
+			assert.NotNil(t, email)
+			w.WriteHeader(http.StatusOK)
+		})
+
 		middleware := AuthMiddleware(authCfg, nil, logger)
 		h := middleware(nextHandler)
 
@@ -61,6 +62,10 @@ func TestAuthMiddleware_Bypass(t *testing.T) {
 			AuthBypass:  true, // Should be ignored in production
 		}
 		
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
 		middleware := AuthMiddleware(authCfg, nil, logger)
 		h := middleware(nextHandler)
 
@@ -71,6 +76,46 @@ func TestAuthMiddleware_Bypass(t *testing.T) {
 
 		// Should fail because verifier is nil and bypass is ignored
 		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+
+	t.Run("OPTIONS bypass", func(t *testing.T) {
+		authCfg := config.AuthConfig{Environment: "production"}
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// sub and email are NOT set for OPTIONS
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := AuthMiddleware(authCfg, nil, logger)
+		h := middleware(nextHandler)
+
+		req := httptest.NewRequest("OPTIONS", "/api/v1/escrows", nil)
+		rr := httptest.NewRecorder()
+
+		h.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("Verification Failure", func(t *testing.T) {
+		authCfg := config.AuthConfig{Environment: "production"}
+		mockVer := new(MockVerifier)
+		mockVer.On("Verify", mock.Anything, "bad-token").Return(nil, fmt.Errorf("invalid signature"))
+		
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("nextHandler should not be called")
+		})
+
+		middleware := AuthMiddleware(authCfg, mockVer, logger)
+		h := middleware(nextHandler)
+
+		req := httptest.NewRequest("GET", "/api/v1/escrows", nil)
+		req.Header.Set("Authorization", "Bearer bad-token")
+		rr := httptest.NewRecorder()
+
+		h.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+		mockVer.AssertExpectations(t)
 	})
 }
 
