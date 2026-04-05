@@ -158,6 +158,14 @@ func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	return args.Get(0).(*UserIdentity), args.Error(1)
 }
 
+func (m *MockLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*UserIdentity), args.Error(1)
+}
+
 func (m *MockLedgerClient) GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {

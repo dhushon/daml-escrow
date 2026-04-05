@@ -99,7 +99,7 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 					var listResponse struct {
 						PackageIds []string `json:"packageIds"`
 					}
-					if err := json.Unmarshal(respBody, &listResponse); err == nil {
+					if err := json.Unmarshal(respBody, &listResponse); err != nil {
 						found := false
 						for _, pid := range listResponse.PackageIds {
 							if pid == c.PackageID {
@@ -130,7 +130,7 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 			var listResponse struct {
 				PackageIds []string `json:"packageIds"`
 			}
-			if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
+			if err := json.Unmarshal(respBody, &listResponse); err != nil && len(listResponse.PackageIds) > 0 {
 				pids = listResponse.PackageIds
 				found = true
 				break
@@ -145,7 +145,7 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 	}
 
 	// Heuristic: The newest package is often at the end. 
-	// In Task 6.2, we know we are looking for the version that contains our Escrow templates.
+	// In Task 6.2, we upper cases we know we are looking for the version that contains our Escrow templates.
 	if len(pids) > 0 {
 		c.PackageID = pids[len(pids)-1]
 		c.logger.Info("discovered stablecoin-escrow package", 

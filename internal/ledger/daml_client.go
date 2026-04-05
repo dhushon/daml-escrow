@@ -124,6 +124,10 @@ func (c *DamlClient) ProvisionUser(ctx context.Context, oktaSub string, email st
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 
+func (c *DamlClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	return nil, fmt.Errorf("gRPC not implemented")
+}
+
 func (c *DamlClient) CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("gRPC not implemented")
 }
