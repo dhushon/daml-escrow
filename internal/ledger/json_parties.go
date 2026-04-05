@@ -97,41 +97,6 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	}, nil
 }
 
-func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
-	respBody, err := c.doRawRequest(ctx, "GET", "/v2/users", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list daml users: %w", err)
-	}
-
-	var response struct {
-		Users []struct {
-			Id           string `json:"id"`
-			PrimaryParty string `json:"primaryParty"`
-		} `json:"users"`
-	}
-	if err := json.Unmarshal(respBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal users list: %w", err)
-	}
-
-	identities := make([]*UserIdentity, 0, len(response.Users))
-	for _, u := range response.Users {
-		// Skip system users
-		if strings.HasPrefix(u.Id, "participant_admin") || u.Id == "admin" {
-			continue
-		}
-
-		identities = append(identities, &UserIdentity{
-			DamlUserID:  u.Id,
-			DamlPartyID: u.PrimaryParty,
-			// For display purposes, we use the ID as the OktaSub/Email if not known
-			OktaSub: u.Id,
-			Email:   u.Id + "@provisioned.local",
-		})
-	}
-
-	return identities, nil
-}
-
 func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	damlUserID := sanitizeSub(oktaSub)
 
@@ -222,4 +187,39 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		DamlPartyID: allocatedParty,
 		Email:       email,
 	}, nil
+}
+
+func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/users", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list daml users: %w", err)
+	}
+
+	var response struct {
+		Users []struct {
+			Id           string `json:"id"`
+			PrimaryParty string `json:"primaryParty"`
+		} `json:"users"`
+	}
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal users list: %w", err)
+	}
+
+	identities := make([]*UserIdentity, 0, len(response.Users))
+	for _, u := range response.Users {
+		// Skip system users
+		if strings.HasPrefix(u.Id, "participant_admin") || u.Id == "admin" {
+			continue
+		}
+
+		identities = append(identities, &UserIdentity{
+			DamlUserID:  u.Id,
+			DamlPartyID: u.PrimaryParty,
+			// For display purposes, we use the ID as the OktaSub/Email if not known
+			OktaSub: u.Id,
+			Email:   u.Id + "@provisioned.local",
+		})
+	}
+
+	return identities, nil
 }

@@ -124,6 +124,10 @@ func (c *DamlClient) ProvisionUser(ctx context.Context, oktaSub string, email st
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 
+func (c *DamlClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	return nil, fmt.Errorf("gRPC not implemented")
+}
+
 func (c *DamlClient) CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error) {
 	return "", fmt.Errorf("gRPC not implemented")
 }
@@ -158,9 +162,5 @@ func (c *DamlClient) ResolveDispute(ctx context.Context, id string, b, s float64
 }
 func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error   { return nil }
 func (c *DamlClient) RefundBySeller(ctx context.Context, id string) error { return nil }
-
-func (c *DamlClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
-	return nil, fmt.Errorf("gRPC not implemented")
-}
 
 var _ Client = (*DamlClient)(nil)

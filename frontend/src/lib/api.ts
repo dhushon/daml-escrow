@@ -159,13 +159,13 @@ export async function createInvitation(email: string, role: string, inviteeType:
     const response = await fetch(`${API_BASE}/invites`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-            inviteeEmail: email,
-            inviteeRole: role,
-            inviteeType,
-            asset,
-            terms
-        })
+		body: JSON.stringify({
+			inviteeEmail: email,
+			inviteeRole: role,
+			inviteeType,
+			asset,
+			terms
+		})
     });
     if (!response.ok) {
         const err = await response.json();
