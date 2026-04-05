@@ -13,7 +13,11 @@
 - **Tripartite Authorization:** Topology mappings (`party_to_participant_mappings`) MUST be explicitly proposed and fully authorized by all involved participants to enable command submission.
 - **Deterministic Propagation:** NEVER rely on fixed `sleep` calls for topology. Use algorithmic verification:
     - **Canton Script:** Loop `topology.party_to_participant_mappings.list` until all expected parties are visible on all nodes.
-    - **Go Client:** Implement `Discover()` with exponential backoff, checking for both Package IDs and all required Core Party IDs.
+    - **Go Client (Readiness):** The ledger API is eventually consistent. Upon startup, the client MUST perform a **Deterministic Readiness Check**:
+        - Query the `EscrowProposal` template (or similar core template) via `/v2/query`.
+        - Implement a 10-retry loop with 5s sleep between attempts.
+        - Fail if the template is not indexed after the full cycle.
+    - **Go Client (Discovery):** Implement `Discover()` with exponential backoff, checking for both Package IDs and all required Core Party IDs.
 
 ## 3. Testing Hierarchy & Determinism
 
@@ -25,6 +29,10 @@
 ## 4. Multi-Node Routing & Identity Bridge
 
 - **Identity Bridge:** The platform uses an OIDC-to-Ledger mapping strategy. External JWT assertions are cryptographically verified and used to drive Just-In-Time (JIT) ledger provisioning.
+- **Identity Sanitization:** External subjects MUST be sanitized for ledger compatibility:
+    - Replace `|`, `@`, `.`, and `_` with `-`.
+    - Apply lowercase transformation.
+    - Prefix with `u-` (e.g., `hushon@gmail.com` -> `u-hushon-gmail-com`).
 - **Scope-to-Permission Mapping:** OIDC scopes (e.g., `system:admin`) are mapped directly to ledger-level rights (e.g., `actAs CentralBank`). This ensures that external identities carry cryptographically enforceable authority on the synchronizer.
 - **Home Realm Discovery (HRD):** Domain-based routing determines the correct IdP (Okta/SAML) and tracks identity origin via the `origin_domain` claim.
 - **Routing Logic:** The `MultiLedgerClient` MUST route commands to the node hosting the primary submitter. 

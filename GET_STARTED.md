@@ -16,23 +16,19 @@ cd daml-escrow
 ### External API Configuration (Action Required)
 The platform utilizes several external services. 
 
-👉 **[Mandatory: Setup Google Cloud Identity Platform (GCIP)](./IDENTITY_GCP.md)**
+👉 **[Mandatory: Setup Okta OIDC Identity Provider](./IDENTITY.md)**
 
-Create a `.env` file in the root:
-```bash
-# Auth0 / Okta Configuration
-AUTH_ISSUER=https://<your-tenant>.auth0.com/
-AUTH_CLIENT_ID=<your-id>
-AUTH_AUDIENCE=https://escrow-api.com
-
-# Noves Analytics (Task 6.3)
-# NOTE: Currently defaults to High-Assurance Simulation mode.
-# To enable real-time on-ledger verification, provide your API key below:
-NOVES_API_KEY=<your-noves-key> 
-
-# Stablecoin Oracle
-ORACLE_WEBHOOK_SECRET=test-secret-123
-```
+1.  **Terraform Provisioning:** The identity infrastructure is managed via Terraform.
+    ```bash
+    cd terraform
+    cp terraform.tfvars.example terraform.tfvars
+    # Provide your Okta Org and API Token
+    terraform init && terraform apply
+    ```
+2.  **Automated Personas:** Create the demonstration users (Joey, Jimmy, etc.) with a single script:
+    ```bash
+    ./scripts/setup_test_users.sh
+    ```
 
 ### Contract Compilation
 ```bash
@@ -58,9 +54,10 @@ make sync
 ```
 
 ### Start the Backend API
+The API uses a Cobra-based CLI. Use the `--bypass` flag for local development without real OIDC tokens.
 ```bash
-# Enabled LEDGER_VERBOSE=true to see Noves-ready discovery logs
-LEDGER_VERBOSE=true go run cmd/escrow-api/main.go
+# Start in Dev mode with Auth Bypass enabled
+go run cmd/escrow-api/main.go serve --env dev --bypass
 ```
 
 ### Start the Frontend

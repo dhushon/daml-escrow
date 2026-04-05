@@ -85,28 +85,37 @@ Goals: Transition to isolated service-per-node architecture.
 
 ------------------------------------------------------------------------
 
-## Phase 9 --- Advanced Identity Infrastructure (SAML + OIDC + HRD)
+## Phase 9 --- High-Assurance Identity & Deep Health (COMPLETE)
 
-Goals: Finalize full "Terraformed" Identity Provider (IdP) and enterprise onboarding.
+Goals: Establish production-grade OIDC bridge, automated infrastructure, and aggregated system diagnostics.
+
+### Achievements
+
+1. **Okta OIDC Bridge:** Implemented strict JWT validation against Okta JWKS. External identity assertions drive Just-In-Time (JIT) ledger provisioning.
+2. **Identity-as-Code:** Automated the entire Okta stack (Apps, Servers, Users) using Terraform.
+3. **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
+4. **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
+5. **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
 
 ### Tasks
 
-**Task 9.1: Multi-Protocol IdP (Terraforming)**
+**Task 9.1: Automated OIDC Infrastructure (COMPLETE)**
 
-- [ ] Implement Terraform for Google Cloud Identity Platform (GCIP).
-- [ ] Configure OIDC (Google/Okta) and SAML (Enterprise) provider configurations.
-- [ ] Enable Multi-Tenancy for specific corporate domains.
+- [x] Implement Terraform for Okta (Applications, Servers, Policies).
+- [x] Configure OIDC Scope-to-Ledger-Permission mapping.
+- [x] Automated Test Persona provisioning script (`setup_test_users.sh`).
 
-**Task 9.2: Home Realm Discovery (HRD) Implementation (COMPLETE)**
+**Task 9.2: Home Realm Discovery & Discovery (COMPLETE)**
 
 - [x] Create `/auth/discovery` endpoint in Go API.
-- [x] Implement email-domain based routing to SAML vs OIDC in Astro.
+- [x] Implement email-domain based routing to correct IdP in Astro.
+- [x] Implement Directory Service (`/api/v1/identities`) for on-ledger discovery.
 
-**Task 9.3: Enterprise Onboarding Workflow**
+**Task 9.3: System Integrity & Diagnostics (COMPLETE)**
 
-- [ ] Build "Claim with SSO" flow in `onboard.astro`.
-- [ ] Implement JIT Provisioning for SAML attributes (Mapping SAML Groups to Daml Roles).
-- [ ] Automated KYC/Compliance webhook integration (Mock).
+- [x] Implement aggregated health checks for all dependencies.
+- [x] Build live health cockpit in frontend footer.
+- [x] Standardize 10-retry hardened template readiness for ledger connections.
 
 ------------------------------------------------------------------------
 

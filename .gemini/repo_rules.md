@@ -14,11 +14,9 @@ feature/\* → new work
 
 Use conventional commits:
 
-feat: fix: docs: refactor: test:
+feat: fix: docs: refactor: test: chore:
 
-Example:
-
-feat: add escrow milestone contract
+**MANDATORY:** All commits MUST be GPG-signed.
 
 ------------------------------------------------------------------------
 
@@ -30,6 +28,8 @@ PR must include:
 - architecture impact
 - tests
 - security considerations
+
+**Verified Commits:** Only "Verified" commits are eligible for merge into the `main` branch.
 
 ------------------------------------------------------------------------
 

@@ -131,3 +131,16 @@ sequenceDiagram
     CB->>L: Settle Payment
     L->>L: Funds Transferred to Seller
 ```
+
+## Phase 9: High-Assurance Identity & Deep Health (Active)
+
+Transitioned the platform from a "Sandbox" model to a production-ready infrastructure with cryptographically verified identity and multi-system diagnostics.
+
+### Key Architectural Enhancements:
+1.  **OIDC Identity Bridge:** Implemented strict JWT validation against Okta JWKS. External identity assertions now drive Just-In-Time (JIT) ledger provisioning.
+2.  **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
+3.  **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
+4.  **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
+5.  **Infrastructure-as-Code:** Automated the entire identity stack (Apps, Servers, Users) using Terraform.
+
+*   **Outcome:** A secured, observable platform capable of federating with enterprise Identity Providers and providing real-time system integrity reports.

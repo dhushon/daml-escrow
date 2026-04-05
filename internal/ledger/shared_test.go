@@ -45,15 +45,15 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 	t.Run("Identity JIT Provisioning", func(t *testing.T) {
 		t.Log("Testing ProvisionUser for external identity...")
 		uniqueID := time.Now().UnixNano()
-		googleSub := fmt.Sprintf("google-oauth2|%d", uniqueID)
+		oktaSub := fmt.Sprintf("okta|%d", uniqueID)
 		email := fmt.Sprintf("tester-%d@datacloud.com", uniqueID)
 
 		// 1. Provision User
-		identity, err := client.ProvisionUser(ctx, googleSub, email, []string{})
+		identity, err := client.ProvisionUser(ctx, oktaSub, email, []string{})
 
 		require.NoError(t, err)
 		require.NotNil(t, identity)
-		require.Contains(t, identity.DamlUserID, "google-oauth2")
+		require.Contains(t, identity.DamlUserID, "okta")
 		require.NotEmpty(t, identity.DamlPartyID)
 
 		// 2. Fetch Identity (Deterministic Polling)
@@ -61,7 +61,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		var fetched *UserIdentity
 		var pollErr error
 		for i := 0; i < 20; i++ {
-			fetched, pollErr = client.GetIdentity(ctx, googleSub)
+			fetched, pollErr = client.GetIdentity(ctx, oktaSub)
 			if pollErr == nil && fetched != nil {
 				break
 			}

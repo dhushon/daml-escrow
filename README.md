@@ -14,8 +14,9 @@ This project implements a **high-assurance, privacy-preserving stablecoin escrow
 
 ```mermaid
 graph TD
-    User((User / Admin)) <-->|Port 8080| Astro[Astro Frontend]
+    User((User / Admin)) <-->|Port 4321| Astro[Astro Frontend]
     Astro <-->|REST / JSON| Go[Go Backend API]
+    Go <-->|OIDC / JWKS| Okta[Okta Identity Provider]
     Go <-->|Port 8081| JSON[Daml JSON API V2]
     JSON <-->|Port 7575| Canton[Canton Ledger]
     Canton <--> DB[(Postgres DB)]
@@ -76,9 +77,21 @@ Native support for **CIP-0056** ensures the platform can interoperate with real 
 *   **Lockable Interface:** Assets are cryptographically locked in the escrow contract, preventing double-spending while the escrow is `ACTIVE`.
 *   **Transferable Interface:** Final settlement triggers authoritative transfers using standardized token choices, ensuring compatibility with major institutional issuers.
 
-### 4. Self-Healing Integration
+### 4. Deep Health Diagnostics (Phase 9)
 
-The Go backend features a **Dynamic Discovery Engine** that automatically resolves Package IDs and Party IDs at runtime, ensuring the stack is environment-agnostic and resilient to ledger resets.
+The Go backend aggregates real-time diagnostics from all critical sub-systems:
+*   **Database:** Latency-aware connectivity checks.
+*   **Ledger:** Verifies template availability and package propagation.
+*   **Oracle:** Validates security credentials and trigger readiness.
+The frontend dashboard provides a live cockpit for monitoring these states with 15s polling.
+
+### 5. High-Assurance Identity (Phase 9)
+
+Transitioned from static mocks to a production-grade **OIDC Identity Bridge**:
+*   **Okta Integration:** Cryptographic JWT validation via JWKS signatures.
+*   **JIT Provisioning:** Automated allocation of ledger parties and user metadata upon first login.
+*   **Scoped Authority:** OIDC scopes (e.g., `system:admin`) are mapped directly to cryptographically enforced ledger permissions.
+*   **Dynamic Discovery:** Automatically resolves Package IDs and Party IDs at runtime, ensuring environment resilience.
 
 ------------------------------------------------------------------------
 

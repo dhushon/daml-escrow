@@ -24,10 +24,12 @@ Target a standard Go structure:
 - **Identity Propagation:** Authenticated subject IDs MUST be stored in the request context using type-safe keys (e.g. `AuthSubKey`).
 - **Scope Enforcement:** Every handler MUST use a helper (e.g. `RequireScope`) to verify permissions before executing business logic.
 
-## 5. Configuration Strategy
+## 5. Configuration & CLI Strategy
 
-- **Namespacing:** All environment/config variables MUST be prefixed by their module (e.g. `AUTH_DEV_MODE`, `LEDGER_PORT`).
-- **Validation:** Configuration must be loaded into strongly typed structs at startup.
+- **CLI Framework:** Use **Cobra** for all service entry points to provide a professional, discoverable CLI (e.g., `serve`, `migrate`, `sync` commands).
+- **Configuration Management:** Use **Viper** to bind environment variables and flags to configuration.
+- **Structured Config:** Consolidated all configuration into a single, nested `Config` struct. NEVER use global variables or separate `os.Getenv` calls in the service layer.
+- **Validation:** Configuration must be loaded into strongly typed structs at startup and validated before use.
 
 ## 6. Error Handling
 
