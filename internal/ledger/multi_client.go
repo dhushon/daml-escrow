@@ -40,7 +40,7 @@ func (m *MultiLedgerClient) getClientForUser(userID string) Client {
 		return m.clients["seller"]
 	}
 
-	// Default to buyer node for dynamic users (like u-google-oauth2-...)
+	// Default to buyer node for dynamic users (like u-okta-...)
 	// unless we implement more complex node-to-party mapping
 	return m.clients["buyer"]
 }

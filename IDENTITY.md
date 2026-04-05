@@ -67,7 +67,38 @@ To support multi-tenancy and enterprise federation, the platform uses a domain-b
 
 ---
 
-## 5. Dynamic Identity & Package Discovery
+## 5. Automated Identity Infrastructure
+
+To ensure consistent testing and demonstration environments, the identity stack is managed as **Infrastructure-as-Code (IaC)**.
+
+### A. Terraform Automation (`/terraform`)
+The repository includes Terraform definitions to provision:
+- **Okta OIDC Application:** Configured with correct redirect URIs and scopes.
+- **Authorization Server:** Defines the `origin_domain` custom claim.
+- **Groups:** Functional groups for `EscrowBuyers`, `EscrowSellers`, `EscrowMediators`, and `EscrowBank`.
+- **Test Users:** Pre-provisions consistent personas with fixed credentials.
+
+### B. Standard Test Personas
+The following identities are automatically provisioned for Phase 9 testing:
+
+| Persona | Role | Email |
+| :--- | :--- | :--- |
+| **Joey Buyer** | Payer | `joey@buyer.com` |
+| **Jimmy Seller** | Payee | `jimmy@seller.com` |
+| **Sally Mediator** | Adjudicator | `sally@mediator.com` |
+| **Bob Banker** | Issuer | `bob@banker.com` |
+
+**Common Password:** `Stablecoin2026!`
+
+### C. Provisioning Script
+Run the following to apply the infrastructure and verify the persona catalog:
+```bash
+./scripts/setup_test_users.sh
+```
+
+---
+
+## 6. Dynamic Identity & Package Discovery
 
 To maintain high assurance across contract upgrades and environment resets, the platform avoids hardcoding cryptographic identifiers. Instead, it employs a **Discovery Phase** at startup.
 
