@@ -176,6 +176,7 @@ func runServer() {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
 		r.Get("/auth/discover", handler.DiscoverAuth)
+		r.Get("/identities", handler.ListIdentities)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)
 		r.Get("/invites", handler.ListInvitations)

@@ -142,6 +142,14 @@ func (m *MockLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	return args.Get(0).(*UserIdentity), args.Error(1)
 }
 
+func (m *MockLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*UserIdentity), args.Error(1)
+}
+
 func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	args := m.Called(ctx, oktaSub, email, scopes)
 	if args.Get(0) == nil {

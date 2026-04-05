@@ -77,6 +77,12 @@ export async function fetchEscrowLifecycle(id: string) {
     return response.json();
 }
 
+export async function fetchIdentities() {
+    const response = await fetch(`${API_BASE}/identities`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch identities');
+    return response.json();
+}
+
 export async function discoverAuth(email: string) {
     const response = await fetch(`${API_BASE}/auth/discover?email=${encodeURIComponent(email)}`);
     if (!response.ok) throw new Error('Failed to discover auth provider');

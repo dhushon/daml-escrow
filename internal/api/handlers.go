@@ -409,6 +409,16 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	h.renderJSON(w, identity)
 }
 
+func (h *Handler) ListIdentities(w http.ResponseWriter, r *http.Request) {
+	identities, err := h.escrowService.ListIdentities(r.Context())
+	if err != nil {
+		h.logger.Error("list identities failed", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	h.renderJSON(w, identities)
+}
+
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	health := h.metricsService.GetHealth(
 		h.configService,
