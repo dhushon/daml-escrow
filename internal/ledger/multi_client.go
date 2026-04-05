@@ -256,6 +256,26 @@ func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*U
 	return nil, fmt.Errorf("identity not found on any node: %s", oktaSub)
 }
 
+func (m *MultiLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	uniqueUsers := make(map[string]*UserIdentity)
+	
+	for _, client := range m.clients {
+		identities, err := client.ListIdentities(ctx)
+		if err != nil {
+			continue // Skip failing nodes
+		}
+		for _, id := range identities {
+			uniqueUsers[id.DamlUserID] = id
+		}
+	}
+
+	result := make([]*UserIdentity, 0, len(uniqueUsers))
+	for _, id := range uniqueUsers {
+		result = append(result, id)
+	}
+	return result, nil
+}
+
 func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	var firstIdentity *UserIdentity
 	var lastErr error

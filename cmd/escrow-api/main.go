@@ -146,7 +146,7 @@ func runServer() {
 	router.Use(api.MetricsMiddleware(metricsService))
 
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:4321", "http://127.0.0.1:4321", "http://0.0.0.0:4321"},
+		AllowedOrigins:   []string{"http://localhost:4321", "http://127.0.0.1:4321"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Dev-User", "X-Requested-With", "Origin"},
 		ExposedHeaders:   []string{"Link"},
@@ -176,6 +176,7 @@ func runServer() {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
 		r.Get("/auth/discover", handler.DiscoverAuth)
+		r.Get("/identities", handler.ListIdentities)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)
 		r.Get("/invites", handler.ListInvitations)

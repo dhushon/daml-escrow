@@ -190,6 +190,10 @@ func (s *EscrowService) ProvisionUser(ctx context.Context, oktaSub string, email
 	return s.ledger.ProvisionUser(ctx, oktaSub, email, scopes)
 }
 
+func (s *EscrowService) ListIdentities(ctx context.Context) ([]*ledger.UserIdentity, error) {
+	return s.ledger.ListIdentities(ctx)
+}
+
 func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.LedgerMetrics, error) {
 	return s.ledger.GetMetrics(ctx, userID)
 }
