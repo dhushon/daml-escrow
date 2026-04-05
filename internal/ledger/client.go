@@ -217,6 +217,7 @@ type Client interface {
 	ListWallets(ctx context.Context, userID string) ([]*Wallet, error)
 	GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error)
 	ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error)
+	ListIdentities(ctx context.Context) ([]*UserIdentity, error)
 
 	// Utilities
 	CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error)
