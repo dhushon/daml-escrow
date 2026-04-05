@@ -16,26 +16,74 @@ import (
 
 	_ "daml-escrow/docs"
 
-	chi "github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
 
-// @title Stablecoin Escrow API
-// @version 1.0
-// @description API for managing privacy-preserving stablecoin escrows on DAML.
-// @host localhost:8081
-// @BasePath /
+var (
+	cfgFile     string
+	environment string
+	authBypass  bool
+)
+
 func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "escrow-api",
+	Short: "Stablecoin Escrow Platform API",
+}
+
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Start the escrow platform API server",
+	Run: func(cmd *cobra.Command, args []string) {
+		runServer()
+	},
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&environment, "env", "", "environment (dev, production)")
+	rootCmd.PersistentFlags().BoolVar(&authBypass, "bypass", false, "bypass JWT authentication (dev only)")
+
+	rootCmd.AddCommand(serveCmd)
+}
+
+func initConfig() {
+	// If flags are provided, override viper settings
+	if environment != "" {
+		viper.Set("auth.environment", environment)
+	}
+	if authBypass {
+		viper.Set("auth.authBypass", true)
+	}
+}
+
+func runServer() {
 	logger := logging.NewLogger()
 	defer func() {
 		_ = logger.Sync()
 	}()
 
-	cfg, err := config.LoadConfig("config/config.yaml")
+	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
+
+	logger.Info("configuration loaded", 
+		zap.String("env", cfg.Auth.Environment), 
+		zap.Bool("bypass", cfg.Auth.AuthBypass))
 
 	var ledgerClient ledger.Client
 	if len(cfg.Ledger.Nodes) > 0 {
@@ -47,18 +95,8 @@ func main() {
 		}
 		ledgerClient = ledger.NewMultiLedgerClient(logger, clients)
 	} else {
-		// Fallback to single node
 		ledgerHost := cfg.Ledger.Host
-		if host := os.Getenv("LEDGER_HOST"); host != "" {
-			ledgerHost = host
-		}
 		ledgerPort := cfg.Ledger.Port
-		if port := os.Getenv("LEDGER_PORT"); port != "" {
-			if _, err := fmt.Sscanf(port, "%d", &ledgerPort); err != nil {
-				logger.Warn("failed to parse LEDGER_PORT, using default", zap.String("port", port), zap.Int("default", ledgerPort))
-			}
-		}
-
 		logger.Info("using single JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
@@ -77,32 +115,58 @@ func main() {
 	}
 	defer configService.Close()
 
-	// Phase 6 Providers
 	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
-
+	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
+	if err != nil {
+		logger.Fatal("failed to initialize identity service", zap.Error(err))
+	}
 	escrowService := services.NewEscrowService(
-	        logger,
-	        ledgerClient,
-	        stablecoinProvider,
-	        complianceService,
-	        cfg.Oracle.WebhookSecret,
+		logger,
+		ledgerClient,
+		stablecoinProvider,
+		complianceService,
+		cfg.Oracle.WebhookSecret,
 	)
 
 	handler := api.NewHandler(
-	        logger,
-	        escrowService,
-	        metricsService,
-	        configService,
-	        analyticsService,
+		logger,
+		escrowService,
+		metricsService,
+		configService,
+		analyticsService,
+		identityService,
 	)
+
 	router := chi.NewRouter()
 
+	// 1. Core Middleware
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
-	router.Use(api.AuthMiddleware(cfg.Auth.Issuer, cfg.Auth.ClientID, cfg.Auth.Audience, logger))
 
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:4321", "http://127.0.0.1:4321", "http://0.0.0.0:4321"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Dev-User", "X-Requested-With", "Origin"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+
+	// 3. Auth & Routes
+	var verifier api.TokenVerifier
+	isDevBypass := cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass
+	if !isDevBypass {
+		var err error
+		verifier, err = api.NewRealVerifier(context.Background(), cfg.Auth.Issuer, cfg.Auth.Audience)
+		if err != nil {
+			logger.Fatal("failed to initialize OIDC verifier", zap.Error(err), zap.String("issuer", cfg.Auth.Issuer))
+		}
+	}
+
+	router.Use(api.AuthMiddleware(cfg.Auth, verifier, logger))
 	router.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
 	))
@@ -111,9 +175,9 @@ func main() {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
+		r.Get("/auth/discover", handler.DiscoverAuth)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)
-
 		r.Get("/invites", handler.ListInvitations)
 		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
 		r.Post("/invites", handler.CreateInvitation)
@@ -128,7 +192,6 @@ func main() {
 		r.Post("/escrows/{escrowID}/ratify", handler.RatifySettlement)
 		r.Post("/escrows/{escrowID}/finalize", handler.FinalizeSettlement)
 		r.Post("/escrows/{escrowID}/disburse", handler.Disburse)
-
 		r.Get("/escrows", handler.ListEscrows)
 		r.Get("/escrows/{escrowID}", handler.GetEscrow)
 		r.Get("/escrows/{escrowID}/lifecycle", handler.GetEscrowLifecycle)

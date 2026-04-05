@@ -49,13 +49,26 @@ func (m *MultiLedgerClient) Discover(ctx context.Context) error {
 	coreParties := []string{CentralBankUser, BuyerUser, SellerUser, EscrowMediatorUser}
 	
 	var lastErr error
-	for retry := 0; retry < 10; retry++ {
+	for retry := 0; retry < 1; retry++ {
 		newMap := make(map[string]string)
+		discoveredClients := make(map[Client]bool)
+
 		for _, client := range m.clients {
+			// Skip if we've already discovered this physical client (important for Sandbox)
+			if discoveredClients[client] {
+				// Still aggregate mappings from the already discovered client
+				for k, v := range client.GetPartyMap() {
+					newMap[k] = v
+				}
+				continue
+			}
+
 			if err := client.Discover(ctx); err != nil {
 				lastErr = err
 				continue
 			}
+			discoveredClients[client] = true
+
 			// Aggregate party mappings from this node
 			for k, v := range client.GetPartyMap() {
 				newMap[k] = v
@@ -243,27 +256,43 @@ func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*U
 	return nil, fmt.Errorf("identity not found on any node: %s", oktaSub)
 }
 
-func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string) (*UserIdentity, error) {
-	var lastIdentity *UserIdentity
+func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
+	var firstIdentity *UserIdentity
 	var lastErr error
 
 	// Broadcast provisioning to ALL nodes to ensure global visibility
 	for _, node := range []string{"bank", "buyer", "seller"} {
 		if client, ok := m.clients[node]; ok {
-			identity, err := client.ProvisionUser(ctx, oktaSub, email)
+			identity, err := client.ProvisionUser(ctx, oktaSub, email, scopes)
 			if err != nil {
+				// If the party already exists, we consider this a success for this node
+				if strings.Contains(err.Error(), "already exists") {
+					m.logger.Debug("identity already exists on node", zap.String("node", node), zap.String("oktaSub", oktaSub))
+					// If we don't have an identity yet, try to fetch it from this node
+					if firstIdentity == nil {
+						if id, err := client.GetIdentity(ctx, oktaSub); err == nil {
+							firstIdentity = id
+						}
+					}
+					continue
+				}
 				m.logger.Warn("provisioning failed on node", zap.String("node", node), zap.Error(err))
 				lastErr = err
 			} else {
-				lastIdentity = identity
+				if firstIdentity == nil {
+					firstIdentity = identity
+				}
 			}
 		}
 	}
 
-	if lastIdentity != nil {
-		return lastIdentity, nil
+	if firstIdentity != nil {
+		return firstIdentity, nil
 	}
-	return nil, fmt.Errorf("failed to provision user on any node: %w", lastErr)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no ledger nodes responded to provisioning request")
+	}
+	return nil, fmt.Errorf("failed to provision user on any node: %v", lastErr)
 }
 
 func (m *MultiLedgerClient) CreateContract(ctx context.Context, userID string, templateID string, payload map[string]interface{}) (string, error) {

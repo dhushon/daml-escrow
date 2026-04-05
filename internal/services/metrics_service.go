@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"daml-escrow/internal/ledger"
 	"runtime"
 	"sync/atomic"
@@ -32,18 +33,58 @@ func (s *MetricsService) RecordRequest(duration time.Duration, isError bool) {
 	}
 }
 
-func (s *MetricsService) GetHealth() ledger.HealthResponse {
+func (s *MetricsService) GetHealth(configSvc *ConfigService, ledgerClient ledger.Client, oracleSecret string) ledger.HealthResponse {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
+	services := make(map[string]ledger.ServiceHealth)
+	overallStatus := "UP"
+
+	// 1. Check Database (Postgres) with timeout
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer dbCancel()
+	
+	dbStart := time.Now()
+	dbStatus := ledger.ServiceHealth{Status: "UP"}
+	if err := configSvc.db.PingContext(dbCtx); err != nil {
+		dbStatus.Status = "DOWN"
+		dbStatus.Message = "database unreachable: " + err.Error()
+		overallStatus = "DEGRADED"
+	}
+	dbStatus.LatencyMs = time.Since(dbStart).Milliseconds()
+	services["database"] = dbStatus
+
+	// 2. Check Ledger (Canton HTTP API) with timeout
+	ledgerCtx, ledgerCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer ledgerCancel()
+
+	ledgerStart := time.Now()
+	ledgerStatus := ledger.ServiceHealth{Status: "UP"}
+	if _, err := ledgerClient.SearchPackageID(ledgerCtx, "stablecoin-escrow"); err != nil {
+		ledgerStatus.Status = "DOWN"
+		ledgerStatus.Message = "ledger api unreachable: " + err.Error()
+		overallStatus = "DEGRADED"
+	}
+	ledgerStatus.LatencyMs = time.Since(ledgerStart).Milliseconds()
+	services["ledger"] = ledgerStatus
+
+	// 3. Check Oracle (Configuration Check)
+	oracleStatus := ledger.ServiceHealth{Status: "UP"}
+	if oracleSecret == "" || oracleSecret == "development-secret-key" {
+		oracleStatus.Status = "DEGRADED"
+		oracleStatus.Message = "Using default development secret"
+	}
+	services["oracle"] = oracleStatus
+
 	return ledger.HealthResponse{
-		Status:      "UP",
-		Version:     "1.0.0", // In production, this would come from a build flag
+		Status:      overallStatus,
+		Version:     "1.0.0",
 		Uptime:      time.Since(s.startTime).Round(time.Second).String(),
 		StartTime:   s.startTime.Format(time.RFC3339),
 		CPUUsage:    float64(runtime.NumGoroutine()) * 0.5,
 		MemoryUsage: float64(m.Alloc) / 1024 / 1024,
 		Goroutines:  runtime.NumGoroutine(),
+		Services:    services,
 	}
 }
 

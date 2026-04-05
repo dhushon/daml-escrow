@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 
 	"daml-escrow/internal/services"
 
@@ -16,15 +18,17 @@ type Handler struct {
 	metricsService   *services.MetricsService
 	configService    *services.ConfigService
 	analyticsService *services.AnalyticsService
+	identityService  *services.IdentityService
 }
 
-func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService, analyticsService *services.AnalyticsService) *Handler {
+func NewHandler(logger *zap.Logger, escrowService *services.EscrowService, metricsService *services.MetricsService, configService *services.ConfigService, analyticsService *services.AnalyticsService, identityService *services.IdentityService) *Handler {
 	return &Handler{
 		logger:           logger,
 		escrowService:    escrowService,
 		metricsService:   metricsService,
 		configService:    configService,
 		analyticsService: analyticsService,
+		identityService:  identityService,
 	}
 }
 
@@ -303,14 +307,37 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
+	userEmail, _ := r.Context().Value(EmailKey).(string)
+	originDomain, _ := r.Context().Value(OriginDomainKey).(string)
+
 	invite, err := h.escrowService.GetInvitationByToken(r.Context(), token)
 	if err != nil {
-		http.Error(w, "invitation not found", http.StatusNotFound)
+		http.Error(w, "invitation not found or expired", http.StatusNotFound)
+		return
+	}
+
+	// Cryptographic Binding Check (Directive 12)
+	// Verify that the logged-in user matches the intended recipient domain or email
+	isAuthorized := false
+	if invite.InviteeEmail == userEmail {
+		isAuthorized = true
+	} else if strings.HasSuffix(userEmail, "@"+originDomain) {
+		// Verify domain-level alignment
+		isAuthorized = true
+	}
+
+	if !isAuthorized && os.Getenv("AUTH_BYPASS") != "true" {
+		h.logger.Warn("unauthorized invitation claim attempt", 
+			zap.String("inviteId", invite.ID), 
+			zap.String("userEmail", userEmail),
+			zap.String("targetEmail", invite.InviteeEmail))
+		http.Error(w, "unauthorized: this invitation is bound to another identity", http.StatusForbidden)
 		return
 	}
 
 	proposal, err := h.escrowService.ClaimInvitation(r.Context(), invite.ID, userID)
 	if err != nil {
+		h.logger.Error("claim invitation failed", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -342,6 +369,17 @@ func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 // Identity & Health
 // ---------------------------------------------------------------------------
 
+func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "email parameter required", http.StatusBadRequest)
+		return
+	}
+
+	provider := h.identityService.DiscoverProvider(r.Context(), email)
+	h.renderJSON(w, provider)
+}
+
 func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	sub, ok := r.Context().Value(AuthSubKey).(string)
 	if !ok || sub == "" {
@@ -353,14 +391,17 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 
 	identity, err := h.escrowService.GetIdentity(r.Context(), sub)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		h.logger.Error("failed to get identity", zap.String("sub", sub), zap.Error(err))
+		http.Error(w, "internal error: identity lookup failed", http.StatusInternalServerError)
 		return
 	}
 
 	if identity == nil {
-		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email)
+		scopes, _ := r.Context().Value(ScopesKey).([]string)
+		identity, err = h.escrowService.ProvisionUser(r.Context(), sub, email, scopes)
 		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			h.logger.Error("failed to provision user", zap.String("sub", sub), zap.Error(err))
+			http.Error(w, "internal error: user provisioning failed", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -369,7 +410,11 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
-	health := h.metricsService.GetHealth()
+	health := h.metricsService.GetHealth(
+		h.configService,
+		h.escrowService.GetLedgerClient(),
+		h.escrowService.GetOracleSecret(),
+	)
 	h.renderJSON(w, health)
 }
 

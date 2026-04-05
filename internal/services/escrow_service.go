@@ -186,8 +186,8 @@ func (s *EscrowService) GetIdentity(ctx context.Context, oktaSub string) (*ledge
 	return s.ledger.GetIdentity(ctx, oktaSub)
 }
 
-func (s *EscrowService) ProvisionUser(ctx context.Context, oktaSub string, email string) (*ledger.UserIdentity, error) {
-	return s.ledger.ProvisionUser(ctx, oktaSub, email)
+func (s *EscrowService) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*ledger.UserIdentity, error) {
+	return s.ledger.ProvisionUser(ctx, oktaSub, email, scopes)
 }
 
 func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.LedgerMetrics, error) {
@@ -204,4 +204,12 @@ func (s *EscrowService) ListSettlements(ctx context.Context) ([]*ledger.EscrowSe
 
 func (s *EscrowService) SettlePayment(ctx context.Context, settlementID string) error {
 	return s.ledger.SettlePayment(ctx, settlementID)
+}
+
+func (s *EscrowService) GetLedgerClient() ledger.Client {
+	return s.ledger
+}
+
+func (s *EscrowService) GetOracleSecret() string {
+	return s.webhookSecret
 }

@@ -21,7 +21,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 	compliance := NewMockCompliance()
 	
 	t.Run("Valid Signature", func(t *testing.T) {
-		mockLedger := new(MockLedgerClient)
+		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
@@ -52,7 +52,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 	})
 
 	t.Run("Invalid Signature", func(t *testing.T) {
-		mockLedger := new(MockLedgerClient)
+		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
@@ -67,7 +67,7 @@ func TestProcessOracleWebhook(t *testing.T) {
 	})
 
 	t.Run("Mismatched Milestone Index", func(t *testing.T) {
-		mockLedger := new(MockLedgerClient)
+		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		

@@ -97,10 +97,10 @@ Goals: Finalize full "Terraformed" Identity Provider (IdP) and enterprise onboar
 - [ ] Configure OIDC (Google/Okta) and SAML (Enterprise) provider configurations.
 - [ ] Enable Multi-Tenancy for specific corporate domains.
 
-**Task 9.2: Home Realm Discovery (HRD) Implementation**
+**Task 9.2: Home Realm Discovery (HRD) Implementation (COMPLETE)**
 
-- [ ] Create `/auth/discovery` endpoint in Go API.
-- [ ] Implement email-domain based routing to SAML vs OIDC in Astro.
+- [x] Create `/auth/discovery` endpoint in Go API.
+- [x] Implement email-domain based routing to SAML vs OIDC in Astro.
 
 **Task 9.3: Enterprise Onboarding Workflow**
 

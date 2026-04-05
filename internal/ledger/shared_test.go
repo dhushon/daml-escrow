@@ -49,7 +49,8 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		email := fmt.Sprintf("tester-%d@datacloud.com", uniqueID)
 
 		// 1. Provision User
-		identity, err := client.ProvisionUser(ctx, googleSub, email)
+		identity, err := client.ProvisionUser(ctx, googleSub, email, []string{})
+
 		require.NoError(t, err)
 		require.NotNil(t, identity)
 		require.Contains(t, identity.DamlUserID, "google-oauth2")

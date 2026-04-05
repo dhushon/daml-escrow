@@ -27,9 +27,9 @@ userConfig:
   dsn: "postgres://escrow:escrow@127.0.0.1:5432/user_config?sslmode=disable"
 
 auth:
-  issuer: "https://accounts.google.com"
-  clientId: "1234567890-abc123def.apps.googleusercontent.com"
-  audience: "1234567890-abc123def.apps.googleusercontent.com"
+  issuer: "https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698"
+  clientId: "0oa11kvi7mxaHbQaV698"
+  audience: "daml-escrow"
 
 oracle:
   webhookSecret: "development-secret-key"

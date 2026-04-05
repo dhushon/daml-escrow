@@ -28,7 +28,7 @@ help: ## Show this help message
 up: docker-up api-up frontend-up ## START everything (Docker Ledger + Background API + Background Frontend)
 	@echo "---------------------------------------"
 	@echo "Full stack is UP."
-	@echo "Web Dashboard: http://localhost:8080"
+	@echo "Web Dashboard: http://localhost:4321"
 	@echo "Backend API:   http://localhost:8081"
 	@echo "Ledger JSON:   http://localhost:7575"
 	@echo "---------------------------------------"
@@ -58,12 +58,12 @@ docker-up: ## Start only the Ledger and Database (Docker)
 .PHONY: api-up
 api-up: build ## Start only the Go API (background)
 	@echo "Starting Go API on port 8081 (background)..."
-	@nohup bin/$(APP_NAME) > api.log 2>&1 & echo $$! > api.pid
+	@nohup bin/$(APP_NAME) serve --env dev --bypass > api.log 2>&1 & echo $$! > api.pid
 	@echo "API started. PID: $$(cat api.pid). Logs: api.log"
 
 .PHONY: frontend-up
 frontend-up: ## Start only the Astro Frontend (background)
-	@echo "Starting Astro Frontend on port 8080 (background)..."
+	@echo "Starting Astro Frontend on port 4321 (background)..."
 	@cd frontend && nohup npm run dev > ../frontend.log 2>&1 & echo $$! > frontend.pid
 	@echo "Frontend started. PID: $$(cat frontend.pid). Logs: frontend.log"
 

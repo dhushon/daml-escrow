@@ -1,0 +1,31 @@
+# Identity Providers Map (Task 9.1)
+# Maps domains to IdP configurations. The 'default' is used for any domain not explicitly listed.
+
+providers:
+  # Explicitly route corporate domains to their own SAML endpoints
+  datacloud.com:
+    type: SAML
+    issuer: https://saml.datacloud.com
+    tenantId: datacloud-tenant-xyz
+    description: DataCloud Corporate SSO
+  bank.com:
+    type: SAML
+    issuer: https://sso.bank.com
+    tenantId: bank-tenant-abc
+    description: Global Bank Infrastructure
+
+  # Route common public domains to the Okta OIDC provider for social sign-on
+  gmail.com:
+    type: OIDC
+    issuer: https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698
+    description: Okta Identity Provider (Federated Google)
+  icloud.com:
+    type: OIDC
+    issuer: https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698
+    description: Okta Identity Provider (Federated Apple)
+
+  # Set Okta as the default provider for all other domains
+  default:
+    type: OIDC
+    issuer: https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698
+    description: Okta Identity Provider

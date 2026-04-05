@@ -1,0 +1,35 @@
+# terraform.tfvars.example
+# Rename this to terraform.tfvars and fill in your actual values.
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# Google OIDC Credentials (from GCP Console > APIs & Services > Credentials)
+google_client_id     = "your-google-client-id.apps.googleusercontent.com"
+google_client_secret = "your-google-client-secret"
+
+# Enterprise SAML Clients
+# These will be provisioned as dedicated GCIP Tenants
+enterprise_clients = {
+  "datacloud" = {
+    name   = "DataCloud LLC"
+    domain = "datacloud.com"
+  },
+  "bank" = {
+    name   = "Global Bank Corp"
+    domain = "bank.com"
+  }
+}
+
+# Okta Configuration
+# okta_org_name: The first part of your Okta URL (e.g., dev-123456)
+# okta_base_url: The second part of your Okta URL (e.g., okta.com or oktapreview.com)
+# okta_api_token: Created in Okta Admin Console > Security > API > Tokens
+okta_org_name  = "your-okta-org-name"
+okta_base_url  = "okta.com"
+okta_api_token = "your-okta-api-token"
+okta_test_user_password = "your-test-password"
+
+# Feature Toggles
+enable_google_idp = false
+enable_okta_idp   = true

@@ -1,0 +1,128 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// We show the dev section if the build environment allows it
+const showDevMode = import.meta.env.MODE === 'development' || true; 
+---
+
+<Layout title="Sign In | Stablecoin Escrow">
+	<div class="max-w-md mx-auto mt-20">
+		<div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+			<div class="p-8 text-center bg-blue-600">
+				<div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-4">
+					<img src="/favicon.svg" alt="Logo" class="w-10 h-10 brightness-0 invert" />
+				</div>
+				<h2 class="text-2xl font-bold text-white">Identity Gateway</h2>
+				<p class="text-blue-100 text-sm mt-2">Access the Stablecoin Escrow Platform</p>
+			</div>
+			
+			<div class="p-8">
+				<div id="discovery-view">
+					<form id="discovery-form" class="space-y-6">
+						<div>
+							<label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Corporate Email</label>
+							<input 
+								type="email" 
+								id="email" 
+								name="email" 
+								required 
+								placeholder="you@vdatacloud.com"
+								class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+							/>
+						</div>
+
+						<button 
+							type="submit" 
+							id="submit-btn"
+							class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] flex items-center justify-center space-x-2"
+						>
+							<span>Continue to OIDC Sign In</span>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+								<path fill-rule="evenodd" d="M10.293 3.293a1 1 0 01-1.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+							</svg>
+						</button>
+					</form>
+				</div>
+
+				{showDevMode && (
+					<div class="mt-10">
+						<div class="relative flex py-5 items-center">
+							<div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+							<span class="flex-shrink mx-4 text-slate-400 text-[10px] font-black uppercase tracking-widest">Development Bypass</span>
+							<div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3 mt-4" id="dev-roles">
+							<button data-role="Buyer" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Joey (Buyer)</button>
+							<button data-role="Seller" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Jimmy (Seller)</button>
+							<button data-role="EscrowMediator" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Sally (Mediator)</button>
+							<button data-role="CentralBank" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Bob (Bank / Admin)</button>
+						</div>
+						
+						<p class="mt-4 text-[10px] text-slate-400 text-center italic">
+							Requires API running with ENVIRONMENT=dev and AUTH_BYPASS=true
+						</p>
+					</div>
+				)}
+
+				<div id="error-msg" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center">
+				</div>
+			</div>
+		</div>
+	</div>
+</Layout>
+
+<script>
+	import { handleLoginDiscovery, loginAsRole, setRedirect, getRedirect } from '../lib/auth';
+
+	const form = document.getElementById('discovery-form') as HTMLFormElement;
+	const btn = document.getElementById('submit-btn') as HTMLButtonElement;
+	const errorMsg = document.getElementById('error-msg');
+	const devRoles = document.querySelectorAll('#dev-roles button');
+
+	// Handle initial redirect capture
+	const urlParams = new URLSearchParams(window.location.search);
+	const returnTo = urlParams.get('returnTo');
+	if (returnTo) {
+		setRedirect(returnTo);
+	}
+
+	form?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const formData = new FormData(form);
+		const email = formData.get('email') as string;
+
+		if (!email) return;
+
+		btn.disabled = true;
+		if (errorMsg) errorMsg.classList.add('hidden');
+		const btnText = btn.querySelector('span');
+		if (btnText) btnText.textContent = 'Discovering...';
+
+		try {
+			await handleLoginDiscovery(email);
+		} catch (err: any) {
+			console.error(err);
+			btn.disabled = false;
+			if (btnText) btnText.textContent = 'Continue to OIDC Sign In';
+			if (errorMsg) {
+				errorMsg.textContent = 'Failed to find identity provider.';
+				errorMsg.classList.remove('hidden');
+			}
+		}
+	});
+
+	devRoles.forEach(btn => {
+		btn.addEventListener('click', async () => {
+			const role = btn.getAttribute('data-role');
+			if (!role) return;
+
+			try {
+				await loginAsRole(role);
+				window.location.href = getRedirect();
+			} catch (err: any) {
+				alert('Bypass failed: ' + err.message);
+			}
+		});
+	});
+</script>

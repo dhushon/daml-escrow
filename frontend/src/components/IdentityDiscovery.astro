@@ -1,0 +1,90 @@
+---
+---
+
+<div id="auth-discovery-container" class="max-w-md mx-auto bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+    <div id="discovery-step-1">
+        <h3 class="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Institutional Login</h3>
+        <p class="text-xs text-slate-500 mb-6 uppercase tracking-widest font-bold">Secure Access Gateway</p>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Corporate Email</label>
+                <input type="email" id="discovery-email" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="user@datacloud.com" />
+            </div>
+            <button id="btn-discover" class="w-full bg-slate-900 dark:bg-blue-600 text-white font-black py-3 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Next</button>
+        </div>
+    </div>
+
+    <div id="discovery-step-2" class="hidden">
+        <div class="flex items-center space-x-3 mb-6">
+            <button id="btn-back" class="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+            </button>
+            <div>
+                <h3 id="idp-name" class="text-lg font-black text-slate-900 dark:text-white tracking-tight">Provider Name</h3>
+                <p id="idp-desc" class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Provider Description</p>
+            </div>
+        </div>
+
+        <div id="oidc-login-container" class="hidden">
+            <!-- Google Login will be injected here -->
+            <div id="google-placeholder"></div>
+        </div>
+
+        <div id="saml-login-container" class="hidden">
+            <button id="btn-saml-login" class="w-full bg-blue-600 text-white font-black py-4 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center space-x-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zM10 2.25a.75.75 0 00-.75.75v3.5a.75.75 0 001.5 0V3a.75.75 0 00-.75-.75zM10 11a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clip-rule="evenodd" /></svg>
+                <span>Login with SSO</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { discoverAuth } from '../lib/api';
+
+    const step1 = document.getElementById('discovery-step-1');
+    const step2 = document.getElementById('discovery-step-2');
+    const emailInput = document.getElementById('discovery-email') as HTMLInputElement;
+    const btnDiscover = document.getElementById('btn-discover');
+    const btnBack = document.getElementById('btn-back');
+    const idpName = document.getElementById('idp-name');
+    const idpDesc = document.getElementById('idp-desc');
+    const oidcContainer = document.getElementById('oidc-login-container');
+    const samlContainer = document.getElementById('saml-login-container');
+
+    btnDiscover?.addEventListener('click', async () => {
+        const email = emailInput.value;
+        if (!email || !email.includes('@')) {
+            alert('Please enter a valid corporate email');
+            return;
+        }
+
+        try {
+            const provider = await discoverAuth(email);
+            
+            idpName!.textContent = provider.type === 'SAML' ? 'Enterprise SSO' : 'Public Identity';
+            idpDesc!.textContent = provider.description;
+
+            step1?.classList.add('hidden');
+            step2?.classList.remove('hidden');
+
+            if (provider.type === 'SAML') {
+                samlContainer?.classList.remove('hidden');
+                oidcContainer?.classList.add('hidden');
+            } else {
+                samlContainer?.classList.add('hidden');
+                oidcContainer?.classList.remove('hidden');
+                // Dynamically load Google script if needed, or just show the component
+                window.dispatchEvent(new CustomEvent('init-google-auth'));
+            }
+        } catch (e) {
+            alert('Discovery failed: ' + e.message);
+        }
+    });
+
+    btnBack?.addEventListener('click', () => {
+        step2?.classList.add('hidden');
+        step1?.classList.remove('hidden');
+    });
+</script>

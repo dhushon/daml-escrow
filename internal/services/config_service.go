@@ -25,6 +25,11 @@ func NewConfigService(dsn string) (*ConfigService, error) {
 	return &ConfigService{db: db}, nil
 }
 
+// NewMockConfigService creates a ConfigService with a provided DB connection for testing.
+func NewMockConfigService(db *sql.DB) *ConfigService {
+	return &ConfigService{db: db}
+}
+
 func (s *ConfigService) GetConfig(userID, key string) (json.RawMessage, error) {
 	var val json.RawMessage
 	err := s.db.QueryRow(

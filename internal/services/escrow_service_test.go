@@ -13,8 +13,8 @@ import (
 
 func TestEscrowService_Unit(t *testing.T) {
 	logger := zap.NewNop()
-	mockLedger := new(MockLedgerClient)
-	mockStable := new(MockStablecoinProvider)
+	mockLedger := new(ledger.MockLedgerClient)
+	mockStable := new(ledger.MockStablecoinProvider)
 	mockCompliance := new(MockCompliance)
 	secret := "test-secret"
 
