@@ -48,7 +48,8 @@ func TestMetricsService(t *testing.T) {
 		assert.Equal(t, "UP", health.Services["database"].Status)
 		assert.Equal(t, "UP", health.Services["ledger"].Status)
 		
-		mockDB.ExpectationsWereMet()
+		err = mockDB.ExpectationsWereMet()
+		assert.NoError(t, err)
 		mockLedger.AssertExpectations(t)
 	})
 

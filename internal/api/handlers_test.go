@@ -94,7 +94,8 @@ providers:
 `
 	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
 	defer os.Remove(tmpFile.Name())
-	tmpFile.Write([]byte(configContent))
+	_, err := tmpFile.Write([]byte(configContent))
+	assert.NoError(t, err)
 	tmpFile.Close()
 
 	idSvc, _ := services.NewIdentityService(tmpFile.Name())
