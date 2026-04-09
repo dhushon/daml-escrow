@@ -45,7 +45,7 @@ func (m *MultiLedgerClient) getClientForUser(userID string) Client {
 	return m.clients["buyer"]
 }
 
-func (m *MultiLedgerClient) Discover(ctx context.Context) error {
+func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
 	coreParties := []string{CentralBankUser, BuyerUser, SellerUser, EscrowMediatorUser}
 	
 	var lastErr error
@@ -63,7 +63,7 @@ func (m *MultiLedgerClient) Discover(ctx context.Context) error {
 				continue
 			}
 
-			if err := client.Discover(ctx); err != nil {
+			if err := client.Discover(ctx, wait); err != nil {
 				lastErr = err
 				continue
 			}

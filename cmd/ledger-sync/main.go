@@ -30,12 +30,33 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	client := ledger.NewJsonLedgerClient(logger, *host, *port, *implName, *ifaceName)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// High-Assurance: Give the synchronization process a long timeout and internal retries
+	// to account for ledger startup and indexing lag.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	fmt.Printf("Discovering ledger state on %s:%d...\n", *host, *port)
-	if err := client.Discover(ctx); err != nil {
-		fmt.Printf("Discovery failed: %v\n", err)
+	fmt.Printf("Discovering ledger state on %s:%d (timeout: 5m)...\n", *host, *port)
+	
+	var lastErr error
+	success := false
+	for i := 0; i < 10; i++ {
+		if err := client.Discover(ctx, false); err != nil {
+			lastErr = err
+			fmt.Printf("  [Retry %d/10] Ledger not ready: %v. Waiting 10s...\n", i+1, err)
+			select {
+			case <-ctx.Done():
+				fmt.Printf("Sync timed out: %v\n", ctx.Err())
+				os.Exit(1)
+			case <-time.After(10 * time.Second):
+				continue
+			}
+		}
+		success = true
+		break
+	}
+
+	if !success {
+		fmt.Printf("Discovery failed after all retries: %v\n", lastErr)
 		os.Exit(1)
 	}
 

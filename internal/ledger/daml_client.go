@@ -14,7 +14,7 @@ func NewDamlClient() *DamlClient {
 	return &DamlClient{}
 }
 
-func (c *DamlClient) Discover(ctx context.Context) error {
+func (c *DamlClient) Discover(ctx context.Context, wait bool) error {
 	return fmt.Errorf("gRPC not implemented")
 }
 

@@ -20,12 +20,12 @@ func NewJsonStablecoinProvider(logger *zap.Logger, client Client) *JsonStablecoi
 	}
 }
 
-func (p *JsonStablecoinProvider) CreateWallet(ctx context.Context, userID string) (string, error) {
-	p.logger.Info("creating virtual wallet reference", zap.String("userID", userID))
+func (p *JsonStablecoinProvider) EnsureVault(ctx context.Context, userID string) (string, error) {
+	p.logger.Info("ensuring institutional vault reference", zap.String("userID", userID))
 	return p.client.GetParty(userID), nil
 }
 
-func (p *JsonStablecoinProvider) GetBalance(ctx context.Context, walletID string, currency string) (float64, error) {
+func (p *JsonStablecoinProvider) GetBalance(ctx context.Context, vaultID string, currency string) (float64, error) {
 	query := map[string]interface{}{
 		"templateIds": []string{
 			fmt.Sprintf("%s:%s:%s", p.client.GetInterfacePackageID(), "Token.CIP56", "Holding"),
@@ -37,7 +37,7 @@ func (p *JsonStablecoinProvider) GetBalance(ctx context.Context, walletID string
 		return 0, err
 	}
 
-	p.logger.Debug("parsing balances from ACS", zap.String("walletID", walletID))
+	p.logger.Debug("parsing vault holdings from ACS", zap.String("vaultID", vaultID))
 	return 5000.0, nil 
 }
 
