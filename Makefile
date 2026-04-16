@@ -56,7 +56,7 @@ docker-up: ## Start only the Ledger and Database (Docker)
 	@docker-compose logs sandbox | grep -q "Setup complete." && echo "Ledger reports: Setup complete." || (echo "Timed out waiting for ledger setup"; exit 1)
 
 .PHONY: api-up
-api-up: build ## Start only the Go API (background)
+api-up: build sync ## Start only the Go API (background) after syncing state
 	@echo "Starting Go API on port 8081 (background)..."
 	@nohup bin/$(APP_NAME) serve --env dev --bypass > api.log 2>&1 & echo $$! > api.pid
 	@echo "API started. PID: $$(cat api.pid). Logs: api.log"
@@ -133,6 +133,16 @@ integration-test: ## Run local integration tests (single-node sandbox)
 distributed-test: ## Run multi-node distributed tests (full topology)
 	@echo "Running multi-node distributed tests..."
 	@go test -v -tags distributed ./internal/ledger/...
+
+.PHONY: test-bitgo
+test-bitgo: ## Run integration tests specifically for BitGo stablecoin assets
+	@echo "Running BitGo integration tests..."
+	@go test -v -tags "integration,stablecoin,bitgo" ./internal/ledger/...
+
+.PHONY: test-circle
+test-circle: ## Run integration tests specifically for Circle stablecoin assets
+	@echo "Running Circle integration tests..."
+	@go test -v -tags "integration,stablecoin,circle" ./internal/ledger/...
 
 
 

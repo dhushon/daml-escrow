@@ -10,8 +10,8 @@ type MockLedgerClient struct {
 	Client
 }
 
-func (m *MockLedgerClient) Discover(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockLedgerClient) Discover(ctx context.Context, wait bool) error {
+	args := m.Called(ctx, wait)
 	return args.Error(0)
 }
 
@@ -257,13 +257,13 @@ type MockStablecoinProvider struct {
 	mock.Mock
 }
 
-func (m *MockStablecoinProvider) CreateWallet(ctx context.Context, userID string) (string, error) {
+func (m *MockStablecoinProvider) EnsureVault(ctx context.Context, userID string) (string, error) {
 	args := m.Called(ctx, userID)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockStablecoinProvider) GetBalance(ctx context.Context, walletID string, currency string) (float64, error) {
-	args := m.Called(ctx, walletID, currency)
+func (m *MockStablecoinProvider) GetBalance(ctx context.Context, vaultID string, currency string) (float64, error) {
+	args := m.Called(ctx, vaultID, currency)
 	return args.Get(0).(float64), args.Error(1)
 }
 

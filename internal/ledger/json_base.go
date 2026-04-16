@@ -48,7 +48,7 @@ func NewJsonLedgerClient(logger *zap.Logger, host string, port int, implName, if
 	return c
 }
 
-func (c *JsonLedgerClient) Discover(ctx context.Context) error {
+func (c *JsonLedgerClient) Discover(ctx context.Context, wait bool) error {
 	c.logger.Info("performing ledger discovery...")
 
 	forceDiscovery := os.Getenv("FORCE_DISCOVERY") == "true"
@@ -99,7 +99,7 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 					var listResponse struct {
 						PackageIds []string `json:"packageIds"`
 					}
-					if err := json.Unmarshal(respBody, &listResponse); err != nil {
+					if err := json.Unmarshal(respBody, &listResponse); err == nil {
 						found := false
 						for _, pid := range listResponse.PackageIds {
 							if pid == c.PackageID {
@@ -123,29 +123,23 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 
 	var pids []string
 	var found bool
-	for i := 0; i < 1; i++ {
-
-		respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
-		if err == nil {
-			var listResponse struct {
-				PackageIds []string `json:"packageIds"`
-			}
-			if err := json.Unmarshal(respBody, &listResponse); err != nil && len(listResponse.PackageIds) > 0 {
-				pids = listResponse.PackageIds
-				found = true
-				break
-			}
+	// Try discovery once
+	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+	if err == nil {
+		var listResponse struct {
+			PackageIds []string `json:"packageIds"`
 		}
-		c.logger.Debug("waiting for packages to propagate...", zap.Int("retry", i))
-		time.Sleep(5 * time.Second)
+		if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
+			pids = listResponse.PackageIds
+			found = true
+		}
 	}
 
 	if !found {
-		return fmt.Errorf("failed to discover any packages on ledger after retries")
+		return fmt.Errorf("failed to discover any packages on ledger")
 	}
 
 	// Heuristic: The newest package is often at the end. 
-	// In Task 6.2, we upper cases we know we are looking for the version that contains our Escrow templates.
 	if len(pids) > 0 {
 		c.PackageID = pids[len(pids)-1]
 		c.logger.Info("discovered stablecoin-escrow package", 
@@ -160,12 +154,17 @@ func (c *JsonLedgerClient) Discover(ctx context.Context) error {
 		c.InterfacePackageID = c.PackageID
 	}
 
-	// 3. Resolve Party IDs (refreshPartyMap will also retry if parties missing)
+	// 3. Resolve Party IDs
 	if err := c.refreshPartyMap(ctx); err != nil {
 		return err
 	}
 
 	// 4. Deterministic Readiness Check
+	if !wait {
+		c.logger.Info("readiness check skipped (non-blocking discovery)")
+		return nil
+	}
+
 	// The package listing might return the ID before the node is ready to accept commands for it.
 	// We'll perform a dry-run query for the EscrowProposal template.
 	c.logger.Info("waiting for template readiness on ledger node...")

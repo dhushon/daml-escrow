@@ -48,6 +48,9 @@ import RefreshSlider from '../components/RefreshSlider.astro';
 	import { fetchMetrics } from '../lib/api';
 	import { getSession } from '../lib/auth';
 
+	let pollingInterval: any;
+	let currentSeconds = 8; // Default
+
 	async function init() {
 		const session = getSession();
 		const content = document.getElementById('metrics-content');
@@ -58,66 +61,91 @@ import RefreshSlider from '../components/RefreshSlider.astro';
 
 		if (!content) return;
 
-		try {
-			const metrics = await fetchMetrics();
-			const isAdmin = session?.scopes.includes('system:admin');
+		async function refresh() {
+			try {
+				const metrics = await fetchMetrics();
+				const isAdmin = session?.scopes.includes('system:admin');
 
-			// Update Headers
-			if (isAdmin) {
-				indicator?.classList.replace('bg-slate-300', 'bg-blue-500');
-				if (label) label.textContent = 'System-Wide Ledger Metrics';
-				if (title) title.textContent = 'Total Escrows & Oversight';
-				adminNotice?.classList.remove('hidden');
-			} else {
-				indicator?.classList.replace('bg-slate-300', 'bg-green-500');
-				if (label) label.textContent = 'Personal Escrow Analytics';
-				if (title) title.textContent = 'My Financial Activity';
+				// Update Headers (Only on first run)
+				if (label && label.textContent?.includes('Synchronizing')) {
+					if (isAdmin) {
+						indicator?.classList.replace('bg-slate-300', 'bg-blue-500');
+						label.textContent = 'System-Wide Ledger Metrics';
+						if (title) title.textContent = 'Total Escrows & Oversight';
+						adminNotice?.classList.remove('hidden');
+					} else {
+						indicator?.classList.replace('bg-slate-300', 'bg-green-500');
+						label.textContent = 'Personal Escrow Analytics';
+						if (title) title.textContent = 'My Financial Activity';
+					}
+				}
+
+				// Render Metrics
+				content!.innerHTML = `
+					<div class="space-y-12 pb-12 text-left">
+						<section>
+							<div class="flex justify-between items-center mb-6">
+								<h3 class="text-lg font-bold text-slate-800 dark:text-white">Escrow Metrics</h3>
+								<div class="flex items-center space-x-2">
+									<span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Real-Time Ledger</span>
+									<span class="text-[10px] font-medium text-slate-400 italic">Auto-refreshing every ${currentSeconds}s</span>
+								</div>
+							</div>
+							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+								<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Escrows</p>
+									<p class="text-4xl font-black mt-2 text-blue-600 dark:text-blue-400">${metrics.totalActiveEscrows}</p>
+								</div>
+								<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value in Escrow</p>
+									<p class="text-4xl font-black mt-2 text-slate-900 dark:text-white tracking-tighter">
+										${metrics.totalValueInEscrow.toLocaleString()} 
+										<span class="text-xs font-medium text-slate-400 italic">USD</span>
+									</p>
+								</div>
+							</div>
+						</section>
+
+						<section>
+							<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">API & System Performance</h3>
+							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+								<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Latency</p>
+									<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.apiLatencyMs} <span class="text-xs font-normal text-slate-400 italic">ms</span></p>
+								</div>
+								<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
+									<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.cpuUsage.toFixed(1)}%</p>
+								</div>
+							</div>
+						</section>
+					</div>
+				`;
+				content!.classList.remove('opacity-0');
+
+			} catch (err) {
+				console.error('Refresh failed', err);
+				if (content!.classList.contains('opacity-0')) {
+					content!.innerHTML = `<div class="py-20 text-center text-red-500 font-mono text-xs">Sync Error: ${err.message}</div>`;
+					content!.classList.remove('opacity-0');
+				}
 			}
-
-			// Render Metrics
-			content.innerHTML = `
-				<div class="space-y-12 pb-12 text-left">
-					<section>
-						<div class="flex justify-between items-center mb-6">
-							<h3 class="text-lg font-bold text-slate-800 dark:text-white">Escrow Metrics</h3>
-							<span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Real-Time Ledger</span>
-						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-							<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Escrows</p>
-								<p class="text-4xl font-black mt-2 text-blue-600 dark:text-blue-400">${metrics.totalActiveEscrows}</p>
-							</div>
-							<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value in Escrow</p>
-								<p class="text-4xl font-black mt-2 text-slate-900 dark:text-white tracking-tighter">
-									${metrics.totalValueInEscrow.toLocaleString()} 
-									<span class="text-xs font-medium text-slate-400 italic">USD</span>
-								</p>
-							</div>
-						</div>
-					</section>
-
-					<section>
-						<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">API & System Performance</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-							<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Latency</p>
-								<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.apiLatencyMs} <span class="text-xs font-normal text-slate-400 italic">ms</span></p>
-							</div>
-							<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
-								<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.cpuUsage.toFixed(1)}%</p>
-							</div>
-						</div>
-					</section>
-				</div>
-			`;
-			content.classList.remove('opacity-0');
-
-		} catch (err) {
-			content.innerHTML = `<div class="py-20 text-center text-red-500 font-mono text-xs">Sync Error: ${err.message}</div>`;
-			content.classList.remove('opacity-0');
 		}
+
+		function startPolling(seconds: number) {
+			if (pollingInterval) clearInterval(pollingInterval);
+			currentSeconds = seconds;
+			refresh();
+			pollingInterval = setInterval(refresh, seconds * 1000);
+		}
+
+		// Initial start
+		startPolling(currentSeconds);
+
+		// Listen for slider changes
+		window.addEventListener('refresh-interval-change', (e: any) => {
+			startPolling(e.detail.seconds);
+		});
 	}
 
 	init();

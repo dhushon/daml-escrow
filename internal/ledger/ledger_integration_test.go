@@ -38,7 +38,7 @@ func TestLedgerIntegration_Sandbox(t *testing.T) {
 	defer cancel()
 
 	// Perform discovery
-	err := client.Discover(ctx)
+	err := client.Discover(ctx, true)
 	require.NoError(t, err)
 
 	// Run shared lifecycle logic

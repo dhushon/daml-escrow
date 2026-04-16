@@ -181,7 +181,7 @@ type ServiceHealth struct {
 }
 
 type Client interface {
-	Discover(ctx context.Context) error
+	Discover(ctx context.Context, wait bool) error
 
 	// Lifecycle (Directive 05)
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
@@ -237,13 +237,13 @@ type Client interface {
 
 // StablecoinProvider defines the interface for interacting with tokenized reserves.
 type StablecoinProvider interface {
-	// CreateWallet associates a user with a new digital wallet.
-	CreateWallet(ctx context.Context, userID string) (string, error)
+	// EnsureVault ensures a user has a vault/party allocated for holdings.
+	EnsureVault(ctx context.Context, userID string) (string, error)
 
-	// GetBalance retrieves the current balance for a wallet.
-	GetBalance(ctx context.Context, walletID string, currency string) (float64, error)
+	// GetBalance retrieves the current balance for a vault.
+	GetBalance(ctx context.Context, vaultID string, currency string) (float64, error)
 
-	// Transfer initiates a move of funds between wallets.
+	// Transfer initiates an authoritative move of funds.
 	Transfer(ctx context.Context, fromID, toID string, amount float64, currency string, reference string) (string, error)
 
 	// VerifyTransfer checks the status of a specific transaction.

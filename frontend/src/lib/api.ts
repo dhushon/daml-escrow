@@ -195,6 +195,24 @@ export async function fetchHealth() {
     return response.json();
 }
 
+export async function fetchConfig(user: string, key: string) {
+    const response = await fetch(`${API_BASE}/config?user=${encodeURIComponent(user)}&key=${encodeURIComponent(key)}`, {
+        headers: getAuthHeaders()
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error('Failed to fetch config');
+    return response.json();
+}
+
+export async function saveConfig(user: string, key: string, value: any) {
+    const response = await fetch(`${API_BASE}/config?user=${encodeURIComponent(user)}&key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(value)
+    });
+    if (!response.ok) throw new Error('Failed to save config');
+}
+
 // Identity
 
 export async function authenticateIdentity(jwt: string) {

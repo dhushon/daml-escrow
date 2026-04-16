@@ -102,7 +102,7 @@ func runServer() {
 	}
 
 	// Perform dynamic discovery (resolve Package and Party IDs)
-	if err := ledgerClient.Discover(context.Background()); err != nil {
+	if err := ledgerClient.Discover(context.Background(), true); err != nil {
 		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
 	}
 
