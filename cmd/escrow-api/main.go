@@ -115,7 +115,25 @@ func runServer() {
 	}
 	defer configService.Close()
 
-	stablecoinProvider := ledger.NewJsonStablecoinProvider(logger, ledgerClient)
+	// Dynamic Stablecoin Provider Selection
+	var stablecoinProvider ledger.StablecoinProvider
+	switch cfg.Stablecoin.Provider {
+	case "bitgo":
+		logger.Info("using BitGo stablecoin provider", 
+			zap.String("expressUrl", cfg.Stablecoin.BitGo.ExpressURL),
+			zap.String("coin", cfg.Stablecoin.BitGo.Coin))
+		stablecoinProvider = ledger.NewBitGoStablecoinProvider(
+			logger,
+			cfg.Stablecoin.BitGo.ExpressURL,
+			cfg.Stablecoin.BitGo.AccessToken,
+			cfg.Stablecoin.BitGo.Enterprise,
+			cfg.Stablecoin.BitGo.Coin,
+		)
+	default:
+		logger.Info("using default mock stablecoin provider")
+		stablecoinProvider = ledger.NewJsonStablecoinProvider(logger, ledgerClient)
+	}
+
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
 	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
