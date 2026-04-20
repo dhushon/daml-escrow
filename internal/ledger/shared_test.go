@@ -110,11 +110,14 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		// 2. Create a Mock Holding for the Buyer (Find test package ID dynamically)
 		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
 		require.NoError(t, err)
+		
+		// Note: Institutional MockHolding now requires Buyer, Issuer, and Seller as signatories
 		holdingCid, err := client.CreateContract(ctx, BuyerUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
 			"owner":   client.GetParty(BuyerUser),
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
 			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
+			"seller":  client.GetParty(SellerUser),
 		})
 		require.NoError(t, err)
 		t.Logf("Created mock holding: %s", holdingCid)
@@ -132,11 +135,9 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 
 		// 3. Activate (FUNDED -> ACTIVE)
 		t.Log("Step 3: Activate...")
-		// For institutional holdings, Activation now authoritatively LOCKS the asset.
-		// This requires both the Issuer (exercising) and the Buyer (co-signatory of the lock).
-		// Note: In our current JsonLedgerClient, we simplify this to the exercising party,
-		// but the Daml logic enforces the co-signature.
-		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
+		// Institutional activation authoritatively LOCKS the asset.
+		// Requires co-signing from both Issuer and Buyer (owner of holding).
+		activeID, err := client.Activate(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err)
 		require.NotEmpty(t, activeID)
 		escrow.ID = activeID // Update ID for subsequent steps
@@ -158,7 +159,8 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 
 		// 6. Disburse (SETTLED -> Terminal/Archived)
 		t.Log("Step 6: Disburse...")
-		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		// Institutional disbursement requires authoritative co-signing from Issuer and Buyer.
+		err = client.Disburse(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err)
 
 		// Verify archive
@@ -191,6 +193,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
 			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
+			"seller":  client.GetParty(SellerUser),
 		})
 		require.NoError(t, err)
 		
@@ -200,7 +203,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
 		require.NotNil(t, escrow)
 		
-		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
+		activeID, err := client.Activate(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err)
 		escrow.ID = activeID
 		
@@ -274,7 +277,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.Equal(t, "SETTLED", escrow.State)
 
 		// 7. Disburse
-		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		err = client.Disburse(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err, "Disburse failed")
 		t.Log("Dispute path completed successfully")
 	})
@@ -300,6 +303,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
 			"issuer":  client.GetParty(CentralBankUser),
 			"assetId": req.Asset.AssetID,
+			"seller":  client.GetParty(SellerUser),
 		})
 		
 		client.Fund(ctx, proposal.ID, "REF-TIMEOUT", holdingCid, BuyerUser)
@@ -307,7 +311,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		escrow := waitForEscrowState(ctx, BuyerUser, assetID, "FUNDED")
 		require.NotNil(t, escrow)
 		
-		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
+		activeID, err := client.Activate(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err)
 		escrow.ID = activeID
 		
@@ -324,7 +328,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.NotNil(t, escrow)
 		require.Equal(t, "SETTLED", escrow.State)
 		
-		err = client.Disburse(ctx, escrow.ID, CentralBankUser)
+		err = client.Disburse(ctx, escrow.ID, []string{CentralBankUser, BuyerUser})
 		require.NoError(t, err)
 		t.Log("Timeout path completed successfully")
 	})
