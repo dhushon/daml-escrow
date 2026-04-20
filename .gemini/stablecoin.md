@@ -13,7 +13,9 @@ This document defines the requirements for integrating real institutional stable
 ## 2. Vault-Centric Logic
 
 - **Holding-Based Escrow:** The Escrow contract MUST NOT store a "balance" number. It MUST store a **Contract ID Reference** or a **Template Lock** on a real CIP-0056 holding.
-- **Zero-Trust Settlement:** Transfers must be driven by the ledger's authority, not by "Instructional" API calls that trust the backend to move numbers.
+- **Authoritative State Transitions:** Transitioning from `FUNDED` to `ACTIVE` MUST execute the `Lock` choice on the holding, freezing the asset under the ledger's authority.
+- **Zero-Trust Settlement:** Transfers must be driven by the ledger's authority (the `Unlock` and `Transfer` sequence), not by "Instructional" API calls that trust the backend to move numbers.
+- **Bilateral Co-signing:** Mock and Real providers MUST support multi-actor authorization models where both the Payer (Buyer) and Issuer (Bank) must co-sign state transitions on the holding.
 
 ## 3. Mock & Provider Synchronicity
 

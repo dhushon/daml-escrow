@@ -13,21 +13,58 @@ import DA.Date
 -- ---------------------------------------------------------------------------
 -- Mock Holding implementation for tests
 -- ---------------------------------------------------------------------------
+-- Institutional holding often requires co-signing for transfers/locking.
 template MockHolding
   with
-    owner : Party
-    amount : Decimal
-    issuer : Party
+    owner   : Party
+    amount  : Decimal
+    issuer  : Party
     assetId : Text
+    seller  : Party -- Added as co-signatory to facilitate bilateral transfer in tests
   where
-    signatory owner
-    observer issuer
+    signatory owner, issuer, seller
 
     interface instance Token.Holding for MockHolding where
       view = Token.HoldingView with 
         owner
         amount
         base = Token.BaseView with issuer, assetId, metadata = ""
+
+    interface instance Token.Transferable for MockHolding where
+      view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
+      transfer_internal newOwner = do
+        cid <- create this with owner = newOwner
+        return (toInterfaceContractId @Token.Holding cid)
+
+    interface instance Token.Lockable for MockHolding where
+      view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
+      lock_internal locker context = do
+        cid <- create LockedHolding with ..
+        return (toInterfaceContractId @Token.Holding cid)
+      unlock_internal actor = error "Already unlocked"
+
+template LockedHolding
+  with
+    owner   : Party
+    amount  : Decimal
+    issuer  : Party
+    assetId : Text
+    locker  : Party
+    context : Text
+    seller  : Party
+  where
+    signatory owner, issuer, locker, seller
+
+    interface instance Token.Holding for LockedHolding where
+      view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
+
+    interface instance Token.Lockable for LockedHolding where
+      view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
+      lock_internal locker context = error "Already locked"
+      unlock_internal actor = do
+        assert (actor == locker)
+        cid <- create MockHolding with ..
+        return (toInterfaceContractId @Token.Holding cid)
 
 -- ---------------------------------------------------------------------------
 -- Setup
@@ -49,32 +86,20 @@ testFullLifecycle : Script ()
 testFullLifecycle = do
   (issuer, buyer, seller, mediator) <- setup
   
-  -- Create a mock holding for the buyer
-  holdingCid <- submit (actAs [buyer]) do
-    createCmd MockHolding with owner = buyer, amount = 1000.0, issuer, assetId = "USD-123"
+  -- Create a mock holding (requires buyer, issuer, and seller authorization)
+  holdingCid <- submit (actAs [buyer, issuer, seller]) do
+    createCmd MockHolding with owner = buyer, amount = 1000.0, issuer, assetId = "USD-123", seller
 
   let 
     asset = Asset with
-      assetType = "stablecoin"
-      assetId = "USD-123"
-      amount = 1000.0
-      currency = "USD"
-      custodyRef = None
-      holdingCid = None
-    
+      assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
     terms = EscrowTerms with
-      conditionDescription = "Deliver software"
-      conditionType = "Binary"
-      evidenceRequired = "MediatorAttestation"
-      expiryDate = time (date 2026 Jun 01) 0 0 0
-      gracePeriodDays = 7
-      disputeWindowDays = 14
-      partialSchedule = []
+      conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
+      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = []
 
   -- 1. Create Proposal (DRAFT)
   proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with
-      issuer, buyer, seller, mediator, asset, terms, metadata = "{}"
+    createCmd EscrowProposal with issuer, buyer, seller, mediator, asset, terms, metadata = "{}"
 
   -- 1.5 Seller Accepts (DRAFT -> SellerAcceptedProposal)
   acceptedCid <- submit (actAs [seller]) do
@@ -87,7 +112,8 @@ testFullLifecycle = do
       holdingCid = toInterfaceContractId @Token.Holding holdingCid
 
   -- 3. Activate (FUNDED -> ACTIVE)
-  activeCid <- submit (actAs [issuer]) do
+  -- Requires authorization from all signatories of the holding (Buyer, Issuer, Seller).
+  activeCid <- submit (actAs [issuer, buyer, seller]) do
     exerciseCmd (toInterfaceContractId @Escrow fundedCid) Activate
 
   -- 4. Confirm (ACTIVE -> SETTLED)
@@ -95,7 +121,8 @@ testFullLifecycle = do
     exerciseCmd (fromInterfaceContractId @EscrowContract activeCid) ConfirmConditions
 
   -- 5. Disburse (SETTLED -> terminal)
-  submit (actAs [issuer]) do
+  -- Requires authorization from all signatories of the holding (Buyer, Issuer, Seller).
+  submit (actAs [issuer, buyer, seller]) do
     exerciseCmd settledCid Disburse
 
 -- ---------------------------------------------------------------------------
@@ -107,8 +134,8 @@ testDisputeLifecycle = do
   (issuer, buyer, seller, mediator) <- setup
 
   -- Create a mock holding
-  holdingCid <- submit (actAs [buyer]) do
-    createCmd MockHolding with owner = buyer, amount = 1000.0, issuer, assetId = "USD-123"
+  holdingCid <- submit (actAs [buyer, issuer, seller]) do
+    createCmd MockHolding with owner = buyer, amount = 1000.0, issuer, assetId = "USD-123", seller
 
   let 
     asset = Asset with
@@ -132,7 +159,7 @@ testDisputeLifecycle = do
       holdingCid = toInterfaceContractId @Token.Holding holdingCid
 
   -- 3. Activate
-  activeCid <- submit (actAs [issuer]) do
+  activeCid <- submit (actAs [issuer, buyer, seller]) do
     exerciseCmd (toInterfaceContractId @Escrow fundedCid) Activate
 
   -- 4. Raise Dispute (ACTIVE -> DISPUTED)
@@ -143,10 +170,7 @@ testDisputeLifecycle = do
   proposedCid : ContractId SettlementRecord <- submit (actAs [mediator]) do
     exerciseCmd disputeCid ProposeSettlement with
       proposal = SettlementTerms with
-        settlementType = "PartialSplit"
-        buyerReturn = 400.0
-        sellerPayment = 600.0
-        mediatorFee = 0.0
+        settlementType = "PartialSplit", buyerReturn = 400.0, sellerPayment = 600.0, mediatorFee = 0.0
 
   -- 6. Ratify (Buyer)
   proposed2Cid : ContractId SettlementRecord <- submit (actAs [buyer]) do
@@ -161,5 +185,5 @@ testDisputeLifecycle = do
     exerciseCmd proposed3Cid FinalizeSettlement
 
   -- 9. Disburse
-  submit (actAs [issuer]) do
+  submit (actAs [issuer, buyer, seller]) do
     exerciseCmd settledCid Disburse

@@ -1,7 +1,7 @@
 -- CIP56.daml
 -- 
 -- Standard Daml Interfaces for CIP-0056 Stablecoins on Canton.
--- Simplified for standalone usage in the Escrow Platform.
+-- Standardized for integration with BitGo (Enterprise) and Circle (WaaS).
 
 module Token.CIP56 where
 
@@ -32,12 +32,16 @@ interface Holding where
 -- 3. Transferable Interface
 interface Transferable where
   viewtype HoldingView
+  
+  -- Method to be implemented by templates
+  transfer_internal : Party -> Update (ContractId Holding)
 
-  choice Transfer : ContractId Transferable
+  -- Standard CIP-0056 Transfer choice
+  choice Transfer : ContractId Holding
     with newOwner : Party
     controller (view this).owner
-    do
-      error "Implementation required"
+    do 
+      transfer_internal this newOwner
 
 -- 4. Lockable Interface
 data LockView = LockView with
@@ -48,13 +52,19 @@ data LockView = LockView with
 interface Lockable where
   viewtype HoldingView
 
-  choice Lock : ContractId Lockable
+  -- Methods to be implemented by templates
+  lock_internal : Party -> Text -> Update (ContractId Holding)
+  unlock_internal : Party -> Update (ContractId Holding)
+
+  -- Standard CIP-0056 Lock choice
+  choice Lock : ContractId Holding
     with locker : Party, context : Text
     controller (view this).owner
     do
-      error "Implementation required"
+      lock_internal this locker context
 
-  choice Unlock : ContractId Lockable
-    controller (view this).owner
-    do
-      error "Implementation required"
+  choice Unlock : ContractId Holding
+    with actor : Party
+    controller actor
+    do 
+      unlock_internal this actor
