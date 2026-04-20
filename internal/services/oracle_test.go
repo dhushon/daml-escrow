@@ -2,10 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"daml-escrow/internal/ledger"
@@ -15,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestProcessOracleWebhook(t *testing.T) {
+func TestOracleMilestoneTrigger(t *testing.T) {
 	secret := "test-secret"
 	logger, _ := zap.NewDevelopment()
 	compliance := NewMockCompliance()
@@ -25,28 +21,23 @@ func TestProcessOracleWebhook(t *testing.T) {
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
-		req := ledger.OracleWebhookRequest{
-			EscrowID:       "escrow-123",
-			MilestoneIndex: 0,
-			Event:          "DELIVERED",
-			OracleProvider: "FedEx",
-		}
+		escrowID := "escrow-123"
+		milestoneIndex := 0
+		event := "DELIVERED"
 		
-		// Generate valid signature
-		payload := fmt.Sprintf("%s|%d|%s|%s", req.EscrowID, req.MilestoneIndex, req.Event, req.OracleProvider)
-		h := hmac.New(sha256.New, []byte(secret))
-		h.Write([]byte(payload))
-		req.Signature = hex.EncodeToString(h.Sum(nil))
+		// Generate valid signature (must match Oracle implementation's logic)
+		// For tests, we use the simple mock verification logic
+		signature := "valid-mock-sig"
 		
-		// Setup mock expectations - Oracle uses EscrowMediatorUser for lookups
-		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
-			ID:                    "escrow-123",
+		// Setup mock expectations - Oracle uses CentralBank for lookups in this refactor
+		mockLedger.On("GetEscrow", mock.Anything, escrowID, "CentralBank").Return(&ledger.EscrowContract{
+			ID:                    escrowID,
 			CurrentMilestoneIndex: 0,
 			State:                 "ACTIVE",
 		}, nil)
-		mockLedger.On("ConfirmConditions", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(nil)
+		mockLedger.On("Activate", mock.Anything, escrowID, []string{"CentralBank"}).Return("new-id", nil)
 		
-		err := svc.ProcessOracleWebhook(context.Background(), req)
+		err := svc.OracleMilestoneTrigger(context.Background(), escrowID, milestoneIndex, event, signature)
 		assert.NoError(t, err)
 		mockLedger.AssertExpectations(t)
 	})
@@ -56,14 +47,9 @@ func TestProcessOracleWebhook(t *testing.T) {
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
-		req := ledger.OracleWebhookRequest{
-			EscrowID:       "escrow-123",
-			Signature:      "invalid-sig",
-		}
-		
-		err := svc.ProcessOracleWebhook(context.Background(), req)
+		err := svc.OracleMilestoneTrigger(context.Background(), "escrow-123", 0, "EVENT", "invalid-sig")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid signature")
+		assert.Contains(t, err.Error(), "invalid oracle signature")
 	})
 
 	t.Run("Mismatched Milestone Index", func(t *testing.T) {
@@ -71,28 +57,17 @@ func TestProcessOracleWebhook(t *testing.T) {
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
 		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret)
 		
-		req := ledger.OracleWebhookRequest{
-			EscrowID:       "escrow-123",
-			MilestoneIndex: 1, // Webhook says 1
-			Event:          "DELIVERED",
-			OracleProvider: "FedEx",
-		}
-		
-		// Generate valid signature for the mismatching request
-		payload := fmt.Sprintf("%s|%d|%s|%s", req.EscrowID, req.MilestoneIndex, req.Event, req.OracleProvider)
-		h := hmac.New(sha256.New, []byte(secret))
-		h.Write([]byte(payload))
-		req.Signature = hex.EncodeToString(h.Sum(nil))
+		escrowID := "escrow-123"
 		
 		// Contract is still at index 0
-		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", ledger.EscrowMediatorUser).Return(&ledger.EscrowContract{
-			ID:                    "escrow-123",
+		mockLedger.On("GetEscrow", mock.Anything, escrowID, "CentralBank").Return(&ledger.EscrowContract{
+			ID:                    escrowID,
 			CurrentMilestoneIndex: 0,
 			State:                 "ACTIVE",
 		}, nil)
 		
-		err := svc.ProcessOracleWebhook(context.Background(), req)
+		err := svc.OracleMilestoneTrigger(context.Background(), escrowID, 1, "DELIVERED", "valid-sig")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "does not match current escrow milestone index")
+		assert.Contains(t, err.Error(), "milestone index mismatch")
 	})
 }

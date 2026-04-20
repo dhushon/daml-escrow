@@ -187,13 +187,13 @@ type Client interface {
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
 	SellerAccept(ctx context.Context, id string, userID string) (string, error)
 	Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error
-	Activate(ctx context.Context, id string, userID string) (string, error)
+	Activate(ctx context.Context, id string, actAs []string) (string, error)
 	ConfirmConditions(ctx context.Context, id string, userID string) error
 	RaiseDispute(ctx context.Context, id string, userID string) error
 	ProposeSettlement(ctx context.Context, id string, proposal SettlementTerms, userID string) (string, error)
 	RatifySettlement(ctx context.Context, id string, userID string) (string, error)
 	FinalizeSettlement(ctx context.Context, id string, userID string) (string, error)
-	Disburse(ctx context.Context, id string, userID string) error
+	Disburse(ctx context.Context, id string, actAs []string) error
 	Cancel(ctx context.Context, id string, userID string) error
 	ExpireEscrow(ctx context.Context, id string, userID string) (string, error)
 

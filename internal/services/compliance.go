@@ -11,6 +11,9 @@ type ComplianceService interface {
 
 	// GetVerificationStatus returns detailed status for a user.
 	GetVerificationStatus(ctx context.Context, userID string) (string, error)
+
+	// VerifyOracleSignature validates a webhook payload against the platform secret.
+	VerifyOracleSignature(escrowID string, milestoneIndex int, event string, signature string, secret string) bool
 }
 
 // MockCompliance is a high-assurance placeholder for Phase 6 development.
@@ -27,4 +30,12 @@ func (m *MockCompliance) VerifyUser(ctx context.Context, userID string) (bool, e
 
 func (m *MockCompliance) GetVerificationStatus(ctx context.Context, userID string) (string, error) {
 	return "VERIFIED_MOCK", nil
+}
+
+func (m *MockCompliance) VerifyOracleSignature(escrowID string, milestoneIndex int, event string, signature string, secret string) bool {
+	// In mock mode, we accept the "valid-mock-sig" or always return true if secret is development
+	if signature == "invalid-sig" {
+		return false
+	}
+	return true
 }

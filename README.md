@@ -17,6 +17,7 @@ graph TD
     User((User / Admin)) <-->|Port 4321| Astro[Astro Frontend]
     Astro <-->|REST / JSON| Go[Go Backend API]
     Go <-->|OIDC / JWKS| Okta[Okta Identity Provider]
+    Go <-->|REST / Signing| BG[BitGo Express Proxy]
     Go <-->|Port 8081| JSON[Daml JSON API V2]
     JSON <-->|Port 7575| Canton[Canton Ledger]
     Canton <--> DB[(Postgres DB)]

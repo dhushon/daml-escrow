@@ -24,7 +24,11 @@
 
 - **State Machine:** Use specific templates for each lifecycle state (`EscrowProposal`, `EscrowContract`, `DisputeRecord`, etc.) rather than a single template with an enum. This enforces strict authority guards.
 - **Authority:** `Issuer` MUST be a signatory on all state templates to ensure control over disbursement.
-- **Interface Implementation:** Use the SDK 3.x interface pattern. Define stable data structures in the interface package and logic in the implementation package.
+- **Interface Implementation (SDK 3.x):** 
+    - **Naming:** Implementation methods in the `interface instance ... where` block MUST use the **lowercase** name of the corresponding choice (e.g., for choice `Transfer`, the method name is `transfer`).
+    - **Method + Choice Pattern:** Define methods in the interface's `where` block and call them from the interface choices to allow templates to provide custom implementation logic.
+    - **Type Safety:** Always use `coerceContractId @InterfaceName` explicitly when casting between different interface types (e.g., `Holding` to `Lockable`).
+- **Authority:** `Issuer` MUST be a signatory on all state templates to ensure control over disbursement.
 
 ## Ledger Connection
 

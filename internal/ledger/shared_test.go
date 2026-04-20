@@ -132,6 +132,10 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 
 		// 3. Activate (FUNDED -> ACTIVE)
 		t.Log("Step 3: Activate...")
+		// For institutional holdings, Activation now authoritatively LOCKS the asset.
+		// This requires both the Issuer (exercising) and the Buyer (co-signatory of the lock).
+		// Note: In our current JsonLedgerClient, we simplify this to the exercising party,
+		// but the Daml logic enforces the co-signature.
 		activeID, err := client.Activate(ctx, escrow.ID, CentralBankUser)
 		require.NoError(t, err)
 		require.NotEmpty(t, activeID)

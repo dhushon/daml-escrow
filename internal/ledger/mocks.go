@@ -33,8 +33,8 @@ func (m *MockLedgerClient) Fund(ctx context.Context, id string, custodyRef strin
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) Activate(ctx context.Context, id string, userID string) (string, error) {
-	args := m.Called(ctx, id, userID)
+func (m *MockLedgerClient) Activate(ctx context.Context, id string, actAs []string) (string, error) {
+	args := m.Called(ctx, id, actAs)
 	return args.String(0), args.Error(1)
 }
 
@@ -63,8 +63,8 @@ func (m *MockLedgerClient) FinalizeSettlement(ctx context.Context, id string, us
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockLedgerClient) Disburse(ctx context.Context, id string, userID string) error {
-	args := m.Called(ctx, id, userID)
+func (m *MockLedgerClient) Disburse(ctx context.Context, id string, actAs []string) error {
+	args := m.Called(ctx, id, actAs)
 	return args.Error(0)
 }
 
@@ -142,20 +142,20 @@ func (m *MockLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	return args.Get(0).(*UserIdentity), args.Error(1)
 }
 
-func (m *MockLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*UserIdentity), args.Error(1)
-}
-
 func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
 	args := m.Called(ctx, oktaSub, email, scopes)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*UserIdentity), args.Error(1)
+}
+
+func (m *MockLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*UserIdentity), args.Error(1)
 }
 
 func (m *MockLedgerClient) GetMetrics(ctx context.Context, userID string) (*LedgerMetrics, error) {

@@ -124,6 +124,7 @@ func TestHandler_ClaimInvitation(t *testing.T) {
 
 	t.Run("Authorized Claim", func(t *testing.T) {
 		mockLedger.On("GetInvitationByToken", mock.Anything, token).Return(invite, nil)
+		mockLedger.On("GetIdentity", mock.Anything, "user-123").Return(&ledger.UserIdentity{OktaSub: "user-123"}, nil)
 		mockLedger.On("ClaimInvitation", mock.Anything, invite.ID, "user-123").Return(&ledger.EscrowProposal{ID: "prop-123"}, nil)
 
 		req, _ := http.NewRequest("POST", "/api/v1/invites/token/"+token+"/claim", nil)

@@ -144,3 +144,41 @@ Transitioned the platform from a "Sandbox" model to a production-ready infrastru
 5.  **Infrastructure-as-Code:** Automated the entire identity stack (Apps, Servers, Users) using Terraform.
 
 *   **Outcome:** A secured, observable platform capable of federating with enterprise Identity Providers and providing real-time system integrity reports.
+
+## Phase 10: Institutional Stablecoin & CIP-0056 (Active)
+
+Transitioned the ledger data model from simple numeric balances to authoritative cryptographic holdings, enabling integration with institutional providers like BitGo and Circle.
+
+### Key Architectural Enhancements:
+1.  **CIP-0056 Standard:** Adopted standardized Daml interfaces (`Holding`, `Lockable`, `Transferable`) to ensure that all token movements are ledger-verified and provider-agnostic.
+2.  **Institutional Vault Model:** Refactored the stablecoin abstraction to use **Vaults** (mapping to BitGo Enterprise Wallets) rather than logical internal wallets.
+3.  **Authoritative Locking:** Implemented a high-assurance state machine where escrowed assets are cryptographically locked during the `ACTIVE` phase, preventing double-spending and ensuring sole ledger authority over disbursement.
+4.  **Multi-Actor Co-signing:** Aligned the Go and Daml layers to support multi-party authorizations (`actAs []string`), requiring both the **Issuer (Bank)** and **Buyer (Owner)** to authorize critical state transitions on institutional holdings.
+5.  **BitGo Integration:** Implemented the `BitGoStablecoinProvider` using the BitGo v2 REST API and BitGo Express local proxy for secure transaction signing.
+
+### Authoritative Lock & Disburse Flow:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Buyer (Owner)
+    participant L as Canton Ledger
+    participant G as Go API
+    participant BG as BitGo Express
+    participant CB as Central Bank (Issuer)
+
+    Note over B,CB: Step 1: Authoritative Locking
+    B->>G: Request Activation
+    G->>L: Exercise Activate (actAs: [CB, B])
+    L->>L: Exercise Lock choice on CIP-0056 Holding
+    L-->>G: Locked Holding ContractCreated
+    
+    Note over B,CB: Step 2: High-Assurance Disbursement
+    CB->>G: Execute Disburse (actAs: [CB, B])
+    G->>BG: signTransaction (Local Proxy)
+    BG->>G: Signed Tx
+    G->>L: Exercise Disburse choice
+    L->>L: Exercise Unlock + Transfer
+    L-->>G: Settlement Finalized
+```
+
+*   **Outcome:** A production-ready financial backbone capable of handling real-world tokenized assets with institutional-grade security and bilateral authority.
