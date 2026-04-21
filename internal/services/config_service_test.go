@@ -12,7 +12,7 @@ import (
 func TestConfigService_Unit(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	svc := &ConfigService{db: db}
 

@@ -17,15 +17,15 @@ auth:
 `
 	tmpFile, err := os.CreateTemp("", "config*.yaml")
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	_, err = tmpFile.Write([]byte(configContent))
 	assert.NoError(t, err)
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	t.Run("Default Environment", func(t *testing.T) {
-		os.Unsetenv("ENVIRONMENT")
-		os.Unsetenv("AUTH_BYPASS")
+		_ = os.Unsetenv("ENVIRONMENT")
+		_ = os.Unsetenv("AUTH_BYPASS")
 		
 		cfg, err := LoadConfig(tmpFile.Name())
 		assert.NoError(t, err)
@@ -34,10 +34,10 @@ auth:
 	})
 
 	t.Run("Custom Environment", func(t *testing.T) {
-		os.Setenv("ENVIRONMENT", "dev")
-		os.Setenv("AUTH_BYPASS", "true")
-		defer os.Unsetenv("ENVIRONMENT")
-		defer os.Unsetenv("AUTH_BYPASS")
+		_ = os.Setenv("ENVIRONMENT", "dev")
+		_ = os.Setenv("AUTH_BYPASS", "true")
+		defer func() { _ = os.Unsetenv("ENVIRONMENT") }()
+		defer func() { _ = os.Unsetenv("AUTH_BYPASS") }()
 
 		cfg, err := LoadConfig(tmpFile.Name())
 		assert.NoError(t, err)

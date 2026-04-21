@@ -28,7 +28,7 @@ func TestMetricsService(t *testing.T) {
 		// Mock DB for ConfigService
 		db, mockDB, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 		assert.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		configSvc := &ConfigService{db: db}
 		mockDB.ExpectPing()
 
@@ -55,7 +55,7 @@ func TestMetricsService(t *testing.T) {
 
 	t.Run("GetHealth - Database Down", func(t *testing.T) {
 		db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		configSvc := &ConfigService{db: db}
 		mockDB.ExpectPing().WillReturnError(fmt.Errorf("db connection refused"))
 

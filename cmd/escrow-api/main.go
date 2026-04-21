@@ -113,7 +113,7 @@ func runServer() {
 	if err != nil {
 		logger.Fatal("failed to initialize config service", zap.Error(err))
 	}
-	defer configService.Close()
+	defer func() { _ = configService.Close() }()
 
 	// Dynamic Stablecoin Provider Selection
 	var stablecoinProvider ledger.StablecoinProvider

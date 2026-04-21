@@ -58,7 +58,7 @@ func (p *BitGoStablecoinProvider) GetBalance(ctx context.Context, vaultID string
 	if err != nil {
 		return 0, fmt.Errorf("bitgo request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -103,7 +103,7 @@ func (p *BitGoStablecoinProvider) Transfer(ctx context.Context, fromID, toID str
 	if err != nil {
 		return "", fmt.Errorf("bitgo transfer failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

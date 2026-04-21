@@ -93,10 +93,10 @@ providers:
     issuer: https://oidc.test.com
 `
 	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 	_, err := tmpFile.Write([]byte(configContent))
 	assert.NoError(t, err)
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	idSvc, _ := services.NewIdentityService(tmpFile.Name())
 	h := NewHandler(logger, nil, nil, nil, nil, idSvc)
