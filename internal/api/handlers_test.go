@@ -22,7 +22,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	metrics := services.NewMetricsService()
 	
 	db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
 	mockDB.ExpectPing()
 

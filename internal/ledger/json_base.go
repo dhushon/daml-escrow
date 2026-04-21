@@ -279,7 +279,7 @@ func (c *JsonLedgerClient) doRawRequest(ctx context.Context, method, path string
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 

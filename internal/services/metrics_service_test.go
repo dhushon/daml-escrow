@@ -72,7 +72,7 @@ func TestMetricsService(t *testing.T) {
 
 	t.Run("GetHealth - Ledger Down", func(t *testing.T) {
 		db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		configSvc := &ConfigService{db: db}
 		mockDB.ExpectPing()
 
