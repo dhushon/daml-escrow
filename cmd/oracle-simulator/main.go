@@ -65,7 +65,7 @@ func main() {
 		fmt.Printf("Error sending webhook: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Printf("Webhook Sent! Status: %s\n", resp.Status)
 	if resp.StatusCode != http.StatusOK {

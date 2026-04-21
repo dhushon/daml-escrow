@@ -22,7 +22,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	metrics := services.NewMetricsService()
 	
 	db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
 	mockDB.ExpectPing()
 
@@ -93,10 +93,10 @@ providers:
     issuer: https://oidc.test.com
 `
 	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 	_, err := tmpFile.Write([]byte(configContent))
 	assert.NoError(t, err)
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	idSvc, _ := services.NewIdentityService(tmpFile.Name())
 	h := NewHandler(logger, nil, nil, nil, nil, idSvc)
@@ -124,6 +124,7 @@ func TestHandler_ClaimInvitation(t *testing.T) {
 
 	t.Run("Authorized Claim", func(t *testing.T) {
 		mockLedger.On("GetInvitationByToken", mock.Anything, token).Return(invite, nil)
+		mockLedger.On("GetIdentity", mock.Anything, "user-123").Return(&ledger.UserIdentity{OktaSub: "user-123"}, nil)
 		mockLedger.On("ClaimInvitation", mock.Anything, invite.ID, "user-123").Return(&ledger.EscrowProposal{ID: "prop-123"}, nil)
 
 		req, _ := http.NewRequest("POST", "/api/v1/invites/token/"+token+"/claim", nil)

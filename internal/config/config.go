@@ -30,6 +30,15 @@ type Config struct {
 		DSN string `mapstructure:"dsn" yaml:"dsn"`
 	} `mapstructure:"userConfig" yaml:"userConfig"`
 	Auth   AuthConfig `mapstructure:"auth" yaml:"auth"`
+	Stablecoin struct {
+		Provider string `mapstructure:"provider" yaml:"provider"` // mock, bitgo, circle
+		BitGo    struct {
+			ExpressURL  string `mapstructure:"expressUrl" yaml:"expressUrl"`
+			AccessToken string `mapstructure:"accessToken" yaml:"accessToken"`
+			Enterprise  string `mapstructure:"enterprise" yaml:"enterprise"`
+			Coin        string `mapstructure:"coin" yaml:"coin"` // e.g. teth:usdc
+		} `mapstructure:"bitgo" yaml:"bitgo"`
+	} `mapstructure:"stablecoin" yaml:"stablecoin"`
 	Oracle struct {
 		WebhookSecret string `mapstructure:"webhookSecret" yaml:"webhookSecret"`
 	} `mapstructure:"oracle" yaml:"oracle"`
@@ -74,6 +83,13 @@ func LoadConfig(path string) (*Config, error) {
 	// Explicitly bind top-level env vars to nested config keys
 	_ = v.BindEnv("auth.environment", "ENVIRONMENT")
 	_ = v.BindEnv("auth.authBypass", "AUTH_BYPASS")
+	
+	// Stablecoin Environment Variables
+	_ = v.BindEnv("stablecoin.provider", "STABLECOIN_PROVIDER")
+	_ = v.BindEnv("stablecoin.bitgo.expressUrl", "BITGO_EXPRESS_URL")
+	_ = v.BindEnv("stablecoin.bitgo.accessToken", "BITGO_ACCESS_TOKEN")
+	_ = v.BindEnv("stablecoin.bitgo.enterprise", "BITGO_ENTERPRISE")
+	_ = v.BindEnv("stablecoin.bitgo.coin", "BITGO_COIN")
 
 	// Load file if it exists
 	if err := v.ReadInConfig(); err != nil {

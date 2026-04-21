@@ -7,31 +7,32 @@ const schemas = [
 	{ id: 'leasing', name: 'Equipment Leasing', url: 'https://stablecoin-escrow.io/schemas/leasing.v1.json' },
 	{ id: 'supply-chain', name: 'Supply Chain', url: 'https://stablecoin-escrow.io/schemas/supply-chain.v1.json' },
 ];
+
+const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" }, null, 2);
 ---
 
 <Layout title="Compose Agreement | Stablecoin Escrow">
-	<div class="max-w-4xl mx-auto">
-		<div class="mb-8">
-			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Draft Escrow Agreement</h2>
-			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">Propose new terms and milestones to your counterparty.</p>
+	<div class="max-w-4xl mx-auto text-left">
+		<div class="mb-8 text-left">
+			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Draft Escrow Agreement</h2>
+			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium text-left">Propose new terms and milestones to your counterparty.</p>
 		</div>
 
-		<form id="compose-form" class="space-y-8">
-			{/* Section 1: Parties */}
+		<form id="compose-form" class="space-y-8 text-left">
 			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
 				<div class="flex justify-between items-center mb-6">
 					<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">1. Agreement Parties</h3>
-					<button type="button" id="open-invite-btn" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">Invite New Counterparty +</button>
+					<button type="button" id="open-invite-btn" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none">Invite New Counterparty +</button>
 				</div>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-					<div>
+					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Counterparty (Seller)</label>
 						<select id="seller-select" name="seller" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
 							<option value="">Loading identities...</option>
 						</select>
 						<p class="mt-2 text-[10px] text-slate-400 italic">Only provisioned ledger identities are shown.</p>
 					</div>
-					<div>
+					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Currency</label>
 						<select name="currency" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
 							<option value="USD">USD - Digital Dollar</option>
@@ -42,76 +43,70 @@ const schemas = [
 				</div>
 			</div>
 
-			{/* Section 1.5: Role Explanation */}
 			<div class="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
 				<h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center group/tooltip">
 					Tripartite Roles
 					<svg class="w-3 h-3 ml-1 cursor-help text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-					<span class="absolute z-10 hidden group-hover/tooltip:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl w-64 -mt-12">Escrows require three distinct roles to ensure high-assurance settlement.</span>
 				</h3>
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-left">
 						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payer</p>
 						<p class="text-sm font-bold text-slate-900 dark:text-white">Buyer (You)</p>
 					</div>
-					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-left">
 						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payee</p>
 						<p class="text-sm font-bold text-slate-900 dark:text-white">Counterparty</p>
 					</div>
-					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative group/mediator">
-						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center">
-							Mediator
-							<svg class="w-3 h-3 ml-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-						</p>
+					<div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative group/mediator text-left">
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mediator</p>
 						<p class="text-sm font-bold text-slate-900 dark:text-white italic">EscrowMediator</p>
-						<span class="absolute z-10 hidden group-hover/mediator:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl w-64 -mt-20">The Adjudicator who authoritatively validates completion.</span>
 					</div>
 				</div>
 			</div>
 
-			{/* Section 2: Milestones */}
 			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
 				<div class="flex justify-between items-center mb-6">
 					<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">2. Payment Milestones</h3>
-					<button type="button" id="add-milestone" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">Add Row +</button>
+					<button type="button" id="add-milestone" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none">Add Row +</button>
 				</div>
-				<div id="milestone-container" class="space-y-4">
+				<div id="milestone-container" class="space-y-4 text-left">
 					<div class="milestone-row grid grid-cols-12 gap-4 items-end">
-						<div class="col-span-7">
+						<div class="col-span-7 text-left">
 							<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Label</label>
 							<input type="text" name="m-label" required placeholder="e.g. Project Inception" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs dark:text-white" />
 						</div>
-						<div class="col-span-4">
+						<div class="col-span-4 text-left">
 							<label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Amount</label>
 							<input type="number" name="m-amount" required step="0.01" placeholder="0.00" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs dark:text-white" />
 						</div>
 						<div class="col-span-1 py-2 text-center">
-							<button type="button" class="remove-milestone text-slate-300 hover:text-red-500 cursor-pointer">×</button>
+							<button type="button" class="remove-milestone text-slate-300 hover:text-red-500 cursor-pointer bg-transparent border-none">x</button>
 						</div>
 					</div>
 				</div>
 			</div>
 
-			{/* Section 3: Domain Metadata */}
 			<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors text-slate-900">
-				<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-6">3. Technical Metadata</h3>
+				<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-6 text-left">3. Technical Metadata</h3>
 				<div class="space-y-6">
-					<div>
+					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Schema Protocol</label>
 						<select name="schemaUrl" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
-							{schemas.map(s => <option value={s.url}>{s.name}</option>)}
+							{schemas.map((s) => (
+								<option value={s.url}>{s.name}</option>
+							))}
 						</select>
 					</div>
-					<div>
+					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Metadata Payload (JSON)</label>
-						<textarea name="payload" rows="4" placeholder="{}" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">{'{\n  "description": "Standard escrow protocol"\n}'}</textarea>
+						<textarea name="payload" rows="4" placeholder="Enter JSON Metadata" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">{defaultPayload}</textarea>
 					</div>
 				</div>
 			</div>
 
 			<div class="flex items-center justify-end space-x-4 pb-12">
 				<a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cancel</a>
-				<button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+				<button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all border-none cursor-pointer">
 					Propose Agreement
 				</button>
 			</div>
@@ -131,38 +126,34 @@ const schemas = [
 	const sellerSelect = document.getElementById('seller-select') as HTMLSelectElement;
 	const openInviteBtn = document.getElementById('open-invite-btn');
 
-	// Identity Discovery
 	async function loadIdentities() {
 		try {
 			const identities = await fetchIdentities();
 			const session = getSession();
 			const currentUserId = session?.identity.damlUserId;
 
-			sellerSelect.innerHTML = identities
-				.filter(id => id.damlUserId !== currentUserId)
-				.map(id => `
-					<option value="${id.damlUserId}">
-						${id.email.split('@')[0]} (${id.damlUserId.substring(0, 12)}...)
-					</option>
-				`).join('');
+			const options = (identities || [])
+				.filter((id: any) => id.damlUserId !== currentUserId)
+				.map((id: any) => {
+					const emailPrefix = id.email.split('@')[0];
+					const shortId = id.damlUserId.substring(0, 12);
+					return `<option value="${id.damlUserId}">${emailPrefix} (${shortId}...)</option>`;
+				}).join('');
 			
-			if (sellerSelect.options.length === 0) {
-				sellerSelect.innerHTML = '<option value="">No other identities found</option>';
+			if (sellerSelect) {
+				sellerSelect.innerHTML = options || '<option value="">No other identities found</option>';
 			}
 		} catch (err) {
 			console.error('Failed to load identities', err);
-			sellerSelect.innerHTML = '<option value="">Error loading directory</option>';
 		}
 	}
 
 	loadIdentities();
 
-	// Modal Control
 	openInviteBtn?.addEventListener('click', () => {
 		window.dispatchEvent(new CustomEvent('open-invite-modal'));
 	});
 
-	// Dynamic milestones
 	addBtn?.addEventListener('click', () => {
 		const row = container?.firstElementChild?.cloneNode(true) as HTMLElement;
 		const inputs = row.querySelectorAll('input');
@@ -172,22 +163,23 @@ const schemas = [
 	});
 
 	function attachRemoveEvent(row: HTMLElement) {
-		row.querySelector('.remove-milestone')?.addEventListener('click', () => {
+		const btn = row.querySelector('.remove-milestone');
+		btn?.addEventListener('click', () => {
 			if (container?.children.length && container.children.length > 1) {
 				row.remove();
 			}
 		});
 	}
 
-	attachRemoveEvent(container?.firstElementChild as HTMLElement);
+	if (container?.firstElementChild) {
+		attachRemoveEvent(container.firstElementChild as HTMLElement);
+	}
 
-	// Form Submission
 	form?.addEventListener('submit', async (e) => {
 		e.preventDefault();
 		const formData = new FormData(form);
 		const session = getSession();
 		
-		// Build structured milestones
 		const labels = formData.getAll('m-label');
 		const amounts = formData.getAll('m-amount');
 		const milestones = labels.map((l, i) => ({
@@ -198,7 +190,6 @@ const schemas = [
 
 		const totalAmount = milestones.reduce((sum, m) => sum + m.amount, 0);
 
-		// Parse metadata payload
 		let payload = {};
 		try {
 			payload = JSON.parse(formData.get('payload')?.toString() || '{}');
@@ -221,17 +212,10 @@ const schemas = [
 		};
 
 		try {
-			const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-			btn.disabled = true;
-			btn.textContent = 'Proposing...';
-			
 			await proposeEscrow(req);
 			window.location.href = '/';
-		} catch (err) {
+		} catch (err: any) {
 			alert('Proposal failed: ' + err.message);
-			const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-			btn.disabled = false;
-			btn.textContent = 'Propose Agreement';
 		}
 	});
 </script>

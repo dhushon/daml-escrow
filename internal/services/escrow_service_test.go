@@ -43,8 +43,8 @@ func TestEscrowService_Unit(t *testing.T) {
 	})
 
 	t.Run("Activate", func(t *testing.T) {
-		mockLedger.On("Activate", ctx, "esc1", "user1").Return("new-id", nil)
-		id, err := svc.Activate(ctx, "esc1", "user1")
+		mockLedger.On("Activate", ctx, "esc1", []string{"user1"}).Return("new-id", nil)
+		id, err := svc.Activate(ctx, "esc1", []string{"user1"})
 		assert.NoError(t, err)
 		assert.Equal(t, "new-id", id)
 		mockLedger.AssertExpectations(t)

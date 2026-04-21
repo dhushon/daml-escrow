@@ -30,7 +30,7 @@ func (c *DamlClient) Fund(ctx context.Context, id string, custodyRef string, hol
 	return fmt.Errorf("gRPC not implemented")
 }
 
-func (c *DamlClient) Activate(ctx context.Context, id string, userID string) (string, error) {
+func (c *DamlClient) Activate(ctx context.Context, id string, actAs []string) (string, error) {
 	return "", fmt.Errorf("gRPC not implemented")
 }
 
@@ -54,7 +54,7 @@ func (c *DamlClient) FinalizeSettlement(ctx context.Context, id string, userID s
 	return "", fmt.Errorf("gRPC not implemented")
 }
 
-func (c *DamlClient) Disburse(ctx context.Context, id string, userID string) error {
+func (c *DamlClient) Disburse(ctx context.Context, id string, actAs []string) error {
 	return fmt.Errorf("gRPC not implemented")
 }
 

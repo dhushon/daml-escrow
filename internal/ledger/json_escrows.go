@@ -110,17 +110,21 @@ func (c *JsonLedgerClient) Fund(ctx context.Context, id string, custodyRef strin
 	return err
 }
 
-func (c *JsonLedgerClient) Activate(ctx context.Context, id string, userID string) (string, error) {
-	party := c.GetParty(userID)
+func (c *JsonLedgerClient) Activate(ctx context.Context, id string, actAs []string) (string, error) {
+	actAsParties := make([]string, len(actAs))
+	for i, u := range actAs {
+		actAsParties[i] = c.GetParty(u)
+	}
+
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("activate-%d", time.Now().UnixNano()),
-			"actAs":     []string{party},
-			"userId":    userID,
+			"actAs":     actAsParties,
+			"userId":    actAs[0], // Use the first party as the primary submitter
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
-						"templateId":     fmt.Sprintf("%s:%s:%s", c.InterfacePackageID, "Escrow.Interface", "Escrow"),
+						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowContract"),
 						"contractId":     id,
 						"choice":         "Activate",
 						"choiceArgument": map[string]interface{}{},
@@ -309,13 +313,17 @@ func (c *JsonLedgerClient) FinalizeSettlement(ctx context.Context, id string, us
 	return c.extractNewContractID(resp)
 }
 
-func (c *JsonLedgerClient) Disburse(ctx context.Context, id string, userID string) error {
-	party := c.GetParty(userID)
+func (c *JsonLedgerClient) Disburse(ctx context.Context, id string, actAs []string) error {
+	actAsParties := make([]string, len(actAs))
+	for i, u := range actAs {
+		actAsParties[i] = c.GetParty(u)
+	}
+
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("disburse-%d", time.Now().UnixNano()),
-			"actAs":     []string{party},
-			"userId":    userID,
+			"actAs":     actAsParties,
+			"userId":    actAs[0],
 			"commands": []interface{}{
 				map[string]interface{}{
 					"ExerciseCommand": map[string]interface{}{
@@ -783,7 +791,7 @@ func (c *JsonLedgerClient) ListSettlements(ctx context.Context) ([]*EscrowSettle
 }
 
 func (c *JsonLedgerClient) SettlePayment(ctx context.Context, settlementID string) error {
-	return c.Disburse(ctx, settlementID, CentralBankUser)
+	return c.Disburse(ctx, settlementID, []string{CentralBankUser})
 }
 
 func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]*EscrowProposal, error) {

@@ -162,8 +162,8 @@ func (m *MultiLedgerClient) Fund(ctx context.Context, id string, custodyRef stri
 	return m.getClientForUser(userID).Fund(ctx, id, custodyRef, holdingCid, userID)
 }
 
-func (m *MultiLedgerClient) Activate(ctx context.Context, id string, userID string) (string, error) {
-	return m.getClientForUser(userID).Activate(ctx, id, userID)
+func (m *MultiLedgerClient) Activate(ctx context.Context, id string, actAs []string) (string, error) {
+	return m.getClientForUser(actAs[0]).Activate(ctx, id, actAs)
 }
 
 func (m *MultiLedgerClient) ConfirmConditions(ctx context.Context, id string, userID string) error {
@@ -186,8 +186,8 @@ func (m *MultiLedgerClient) FinalizeSettlement(ctx context.Context, id string, u
 	return m.getClientForUser(userID).FinalizeSettlement(ctx, id, userID)
 }
 
-func (m *MultiLedgerClient) Disburse(ctx context.Context, id string, userID string) error {
-	return m.getClientForUser(userID).Disburse(ctx, id, userID)
+func (m *MultiLedgerClient) Disburse(ctx context.Context, id string, actAs []string) error {
+	return m.getClientForUser(actAs[0]).Disburse(ctx, id, actAs)
 }
 
 func (m *MultiLedgerClient) Cancel(ctx context.Context, id string, userID string) error {
