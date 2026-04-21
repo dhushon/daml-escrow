@@ -25,6 +25,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.6
+          args: ./...
 
   unit-tests:
     name: Go Unit Tests
