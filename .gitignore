@@ -14,6 +14,7 @@ escrow-api
 # Logs and temporary files
 *.log
 log/
+*.out
 contracts/log/
 *.gz
 *.pid
@@ -60,3 +61,6 @@ go.work.sum
 
 # MacOS
 .DS_Store
+
+*.bin
+*.txt
