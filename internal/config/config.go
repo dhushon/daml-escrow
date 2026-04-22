@@ -38,6 +38,11 @@ type Config struct {
 			Enterprise  string `mapstructure:"enterprise" yaml:"enterprise"`
 			Coin        string `mapstructure:"coin" yaml:"coin"` // e.g. teth:usdc
 		} `mapstructure:"bitgo" yaml:"bitgo"`
+		Circle struct {
+			BaseURL      string `mapstructure:"baseUrl" yaml:"baseUrl"`
+			APIKey       string `mapstructure:"apiKey" yaml:"apiKey"`
+			EntitySecret string `mapstructure:"entitySecret" yaml:"entitySecret"`
+		} `mapstructure:"circle" yaml:"circle"`
 	} `mapstructure:"stablecoin" yaml:"stablecoin"`
 	Oracle struct {
 		WebhookSecret string `mapstructure:"webhookSecret" yaml:"webhookSecret"`
@@ -90,6 +95,11 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("stablecoin.bitgo.accessToken", "BITGO_ACCESS_TOKEN")
 	_ = v.BindEnv("stablecoin.bitgo.enterprise", "BITGO_ENTERPRISE")
 	_ = v.BindEnv("stablecoin.bitgo.coin", "BITGO_COIN")
+
+	// Circle Environment Variables
+	_ = v.BindEnv("stablecoin.circle.baseUrl", "CIRCLE_BASE_URL")
+	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
+	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
 
 	// Load file if it exists
 	if err := v.ReadInConfig(); err != nil {

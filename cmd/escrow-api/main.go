@@ -119,16 +119,26 @@ func runServer() {
 	var stablecoinProvider ledger.StablecoinProvider
 	switch cfg.Stablecoin.Provider {
 	case "bitgo":
-		logger.Info("using BitGo stablecoin provider", 
-			zap.String("expressUrl", cfg.Stablecoin.BitGo.ExpressURL),
-			zap.String("coin", cfg.Stablecoin.BitGo.Coin))
-		stablecoinProvider = ledger.NewBitGoStablecoinProvider(
-			logger,
-			cfg.Stablecoin.BitGo.ExpressURL,
-			cfg.Stablecoin.BitGo.AccessToken,
-			cfg.Stablecoin.BitGo.Enterprise,
-			cfg.Stablecoin.BitGo.Coin,
-		)
+	        logger.Info("using BitGo stablecoin provider", 
+	                zap.String("expressUrl", cfg.Stablecoin.BitGo.ExpressURL),
+	                zap.String("coin", cfg.Stablecoin.BitGo.Coin))
+	        stablecoinProvider = ledger.NewBitGoStablecoinProvider(
+	                logger,
+	                cfg.Stablecoin.BitGo.ExpressURL,
+	                cfg.Stablecoin.BitGo.AccessToken,
+	                cfg.Stablecoin.BitGo.Enterprise,
+	                cfg.Stablecoin.BitGo.Coin,
+	        )
+	case "circle":
+	        logger.Info("using Circle WaaS stablecoin provider",
+	                zap.String("baseUrl", cfg.Stablecoin.Circle.BaseURL))
+	        stablecoinProvider = ledger.NewCircleStablecoinProvider(
+	                logger,
+	                cfg.Stablecoin.Circle.BaseURL,
+	                cfg.Stablecoin.Circle.APIKey,
+	                cfg.Stablecoin.Circle.EntitySecret,
+	        )
+
 	default:
 		logger.Info("using default mock stablecoin provider")
 		stablecoinProvider = ledger.NewJsonStablecoinProvider(logger, ledgerClient)
