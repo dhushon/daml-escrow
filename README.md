@@ -18,6 +18,7 @@ graph TD
     Astro <-->|REST / JSON| Go[Go Backend API]
     Go <-->|OIDC / JWKS| Okta[Okta Identity Provider]
     Go <-->|REST / Signing| BG[BitGo Express Proxy]
+    Go <-->|REST / API| CR[Circle WaaS API]
     Go <-->|Port 8081| JSON[Daml JSON API V2]
     JSON <-->|Port 7575| Canton[Canton Ledger]
     Canton <--> DB[(Postgres DB)]
@@ -29,6 +30,9 @@ graph TD
 This platform is built on the **Canton Network**, a privacy-enabled, interoperable blockchain designed for institutional finance. It leverages industry-standard protocols to ensure secure B2B stablecoin pledging and escrow:
 
 * **CIP-0056 Token Standard:** Implements the "holding", "lockable", and "transferable" interfaces required for secure, interoperable stablecoin movement (e.g., USDCx via BitGo/Circle).
+* **Multi-Custody Support:** Dynamically pluggable providers for institutional-grade vaulting:
+    * **BitGo Enterprise:** Secure signing via BitGo Express local proxy.
+    * **Circle WaaS:** Direct integration with Developer-Controlled programmable wallets.
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
 * **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.

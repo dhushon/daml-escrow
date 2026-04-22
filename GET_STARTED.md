@@ -30,6 +30,20 @@ The platform utilizes several external services.
     ./scripts/setup_test_users.sh
     ```
 
+### Institutional Custody Setup (Optional)
+To use real stablecoin movements instead of the default mock, configure one of the following institutional providers:
+
+**BitGo Enterprise:**
+*   Requires a local [BitGo Express](https://github.com/BitGo/bitgo-express) proxy.
+*   `BITGO_EXPRESS_URL`: URL of your local proxy (e.g., `http://localhost:3080`).
+*   `BITGO_ACCESS_TOKEN`: Your BitGo API V2 token.
+*   `BITGO_COIN`: Coin identifier (e.g., `teth:usdc`).
+
+**Circle WaaS:**
+*   `CIRCLE_BASE_URL`: API endpoint (defaults to `https://api.circle.com`).
+*   `CIRCLE_API_KEY`: Your Circle API Key.
+*   `CIRCLE_ENTITY_SECRET`: Your Entity Secret for developer-controlled wallets.
+
 ### Contract Compilation
 ```bash
 cd contracts
