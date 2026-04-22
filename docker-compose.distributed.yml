@@ -18,6 +18,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - escrow-net
 
   # Ensure clean DBs for each participant and the domain
   db-init:
@@ -45,6 +47,8 @@ services:
             PRIMARY KEY (user_id, config_key)
           );
         "
+    networks:
+      - escrow-net
 
   # Distributed Canton Node
   canton:
@@ -79,3 +83,10 @@ services:
       timeout: 5s
       retries: 30
       start_period: 60s
+    networks:
+      - escrow-net
+
+networks:
+  escrow-net:
+    name: escrow-net
+    driver: bridge
