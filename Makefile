@@ -147,9 +147,10 @@ test-circle: ## Run integration tests specifically for Circle stablecoin assets
 
 
 .PHONY: integration-gcp
-integration-gcp: ## Run integration tests specifically for GCP environments (Secret Manager, Networking, Cloud SQL)
+integration-gcp: ## Run integration tests specifically for GCP environments (Secret Manager, Cloud SQL Schema)
 	@echo "Running GCP integration tests..."
 	@go test -v ./internal/config/gcp_integration_test.go ./internal/config/secrets.go ./internal/config/config.go
+	@go test -v ./internal/ledger/gcp_db_test.go
 
 ## -- Simulations --
 
