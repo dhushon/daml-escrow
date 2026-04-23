@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -119,7 +120,8 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	// High-Assurance: Fetch secrets from GCP Secret Manager if configured
-	if cfg.GCPProjectID != "" {
+	// Skip resolution if SKIP_GCP_RESOLVER is set (used for unit tests)
+	if cfg.GCPProjectID != "" && os.Getenv("SKIP_GCP_RESOLVER") == "" {
 		ctx := context.Background()
 		resolver, err := NewSecretResolver(ctx, cfg.GCPProjectID)
 		if err != nil {
