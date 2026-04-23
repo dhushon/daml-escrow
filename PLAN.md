@@ -23,7 +23,7 @@ Goals: Align contract dynamics with formal escrow standards and establish a prod
 
 ------------------------------------------------------------------------
 
-## Phase 6 --- Scaling & Distribution (IN PROGRESS)
+## Phase 6 --- Scaling & Distribution (COMPLETE)
 
 Goals: Move to multi-participant topology and real stablecoin integration.
 
@@ -34,33 +34,48 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 3. **Frontend Lifecycle Alignment:** Refactored `api.ts` and `EscrowCard.astro` to support the full high-assurance state machine (`DRAFT` → `FUNDED` → `ACTIVE` → `DISPUTED` → `PROPOSED` → `SETTLED`).
 4. **Distributed Gateway:** Implemented `MultiLedgerClient` in Go for role-based node routing and resilient identity resolution across clusters.
 5. **Testing Hierarchy:** Established three-tier testing strategy (Unit, Integration, Distributed) with reusable lifecycle logic and deterministic readiness checks.
-6. Advanced Analytics Dashboard: Implemented high-assurance **Operational Velocity** visualization with stage latency heatmaps and settlement funnel analytics.
+6. **Advanced Analytics Dashboard:** Implemented high-assurance **Operational Velocity** visualization with stage latency heatmaps and settlement funnel analytics.
 7. **Institutional Multi-Custody:** Implemented full-stack support for **BitGo Enterprise** and **Circle WaaS** via a dynamically pluggable **Stablecoin Factory** architecture.
 8. **CIP-0056 Compliance:** Fully refactored the escrow lifecycle to use authoritative cryptographic locking and multi-actor co-signing per the CIP-0056 standard.
 
+------------------------------------------------------------------------
+
+## Phase 9 --- High-Assurance Identity & Deep Health (COMPLETE)
+
+Goals: Establish production-grade OIDC bridge, automated infrastructure, and aggregated system diagnostics.
+
+### Achievements
+
+1. **Okta OIDC Bridge:** Implemented strict JWT validation against Okta JWKS. External identity assertions drive Just-In-Time (JIT) ledger provisioning.
+2. **Identity-as-Code:** Automated the entire Okta stack (Apps, Servers, Users) using Terraform.
+3. **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
+4. **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
+5. **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
+
+------------------------------------------------------------------------
+
+## Phase 12 --- High-Assurance Secret Management (COMPLETE)
+
+Goals: Replace local static credentials with authoritative cloud-native secret vending.
+
+### Achievements
+
+1. **Cloud-Native Vending:** Implemented dynamic secret fetching from **GCP Secret Manager**, eliminating the need for sensitive keys in local `.env` files.
+2. **Terraform Integration:** Automated the provisioning of institutional secrets (`okta`, `bitgo`, `circle`) using Infrastructure-as-Code.
+3. **Pre-Test Standard:** Established an authoritative "Local Pre-Test" pattern allowing developers to securely vend keys from the cloud during local development.
+
+------------------------------------------------------------------------
+
+## Phase 13 --- GCP Integration Testing (IN PROGRESS)
+
+Goals: Implement specialized verification for real-world cloud environments (GCP/GKE).
 
 ### Tasks
 
-**Task 6.1: Multi-Participant Setup (COMPLETE)**
-
-- [x] Distributed Canton topology configuration (Local).
-- [x] Distributed Go API Gateway / Multi-Client support.
-- [x] Cross-node integration tests (Shared logic for local and distributed).
-- [x] Deterministic topology propagation checks in bootstrap.
-
-**Task 6.2: Real Stablecoin Integration (CIP-0056) (COMPLETE)**
-
-- [x] Integrate **CIP-0056** "holding" and "transfer" interfaces into DAML contracts.
-- [x] Implement simulation logic for high-assurance token disbursement.
-- [x] Research and adapt **OpenZeppelin Canton-Stablecoin** templates for CDP-style vaults.
-- [x] Connect with **USDCx** (BitGo/Circle) institutional providers via Dynamic Factory.
-
-**Task 6.3: Analytics & Validation (Noves) (COMPLETE)**
-
-- [x] Integrate **Noves Data & Analytics API** simulation for real-time deposit confirmation.
-- [x] Build **LifecycleTracker** process map logic in backend service.
-- [x] Create **LifecycleTracker.astro** frontend component for stepwise visualization.
-- [x] Build full-cycle metrics dashboard (time-to-complete, bottleneck analysis) using Noves indexed data.
+- [ ] **Secret Manager Verification**: Implement `integration-gcp` tests for Secret Manager connectivity and vending logic.
+- [ ] **Cloud SQL Schema Validation**: Build tests to verify Postgres schema and reference data deployment on Cloud SQL.
+- [ ] **Networking Audit**: Implement connectivity checks for isolated participant namespaces (Bank/Buyer/Seller).
+- [ ] **GKE Readiness**: Package production-grade Docker images for Artifact Registry and verify manifest parsing.
 
 ------------------------------------------------------------------------
 
@@ -85,40 +100,6 @@ Goals: Transition to isolated service-per-node architecture.
 
 - [ ] Perform "Node Isolation" security audit.
 - [ ] Verify "Right to be Forgotten" patterns across distributed storage nodes.
-
-------------------------------------------------------------------------
-
-## Phase 9 --- High-Assurance Identity & Deep Health (COMPLETE)
-
-Goals: Establish production-grade OIDC bridge, automated infrastructure, and aggregated system diagnostics.
-
-### Achievements
-
-1. **Okta OIDC Bridge:** Implemented strict JWT validation against Okta JWKS. External identity assertions drive Just-In-Time (JIT) ledger provisioning.
-2. **Identity-as-Code:** Automated the entire Okta stack (Apps, Servers, Users) using Terraform.
-3. **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
-4. **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
-5. **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
-
-### Tasks
-
-**Task 9.1: Automated OIDC Infrastructure (COMPLETE)**
-
-- [x] Implement Terraform for Okta (Applications, Servers, Policies).
-- [x] Configure OIDC Scope-to-Ledger-Permission mapping.
-- [x] Automated Test Persona provisioning script (`setup_test_users.sh`).
-
-**Task 9.2: Home Realm Discovery & Discovery (COMPLETE)**
-
-- [x] Create `/auth/discovery` endpoint in Go API.
-- [x] Implement email-domain based routing to correct IdP in Astro.
-- [x] Implement Directory Service (`/api/v1/identities`) for on-ledger discovery.
-
-**Task 9.3: System Integrity & Diagnostics (COMPLETE)**
-
-- [x] Implement aggregated health checks for all dependencies.
-- [x] Build live health cockpit in frontend footer.
-- [x] Standardize 10-retry hardened template readiness for ledger connections.
 
 ------------------------------------------------------------------------
 

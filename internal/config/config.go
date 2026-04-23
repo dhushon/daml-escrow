@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -47,14 +48,16 @@ type Config struct {
 	Oracle struct {
 		WebhookSecret string `mapstructure:"webhookSecret" yaml:"webhookSecret"`
 	} `mapstructure:"oracle" yaml:"oracle"`
+	GCPProjectID string `mapstructure:"gcpProjectId" yaml:"gcpProjectId"`
 }
 
 type AuthConfig struct {
-	Issuer      string `mapstructure:"issuer" yaml:"issuer"`
-	ClientID    string `mapstructure:"clientId" yaml:"clientId"`
-	Audience    string `mapstructure:"audience" yaml:"audience"`
-	Environment string `mapstructure:"environment" yaml:"environment"`
-	AuthBypass  bool   `mapstructure:"authBypass" yaml:"authBypass"`
+	Issuer       string `mapstructure:"issuer" yaml:"issuer"`
+	ClientID     string `mapstructure:"clientId" yaml:"clientId"`
+	ClientSecret string `mapstructure:"clientSecret" yaml:"clientSecret"`
+	Audience     string `mapstructure:"audience" yaml:"audience"`
+	Environment  string `mapstructure:"environment" yaml:"environment"`
+	AuthBypass   bool   `mapstructure:"authBypass" yaml:"authBypass"`
 }
 
 type ParticipantNode struct {
@@ -63,7 +66,6 @@ type ParticipantNode struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	// Use global viper to allow external flag overrides
 	v := viper.GetViper()
 
 	// Set Defaults
@@ -71,7 +73,6 @@ func LoadConfig(path string) (*Config, error) {
 	v.SetDefault("auth.environment", "production")
 	v.SetDefault("auth.authBypass", false)
 
-	// Configure file loading
 	if path != "" {
 		v.SetConfigFile(path)
 	} else {
@@ -81,27 +82,21 @@ func LoadConfig(path string) (*Config, error) {
 		v.AddConfigPath(".")
 	}
 
-	// Environment variables
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	
-	// Explicitly bind top-level env vars to nested config keys
 	_ = v.BindEnv("auth.environment", "ENVIRONMENT")
 	_ = v.BindEnv("auth.authBypass", "AUTH_BYPASS")
-	
-	// Stablecoin Environment Variables
 	_ = v.BindEnv("stablecoin.provider", "STABLECOIN_PROVIDER")
 	_ = v.BindEnv("stablecoin.bitgo.expressUrl", "BITGO_EXPRESS_URL")
 	_ = v.BindEnv("stablecoin.bitgo.accessToken", "BITGO_ACCESS_TOKEN")
 	_ = v.BindEnv("stablecoin.bitgo.enterprise", "BITGO_ENTERPRISE")
 	_ = v.BindEnv("stablecoin.bitgo.coin", "BITGO_COIN")
-
-	// Circle Environment Variables
 	_ = v.BindEnv("stablecoin.circle.baseUrl", "CIRCLE_BASE_URL")
 	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
 	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
+	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
 
-	// Load file if it exists
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -114,4 +109,30 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// ResolveSecrets authoritatively fetches sensitive values from GCP Secret Manager.
+// This is an explicit high-assurance step called during production startup.
+func ResolveSecrets(ctx context.Context, cfg *Config) error {
+	if cfg.GCPProjectID == "" {
+		return nil
+	}
+
+	resolver, err := NewSecretResolver(ctx, cfg.GCPProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to initialize secret resolver: %w", err)
+	}
+	defer func() { _ = resolver.Close() }()
+
+	if secret, err := resolver.GetSecret(ctx, "okta-client-secret"); err == nil {
+		cfg.Auth.ClientSecret = secret
+	}
+	if secret, err := resolver.GetSecret(ctx, "bitgo-access-token"); err == nil {
+		cfg.Stablecoin.BitGo.AccessToken = secret
+	}
+	if secret, err := resolver.GetSecret(ctx, "circle-api-key"); err == nil {
+		cfg.Stablecoin.Circle.APIKey = secret
+	}
+
+	return nil
 }

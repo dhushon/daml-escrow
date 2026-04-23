@@ -146,6 +146,16 @@ test-circle: ## Run integration tests specifically for Circle stablecoin assets
 
 
 
+.PHONY: integration-gcp
+integration-gcp: ## Run all GCP-specific integration tests (Secret Manager, Cloud SQL)
+	@echo "Running GCP integration tests..."
+	@go test -v -tags integration_gcp ./internal/config/... ./internal/ledger/gcp_db_test.go
+
+.PHONY: verify-gcp-secrets
+verify-gcp-secrets: ## Authoritatively audit Secret Manager connectivity and institutional key vending
+	@echo "Auditing cloud secret vending..."
+	@go test -v -tags integration_gcp -run TestGCPSecretManagerSpecialty ./internal/config/
+
 ## -- Simulations --
 
 .PHONY: oracle-sim
