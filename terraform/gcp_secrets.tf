@@ -2,12 +2,12 @@
 # Provision GCP Secret Manager for critical institutional credentials.
 
 resource "google_secret_manager_secret" "okta_client_secret" {
-  secret_id = "okta-client-secret"
+  secret_id = "okta-client-secret-${var.environment}"
   
-  labels = {
-    env = "production"
+  labels = merge(var.common_labels, {
+    env = var.environment
     svc = "escrow-api"
-  }
+  })
 
   replication {
     auto {}
@@ -15,12 +15,12 @@ resource "google_secret_manager_secret" "okta_client_secret" {
 }
 
 resource "google_secret_manager_secret" "bitgo_access_token" {
-  secret_id = "bitgo-access-token"
+  secret_id = "bitgo-access-token-${var.environment}"
   
-  labels = {
-    env = "production"
+  labels = merge(var.common_labels, {
+    env = var.environment
     svc = "escrow-api"
-  }
+  })
 
   replication {
     auto {}
@@ -28,12 +28,12 @@ resource "google_secret_manager_secret" "bitgo_access_token" {
 }
 
 resource "google_secret_manager_secret" "circle_api_key" {
-  secret_id = "circle-api-key"
+  secret_id = "circle-api-key-${var.environment}"
   
-  labels = {
-    env = "production"
+  labels = merge(var.common_labels, {
+    env = var.environment
     svc = "escrow-api"
-  }
+  })
 
   replication {
     auto {}

@@ -9,6 +9,21 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "environment" {
+  description = "Deployment environment (e.g. dev, prod)"
+  type        = string
+  default     = "dev"
+}
+
+variable "common_labels" {
+  description = "Standard labels for all GCP resources"
+  type        = map(string)
+  default     = {
+    project    = "daml-escrow"
+    managed-by = "terraform"
+  }
+}
+
 variable "google_client_id" {
   description = "Google OIDC Client ID"
   type        = string
