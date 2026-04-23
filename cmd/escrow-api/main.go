@@ -81,6 +81,11 @@ func runServer() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
+	// High-Assurance: Resolve cloud-native secrets if GCP_PROJECT_ID is present
+	if err := config.ResolveSecrets(context.Background(), cfg); err != nil {
+		logger.Warn("failed to resolve cloud secrets, falling back to environment/file", zap.Error(err))
+	}
+
 	logger.Info("configuration loaded", 
 		zap.String("env", cfg.Auth.Environment), 
 		zap.Bool("bypass", cfg.Auth.AuthBypass))

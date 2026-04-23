@@ -36,8 +36,10 @@ auth:
 	t.Run("Custom Environment", func(t *testing.T) {
 		_ = os.Setenv("ENVIRONMENT", "dev")
 		_ = os.Setenv("AUTH_BYPASS", "true")
-		defer func() { _ = os.Unsetenv("ENVIRONMENT") }()
-		defer func() { _ = os.Unsetenv("AUTH_BYPASS") }()
+		defer func() { 
+			_ = os.Unsetenv("ENVIRONMENT")
+			_ = os.Unsetenv("AUTH_BYPASS")
+		}()
 
 		cfg, err := LoadConfig(tmpFile.Name())
 		assert.NoError(t, err)
@@ -46,12 +48,10 @@ auth:
 	})
 
 	t.Run("GCP Configuration Binding", func(t *testing.T) {
+		// Pure logic test: Verify env var maps to struct field.
+		// No side effects (SDK calls) should occur here.
 		_ = os.Setenv("GCP_PROJECT_ID", "test-project")
-		_ = os.Setenv("SKIP_GCP_RESOLVER", "true")
-		defer func() { 
-			_ = os.Unsetenv("GCP_PROJECT_ID")
-			_ = os.Unsetenv("SKIP_GCP_RESOLVER")
-		}()
+		defer func() { _ = os.Unsetenv("GCP_PROJECT_ID") }()
 
 		cfg, err := LoadConfig(tmpFile.Name())
 		assert.NoError(t, err)
