@@ -1,11 +1,21 @@
 # Phase 12: High-Assurance Secret Management
 # Provision GCP Secret Manager for critical institutional credentials.
 
+# --- Required APIs ---
+
+resource "google_project_service" "secretmanager" {
+  service = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
+
+# --- Secrets ---
+
 resource "google_secret_manager_secret" "okta_client_secret" {
   secret_id = "okta-client-secret-${var.environment}"
-  
+  depends_on = [google_project_service.secretmanager]
+
   labels = merge(var.common_labels, {
-    env = var.environment
+...
     svc = "escrow-api"
   })
 

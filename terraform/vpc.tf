@@ -2,10 +2,16 @@
 # Establishes a VPC with "Development Rules" allowing for local internet access
 # while providing the foundation for future institutional GKE nodes.
 
+resource "google_project_service" "compute" {
+  service = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_compute_network" "main" {
   name                    = "escrow-vpc-${var.environment}"
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
+  depends_on              = [google_project_service.compute]
 }
 
 resource "google_compute_subnetwork" "public" {
