@@ -44,4 +44,13 @@ auth:
 		assert.Equal(t, "dev", cfg.Auth.Environment)
 		assert.True(t, cfg.Auth.AuthBypass)
 	})
+
+	t.Run("GCP Configuration Binding", func(t *testing.T) {
+		_ = os.Setenv("GCP_PROJECT_ID", "test-project")
+		defer func() { _ = os.Unsetenv("GCP_PROJECT_ID") }()
+
+		cfg, err := LoadConfig(tmpFile.Name())
+		assert.NoError(t, err)
+		assert.Equal(t, "test-project", cfg.GCPProjectID)
+	})
 }

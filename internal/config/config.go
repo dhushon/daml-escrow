@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -47,14 +48,16 @@ type Config struct {
 	Oracle struct {
 		WebhookSecret string `mapstructure:"webhookSecret" yaml:"webhookSecret"`
 	} `mapstructure:"oracle" yaml:"oracle"`
+	GCPProjectID string `mapstructure:"gcpProjectId" yaml:"gcpProjectId"`
 }
 
 type AuthConfig struct {
-	Issuer      string `mapstructure:"issuer" yaml:"issuer"`
-	ClientID    string `mapstructure:"clientId" yaml:"clientId"`
-	Audience    string `mapstructure:"audience" yaml:"audience"`
-	Environment string `mapstructure:"environment" yaml:"environment"`
-	AuthBypass  bool   `mapstructure:"authBypass" yaml:"authBypass"`
+	Issuer       string `mapstructure:"issuer" yaml:"issuer"`
+	ClientID     string `mapstructure:"clientId" yaml:"clientId"`
+	ClientSecret string `mapstructure:"clientSecret" yaml:"clientSecret"`
+	Audience     string `mapstructure:"audience" yaml:"audience"`
+	Environment  string `mapstructure:"environment" yaml:"environment"`
+	AuthBypass   bool   `mapstructure:"authBypass" yaml:"authBypass"`
 }
 
 type ParticipantNode struct {
@@ -100,6 +103,8 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("stablecoin.circle.baseUrl", "CIRCLE_BASE_URL")
 	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
 	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
+	
+	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
 
 	// Load file if it exists
 	if err := v.ReadInConfig(); err != nil {
@@ -111,6 +116,27 @@ func LoadConfig(path string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	// High-Assurance: Fetch secrets from GCP Secret Manager if configured
+	if cfg.GCPProjectID != "" {
+		ctx := context.Background()
+		resolver, err := NewSecretResolver(ctx, cfg.GCPProjectID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize secret resolver: %w", err)
+		}
+		defer func() { _ = resolver.Close() }()
+
+		// Authoritatively override sensitive values from Cloud Secret Manager
+		if secret, err := resolver.GetSecret(ctx, "okta-client-secret"); err == nil {
+			cfg.Auth.ClientSecret = secret
+		}
+		if secret, err := resolver.GetSecret(ctx, "bitgo-access-token"); err == nil {
+			cfg.Stablecoin.BitGo.AccessToken = secret
+		}
+		if secret, err := resolver.GetSecret(ctx, "circle-api-key"); err == nil {
+			cfg.Stablecoin.Circle.APIKey = secret
+		}
 	}
 
 	return &cfg, nil
