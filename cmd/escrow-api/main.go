@@ -91,7 +91,16 @@ func runServer() {
 		zap.Bool("bypass", cfg.Auth.AuthBypass))
 
 	var ledgerClient ledger.Client
-	if len(cfg.Ledger.Nodes) > 0 {
+	if cfg.Ledger.ParticipantID != "" {
+		// High-Assurance: Isolated Participant Mode (GKE Production)
+		node, ok := cfg.Ledger.Nodes[cfg.Ledger.ParticipantID]
+		if !ok {
+			logger.Fatal("isolated participant mode requested but node configuration not found", zap.String("participantId", cfg.Ledger.ParticipantID))
+		}
+		logger.Info("starting in isolated participant mode", zap.String("name", cfg.Ledger.ParticipantID), zap.String("host", node.Host), zap.Int("port", node.Port))
+		ledgerClient = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+	} else if len(cfg.Ledger.Nodes) > 0 {
+		// Multi-Node Development Mode
 		logger.Info("initializing multi-node ledger clients")
 		clients := make(map[string]ledger.Client)
 		for name, node := range cfg.Ledger.Nodes {
@@ -100,12 +109,12 @@ func runServer() {
 		}
 		ledgerClient = ledger.NewMultiLedgerClient(logger, clients)
 	} else {
+		// Single-Node Legacy/Sandbox Mode
 		ledgerHost := cfg.Ledger.Host
 		ledgerPort := cfg.Ledger.Port
 		logger.Info("using single JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
-
 	// Perform dynamic discovery (resolve Package and Party IDs)
 	if err := ledgerClient.Discover(context.Background(), true); err != nil {
 		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
