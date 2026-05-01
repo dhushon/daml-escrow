@@ -64,5 +64,5 @@ resource "google_secret_manager_secret_iam_member" "dev_accessor" {
 
   secret_id = each.key
   role      = "roles/secretmanager.secretAccessor"
-  member    = "user:${var.project_id}@gmail.com" # Placeholder: Usually current authorized user
+  member    = "user:dan@vdatacloudai.com"
 }
