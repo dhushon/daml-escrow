@@ -120,3 +120,4 @@ Accessible via `/metrics`, this dashboard visualizes the platform's efficiency u
 * `/frontend`: Astro-based dashboard with DataCloud LNF styling.
 * `ESCROW-PROCESS.md`: The formal process specification.
 * `REGULATORY_CONFORMANCE.md`: Details on GDPR/CCPA and data sovereignty.
+\n## Kubernetes Orchestration\nSovereign participant deployments via GKE.
