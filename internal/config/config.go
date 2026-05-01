@@ -13,10 +13,11 @@ type Config struct {
 		Port int `mapstructure:"port" yaml:"port"`
 	} `mapstructure:"server" yaml:"server"`
 	Ledger struct {
-		Host     string                     `mapstructure:"host" yaml:"host"`
-		Port     int                        `mapstructure:"port" yaml:"port"`
-		Nodes    map[string]ParticipantNode `mapstructure:"nodes" yaml:"nodes"`
-		Packages struct {
+		Host          string                     `mapstructure:"host" yaml:"host"`
+		Port          int                        `mapstructure:"port" yaml:"port"`
+		ParticipantID string                     `mapstructure:"participantId" yaml:"participantId"` // e.g. bank, buyer, seller
+		Nodes         map[string]ParticipantNode `mapstructure:"nodes" yaml:"nodes"`
+		Packages      struct {
 			Implementation string `mapstructure:"implementation" yaml:"implementation"`
 			Interfaces     string `mapstructure:"interfaces" yaml:"interfaces"`
 		} `mapstructure:"packages" yaml:"packages"`
@@ -87,6 +88,11 @@ func LoadConfig(path string) (*Config, error) {
 	
 	_ = v.BindEnv("auth.environment", "ENVIRONMENT")
 	_ = v.BindEnv("auth.authBypass", "AUTH_BYPASS")
+	
+	_ = v.BindEnv("ledger.host", "LEDGER_HOST")
+	_ = v.BindEnv("ledger.port", "LEDGER_PORT")
+	_ = v.BindEnv("ledger.participantId", "PARTICIPANT_ID")
+	
 	_ = v.BindEnv("stablecoin.provider", "STABLECOIN_PROVIDER")
 	_ = v.BindEnv("stablecoin.bitgo.expressUrl", "BITGO_EXPRESS_URL")
 	_ = v.BindEnv("stablecoin.bitgo.accessToken", "BITGO_ACCESS_TOKEN")
@@ -95,6 +101,7 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("stablecoin.circle.baseUrl", "CIRCLE_BASE_URL")
 	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
 	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
+	
 	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
 
 	if err := v.ReadInConfig(); err != nil {
@@ -112,7 +119,6 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // ResolveSecrets authoritatively fetches sensitive values from GCP Secret Manager.
-// This is an explicit high-assurance step called during production startup.
 func ResolveSecrets(ctx context.Context, cfg *Config) error {
 	if cfg.GCPProjectID == "" {
 		return nil
