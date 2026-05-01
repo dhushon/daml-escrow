@@ -79,19 +79,25 @@ Goals: Implement specialized verification for real-world cloud environments (GCP
 
 ------------------------------------------------------------------------
 
-## Phase 8 --- Distributed Sovereignty & Multi-Service Deployment
+## Phase 8 --- Distributed Sovereignty & Multi-Service Deployment (IN PROGRESS)
 
 Goals: Transition to isolated service-per-node architecture.
 
+### Achievements
+
+1. **Structural Sovereignty:** Refactored Go API to support `PARTICIPANT_ID` locking, ensuring each container instance is authoritatively bound to a single ledger node.
+2. **Tripartite Orchestration:** Implemented isolated Kubernetes manifests (`bank`, `buyer`, `seller`) for both Canton ledger nodes and Go API instances.
+3. **High-Assurance Release Path:** Provisioned GCP Artifact Registry and established the `k8s/` guide for sovereign institutional deployment.
+
 ### Tasks
 
-**Task 8.1: Service Containerization**
+**Task 8.1: Service Containerization (COMPLETE)**
 
-- [ ] Refactor `main.go` to support single-node mode via environment variables.
-- [ ] Create `Dockerfile` for Go API and Frontend.
-- [ ] Implement health checks per service role.
+- [x] Refactor `main.go` to support single-node mode via environment variables.
+- [x] Create `Dockerfile` for Go API and Frontend.
+- [x] Implement health checks per service role.
 
-**Task 8.2: Distributed API Routing**
+**Task 8.2: Distributed API Routing (IN PROGRESS)**
 
 - [ ] Implement API Gateway (Nginx/Envoy) with JWT-based routing logic.
 - [ ] Configure cross-service telemetry for the distributed topology.

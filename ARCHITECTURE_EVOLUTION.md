@@ -182,3 +182,15 @@ sequenceDiagram
 ```
 
 *   **Outcome:** A production-ready financial backbone capable of handling real-world tokenized assets with institutional-grade security and bilateral authority.
+
+## Phase 11: Sovereign Tripartite Orchestration (Active)
+
+Evolved the platform from a logical distributed model (local Docker) to a physical isolated model (GKE/Kubernetes), enforcing true structural sovereignty for all participants.
+
+### Key Architectural Enhancements:
+1.  **Logical Isolation (Namespaces):** Established hard boundaries between tripartite participants (`bank`, `buyer`, `seller`) within the GKE cluster, ensuring that compute and network resources are strictly separated.
+2.  **Structural Sovereignty:** Refactored the Go API to support `PARTICIPANT_ID` authoritative locking. In production, a Buyer API instance is cryptographically and logically incapable of communicating with the Bank or Seller ledger nodes.
+3.  **Stateful Stability:** Implemented `StatefulSets` for Canton ledger nodes to ensure persistent identity and high-availability across institutional nodes.
+4.  **Institutional Release Path:** Integrated with **GCP Artifact Registry** for high-assurance container storage and established the `k8s/` orchestration guide.
+
+*   **Outcome:** A high-assurance, distributed platform ready for institutional deployment where data sovereignty is enforced at the container and network layers.

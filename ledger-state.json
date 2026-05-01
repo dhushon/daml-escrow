@@ -1,6 +1,10 @@
 {
-  "generatedAt": "2026-04-22T14:34:48.642713-04:00",
-  "packageId": "3cde94fe9be5c700fc1d9a8ad2277e2c1214609f8c52a5b4db77e466875b8cb7",
+  "generatedAt": "2026-05-01T15:13:07.182396-04:00",
+  "packageId": "d6ae29f2d88523d91c59863f5d6098f3031108ee5e2a3383faf24b3fdbafb036",
   "interfacePackageId": "de2cc2f90eb523414ff54e899951dadd8789a4c07e0f71f6d6c9eaf57d412a54",
-  "parties": {}
+  "parties": {
+    "bank": "bank::122040f7d0bf72cf3f7031e9776114ab9a99a8d5461fdfa2f5ecc51e3202bfd2fac4",
+    "buyer": "buyer::1220c597f8b8e6fe4dced001da7dbe943bdd5840253e325d299b1bea57e9f26db8b2",
+    "seller": "seller::1220aa61106cdf05577632aee1f67778942ec292eaf0897673b9ad0d9f76674ffbf5"
+  }
 }
