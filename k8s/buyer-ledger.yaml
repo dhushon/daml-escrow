@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: buyer-ledger
+  namespace: buyer
+spec:
+  serviceName: "buyer-ledger"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buyer-ledger
+  template:
+    metadata:
+      labels:
+        app: buyer-ledger
+    spec:
+      containers:
+      - name: canton
+        image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
+        ports:
+        - containerPort: 6001
+          name: admin
+        - containerPort: 6002
+          name: ledger-api
+        - containerPort: 7576
+          name: http-api
+        env:
+        - name: POSTGRES_DB
+          value: "canton_buyer"
+        - name: POSTGRES_USER
+          value: "escrow"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: password
+        command: ["/app/bin/canton"]
+        args:
+        - "daemon"
+        - "--config"
+        - "/canton/config/buyer.conf"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /canton/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: buyer-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: buyer-ledger
+  namespace: buyer
+spec:
+  ports:
+  - port: 7576
+    name: http-api
+  selector:
+    app: buyer-ledger
+  type: ClusterIP

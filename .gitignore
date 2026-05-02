@@ -46,6 +46,8 @@ go.work.sum
 *.yaml
 !**/daml.yaml
 !**/*.example
+!k8s/*.yaml
+!config/*.yaml
 
 # Terraform
 .terraform/
