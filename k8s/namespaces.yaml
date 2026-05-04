@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bank
+  labels:
+    env: dev
+    participant: bank
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: buyer
+  labels:
+    env: dev
+    participant: buyer
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: seller
+  labels:
+    env: dev
+    participant: seller

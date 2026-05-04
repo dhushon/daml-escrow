@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seller-api
+  namespace: seller
+  labels:
+    app: seller-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seller-api
+  template:
+    metadata:
+      labels:
+        app: seller-api
+    spec:
+      containers:
+      - name: api
+        image: us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: LEDGER_HOST
+          value: "seller-ledger.seller.svc.cluster.local"
+        - name: LEDGER_PORT
+          value: "7577"
+        - name: PARTICIPANT_ID
+          value: "seller"
+        - name: GCP_PROJECT_ID
+          value: "vdcai-daml"
+        - name: ENVIRONMENT
+          value: "dev"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seller-api
+  namespace: seller
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: seller-api
+  type: ClusterIP

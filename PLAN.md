@@ -109,18 +109,25 @@ Goals: Transition to isolated service-per-node architecture.
 
 ------------------------------------------------------------------------
 
-## Phase 7 --- Production Hardening
+## Phase 7 --- Production Hardening & Compliance (SOC2 / Financial Grade)
 
-Goals: Final security and observability sweep.
+Goals: Final security sweep to meet institutional regulatory and auditing standards.
 
 ### Tasks
 
-**Task 7.1: TLS & Key Management**
+**Task 7.1: Zero-Trust Networking (mTLS)**
 
-- TLS 1.3+ configuration for all endpoints.
-- HSM/KMS integration for ledger and API signing keys.
+- [ ] Provision **GCP Certificate Authority Service (CAS)** for internal cluster identity.
+- [ ] Implement **Mutual TLS (mTLS)** enforcement across tripartite namespaces (`bank`, `buyer`, `seller`).
+- [ ] Enforce TLS 1.3 for all external entry points via Ingress.
 
-**Task 7.2: Full Observability**
+**Task 7.2: HSM & Key Management**
 
-- OpenTelemetry (OTEL) integration for cross-service tracing.
-- Prometheus/Grafana metrics export.
+- [ ] Integrate **Google Cloud KMS (HSM-backed)** for ledger and API signing keys.
+- [ ] Authoritatively migrate Okta and Stablecoin secrets to KMS-encrypted storage.
+
+**Task 7.3: Immutable Auditing & Observability**
+
+- [ ] Implement **Audit Log Sinks** for permanent, immutable transaction recording.
+- [ ] Integrate **OpenTelemetry (OTEL)** for cross-service tracing and latency heatmaps.
+- [ ] Export real-time metrics to Prometheus/Grafana for institutional monitoring.

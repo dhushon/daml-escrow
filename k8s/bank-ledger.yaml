@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bank-ledger
+  namespace: bank
+spec:
+  serviceName: "bank-ledger"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bank-ledger
+  template:
+    metadata:
+      labels:
+        app: bank-ledger
+    spec:
+      containers:
+      - name: canton
+        image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
+        ports:
+        - containerPort: 5001
+          name: admin
+        - containerPort: 5002
+          name: ledger-api
+        - containerPort: 7575
+          name: http-api
+        env:
+        - name: POSTGRES_HOST
+          value: "escrow-postgres-dist.default.svc.cluster.local" # Placeholder
+        - name: POSTGRES_DB
+          value: "canton_bank"
+        - name: POSTGRES_USER
+          value: "escrow"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: password
+        command: ["/app/bin/canton"]
+        args:
+        - "daemon"
+        - "--config"
+        - "/canton/config/bank.conf"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /canton/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: bank-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bank-ledger
+  namespace: bank
+spec:
+  ports:
+  - port: 7575
+    name: http-api
+  selector:
+    app: bank-ledger
+  type: ClusterIP
