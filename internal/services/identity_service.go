@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"daml-escrow/internal/ledger"
+	"fmt"
 	"os"
 	"strings"
 
@@ -52,6 +54,33 @@ func (s *IdentityService) DiscoverProvider(ctx context.Context, email string) Au
 	}
 
 	return s.getDefaultProvider()
+}
+
+func (s *IdentityService) GetIdPConfigForEmail(email string) (AuthProvider, error) {
+	parts := strings.Split(email, "@")
+	if len(parts) < 2 {
+		return AuthProvider{}, fmt.Errorf("invalid email format")
+	}
+
+	domain := parts[1]
+	if provider, ok := s.config.Providers[domain]; ok {
+		return provider, nil
+	}
+
+	return s.getDefaultProvider(), nil
+}
+
+func (s *IdentityService) GetOrCreateIdentity(ctx context.Context, oktaSub, email string, ledgerClient ledger.Client) (*ledger.UserIdentity, error) {
+	// First, try to fetch existing identity
+	identity, err := ledgerClient.GetIdentity(ctx, oktaSub)
+	if err == nil && identity != nil {
+		return identity, nil
+	}
+
+	// If not found, authoritatively provision the user
+	// We grant standard escrow scopes by default
+	scopes := []string{"escrow:read", "escrow:write", "escrow:accept"}
+	return ledgerClient.ProvisionUser(ctx, oktaSub, email, scopes)
 }
 
 func (s *IdentityService) getDefaultProvider() AuthProvider {

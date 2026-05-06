@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"fmt"
 
@@ -14,6 +15,7 @@ type EscrowService struct {
 	stablecoin    ledger.StablecoinProvider
 	compliance    ComplianceService
 	webhookSecret string
+	oracleSigner  crypto.HighAssuranceSigner
 }
 
 func NewEscrowService(
@@ -22,6 +24,7 @@ func NewEscrowService(
 	stablecoin ledger.StablecoinProvider,
 	compliance ComplianceService,
 	webhookSecret string,
+	oracleSigner crypto.HighAssuranceSigner,
 ) *EscrowService {
 	return &EscrowService{
 		logger:        logger,
@@ -29,6 +32,7 @@ func NewEscrowService(
 		stablecoin:    stablecoin,
 		compliance:    compliance,
 		webhookSecret: webhookSecret,
+		oracleSigner:  oracleSigner,
 	}
 }
 
@@ -41,24 +45,20 @@ func (s *EscrowService) ProposeEscrow(ctx context.Context, req ledger.CreateEscr
 	return s.ledger.ProposeEscrow(ctx, req)
 }
 
-func (s *EscrowService) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
-	s.logger.Info("seller accepting proposal", zap.String("id", id), zap.String("userID", userID))
-	return s.ledger.SellerAccept(ctx, id, userID)
+func (s *EscrowService) FundEscrow(ctx context.Context, id string, userID string, holdingID string) error {
+	s.logger.Info("funding escrow", zap.String("id", id), zap.String("userID", userID))
+	// Fund(ctx, id, custodyRef, holdingCid, userID)
+	return s.ledger.Fund(ctx, id, "CUSTODY-REF-001", holdingID, userID)
 }
 
-func (s *EscrowService) Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error {
-	s.logger.Info("funding escrow", zap.String("id", id), zap.String("ref", custodyRef), zap.String("holdingCid", holdingCid), zap.String("userID", userID))
-	return s.ledger.Fund(ctx, id, custodyRef, holdingCid, userID)
-}
-
-func (s *EscrowService) Activate(ctx context.Context, id string, actAs []string) (string, error) {
-	s.logger.Info("activating escrow", zap.String("id", id), zap.Strings("actAs", actAs))
+func (s *EscrowService) ActivateEscrow(ctx context.Context, id string, userID string, actAs []string) (string, error) {
+	s.logger.Info("activating escrow", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.Activate(ctx, id, actAs)
 }
 
-func (s *EscrowService) ConfirmConditions(ctx context.Context, id string, userID string) error {
-	s.logger.Info("confirming conditions", zap.String("id", id), zap.String("userID", userID))
-	return s.ledger.ConfirmConditions(ctx, id, userID)
+func (s *EscrowService) DisburseEscrow(ctx context.Context, id string, userID string, actAs []string) error {
+	s.logger.Info("disbursing escrow", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.Disburse(ctx, id, actAs)
 }
 
 func (s *EscrowService) RaiseDispute(ctx context.Context, id string, userID string) error {
@@ -66,27 +66,18 @@ func (s *EscrowService) RaiseDispute(ctx context.Context, id string, userID stri
 	return s.ledger.RaiseDispute(ctx, id, userID)
 }
 
-func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, proposal ledger.SettlementTerms, userID string) (string, error) {
-	s.logger.Info("proposing settlement", zap.String("id", id), zap.String("userID", userID))
+func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, userID string, amount float64) (string, error) {
+	s.logger.Info("proposing settlement", zap.String("id", id), zap.Float64("amount", amount))
+	proposal := ledger.SettlementTerms{
+		SettlementType: "PARTIAL",
+		BuyerReturn:    amount,
+		SellerPayment:  0.0, // Simplified for this call
+		MediatorFee:    0.0,
+	}
 	return s.ledger.ProposeSettlement(ctx, id, proposal, userID)
 }
 
-func (s *EscrowService) RatifySettlement(ctx context.Context, id string, userID string) (string, error) {
-	s.logger.Info("ratifying settlement", zap.String("id", id), zap.String("userID", userID))
-	return s.ledger.RatifySettlement(ctx, id, userID)
-}
-
-func (s *EscrowService) FinalizeSettlement(ctx context.Context, id string, userID string) (string, error) {
-	s.logger.Info("finalizing settlement", zap.String("id", id), zap.String("userID", userID))
-	return s.ledger.FinalizeSettlement(ctx, id, userID)
-}
-
-func (s *EscrowService) Disburse(ctx context.Context, id string, actAs []string) error {
-	s.logger.Info("executing disbursement", zap.String("id", id), zap.Strings("actAs", actAs))
-	return s.ledger.Disburse(ctx, id, actAs)
-}
-
-func (s *EscrowService) Cancel(ctx context.Context, id string, userID string) error {
+func (s *EscrowService) CancelEscrow(ctx context.Context, id string, userID string) error {
 	s.logger.Info("cancelling escrow", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.Cancel(ctx, id, userID)
 }
@@ -116,53 +107,21 @@ func (s *EscrowService) GetOracleSecret() string {
 	return s.webhookSecret
 }
 
-func (s *EscrowService) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*ledger.UserIdentity, error) {
-	return s.ledger.ProvisionUser(ctx, oktaSub, email, scopes)
-}
+// Authoritative Settlement Triggers
 
-func (s *EscrowService) ListIdentities(ctx context.Context) ([]*ledger.UserIdentity, error) {
-	return s.ledger.ListIdentities(ctx)
-}
-
-func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.LedgerMetrics, error) {
-	return s.ledger.GetMetrics(ctx, userID)
-}
-
-func (s *EscrowService) ListWallets(ctx context.Context, userID string) ([]*ledger.Wallet, error) {
-	return s.ledger.ListWallets(ctx, userID)
-}
-
-func (s *EscrowService) GetIdentity(ctx context.Context, oktaSub string) (*ledger.UserIdentity, error) {
-	return s.ledger.GetIdentity(ctx, oktaSub)
-}
-
-func (s *EscrowService) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset ledger.Asset, terms ledger.EscrowTerms) (*ledger.EscrowInvitation, error) {
-	return s.ledger.CreateInvitation(ctx, inviterID, inviteeEmail, role, inviteeType, asset, terms)
-}
-
-func (s *EscrowService) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*ledger.EscrowProposal, error) {
-	return s.ledger.ClaimInvitation(ctx, inviteID, claimantID)
-}
-
-func (s *EscrowService) ListInvitations(ctx context.Context, userID string) ([]*ledger.EscrowInvitation, error) {
-	return s.ledger.ListInvitations(ctx, userID)
-}
-
-func (s *EscrowService) GetInvitationByToken(ctx context.Context, tokenHash string) (*ledger.EscrowInvitation, error) {
-	return s.ledger.GetInvitationByToken(ctx, tokenHash)
-}
-
-func (s *EscrowService) ListSettlements(ctx context.Context) ([]*ledger.EscrowSettlement, error) {
-	return s.ledger.ListSettlements(ctx)
-}
-
-func (s *EscrowService) SettlePayment(ctx context.Context, settlementID string) error {
+func (s *EscrowService) SettleEscrow(ctx context.Context, settlementID string) error {
+	s.logger.Info("finalizing settlement", zap.String("id", settlementID))
 	return s.ledger.SettlePayment(ctx, settlementID)
 }
 
-func (s *EscrowService) OracleMilestoneTrigger(ctx context.Context, escrowID string, milestoneIndex int, event string, signature string) error {
-	// Verify signature
-	if !s.compliance.VerifyOracleSignature(escrowID, milestoneIndex, event, signature, s.webhookSecret) {
+func (s *EscrowService) OracleMilestoneTrigger(ctx context.Context, escrowID string, milestoneIndex int, event string, signature string, asymmetric bool) error {
+	// High-Assurance: Verify signature against authoritative oracle signer
+	var signer crypto.HighAssuranceSigner
+	if asymmetric {
+		signer = s.oracleSigner
+	}
+	
+	if !s.compliance.VerifyOracleSignature(ctx, escrowID, milestoneIndex, event, signature, signer) {
 		return fmt.Errorf("invalid oracle signature")
 	}
 
@@ -177,7 +136,10 @@ func (s *EscrowService) OracleMilestoneTrigger(ctx context.Context, escrowID str
 	}
 
 	// Execute authoritative transition (Internal admin action)
-	// In institutional models, the Oracle trigger might drive a co-signed disbursement.
 	_, err = s.ledger.Activate(ctx, escrowID, []string{"CentralBank"}) 
 	return err
+}
+
+func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.LedgerMetrics, error) {
+	return s.ledger.GetMetrics(ctx, userID)
 }

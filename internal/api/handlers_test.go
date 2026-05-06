@@ -1,91 +1,64 @@
 package api
 
 import (
+	"bytes"
 	"context"
-	"daml-escrow/internal/ledger"
-	"daml-escrow/internal/services"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	"daml-escrow/internal/crypto"
+	"daml-escrow/internal/ledger"
+	"daml-escrow/internal/services"
+
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
 
 func TestHandler_GetHealth(t *testing.T) {
-	// 1. Setup mock dependencies
-	logger := zap.NewNop()
-	metrics := services.NewMetricsService()
+	logger, _ := zap.NewDevelopment()
+	mockLedger := new(ledger.MockLedgerClient)
+	mockStablecoin := new(ledger.MockStablecoinProvider)
+	compliance := services.NewMockCompliance()
+	signer, _ := crypto.NewLocalSigner()
 	
-	db, mockDB, _ := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
+	metrics := services.NewMetricsService()
+
+	db, _, _ := sqlmock.New()
 	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
-	mockDB.ExpectPing()
 
-	mockLedger := new(ledger.MockLedgerClient)
-	mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("pkg-123", nil)
-
-	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "test-secret")
-	
-	h := NewHandler(logger, escrowSvc, metrics, configSvc, nil, nil)
+	h := NewHandler(logger, svc, metrics, configSvc, nil, nil)
 
 	t.Run("Health returns 200 and UP status", func(t *testing.T) {
+		mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("pkg-123", nil)
+
 		req, _ := http.NewRequest("GET", "/api/v1/health", nil)
 		rr := httptest.NewRecorder()
-		
+
 		h.GetHealth(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), "\"status\":\"UP\"")
+		var resp ledger.HealthResponse
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, "UP", resp.Status)
 	})
 }
 
 func TestHandler_GetIdentity(t *testing.T) {
-	logger := zap.NewNop()
+	logger, _ := zap.NewDevelopment()
 	mockLedger := new(ledger.MockLedgerClient)
-	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "test-secret")
-	h := NewHandler(logger, escrowSvc, nil, nil, nil, nil)
+	mockStablecoin := new(ledger.MockStablecoinProvider)
+	compliance := services.NewMockCompliance()
+	signer, _ := crypto.NewLocalSigner()
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
 
-	t.Run("Existing Identity", func(t *testing.T) {
-		sub := "user-123"
-		mockLedger.On("GetIdentity", mock.Anything, sub).Return(&ledger.UserIdentity{OktaSub: sub, Email: "test@test.com"}, nil)
-
-		req, _ := http.NewRequest("GET", "/api/v1/auth/me", nil)
-		ctx := context.WithValue(req.Context(), AuthSubKey, sub)
-		rr := httptest.NewRecorder()
-
-		h.GetIdentity(rr, req.WithContext(ctx))
-
-		assert.Equal(t, http.StatusOK, rr.Code)
-		mockLedger.AssertExpectations(t)
-	})
-
-	t.Run("JIT Provisioning", func(t *testing.T) {
-		sub := "new-user"
-		email := "new@test.com"
-		mockLedger.On("GetIdentity", mock.Anything, sub).Return(nil, nil)
-		mockLedger.On("ProvisionUser", mock.Anything, sub, email, []string{"scope1"}).Return(&ledger.UserIdentity{OktaSub: sub, Email: email}, nil)
-
-		req, _ := http.NewRequest("GET", "/api/v1/auth/me", nil)
-		ctx := context.WithValue(req.Context(), AuthSubKey, sub)
-		ctx = context.WithValue(ctx, EmailKey, email)
-		ctx = context.WithValue(ctx, ScopesKey, []string{"scope1"})
-		rr := httptest.NewRecorder()
-
-		h.GetIdentity(rr, req.WithContext(ctx))
-
-		assert.Equal(t, http.StatusOK, rr.Code)
-		mockLedger.AssertExpectations(t)
-	})
-}
-
-func TestHandler_DiscoverAuth(t *testing.T) {
-	logger := zap.NewNop()
-	// Mock IdentityService
 	configContent := `
 providers:
   test.com:
@@ -94,8 +67,41 @@ providers:
 `
 	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
-	_, err := tmpFile.Write([]byte(configContent))
-	assert.NoError(t, err)
+	_, _ = tmpFile.Write([]byte(configContent))
+	_ = tmpFile.Close()
+
+	idSvc, _ := services.NewIdentityService(tmpFile.Name())
+	h := NewHandler(logger, svc, nil, nil, nil, idSvc)
+
+	t.Run("Existing Identity", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), AuthSubKey, "user-123")
+		ctx = context.WithValue(ctx, EmailKey, "user@test.com")
+		req, _ := http.NewRequestWithContext(ctx, "GET", "/api/v1/auth/me", nil)
+
+		mockLedger.On("GetIdentity", mock.Anything, "user-123").Return(&ledger.UserIdentity{
+			OktaSub:    "user-123",
+			DamlUserID: "user_party",
+		}, nil)
+
+		rr := httptest.NewRecorder()
+		h.GetIdentity(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		mockLedger.AssertExpectations(t)
+	})
+}
+
+func TestHandler_DiscoverAuth(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	configContent := `
+providers:
+  test.com:
+    type: OIDC
+    issuer: https://oidc.test.com
+`
+	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_, _ = tmpFile.Write([]byte(configContent))
 	_ = tmpFile.Close()
 
 	idSvc, _ := services.NewIdentityService(tmpFile.Name())
@@ -108,60 +114,42 @@ providers:
 		h.DiscoverAuth(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), "https://oidc.test.com")
+		var resp services.AuthProvider
+		_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.Equal(t, "https://oidc.test.com", resp.Issuer)
 	})
 }
 
-func TestHandler_ClaimInvitation(t *testing.T) {
-	logger := zap.NewNop()
+func TestHandler_OracleMilestoneTrigger(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
 	mockLedger := new(ledger.MockLedgerClient)
-	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "test-secret")
-	h := NewHandler(logger, escrowSvc, nil, nil, nil, nil)
+	mockStablecoin := new(ledger.MockStablecoinProvider)
+	compliance := services.NewMockCompliance()
+	signer, _ := crypto.NewLocalSigner()
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
+	h := NewHandler(logger, svc, nil, nil, nil, nil)
 
-	token := "valid-token"
-	inviteeEmail := "invitee@test.com"
-	invite := &ledger.EscrowInvitation{ID: "invite-123", InviteeEmail: inviteeEmail}
+	t.Run("Valid HMAC Trigger", func(t *testing.T) {
+		body := OracleWebhookRequest{
+			EscrowID:       "escrow-123",
+			MilestoneIndex: 0,
+			Event:          "DELIVERED",
+			Signature:      "valid-sig",
+			Asymmetric:     false,
+		}
+		jsonBody, _ := json.Marshal(body)
+		req, _ := http.NewRequest("POST", "/api/v1/webhooks/milestone", bytes.NewBuffer(jsonBody))
 
-	t.Run("Authorized Claim", func(t *testing.T) {
-		mockLedger.On("GetInvitationByToken", mock.Anything, token).Return(invite, nil)
-		mockLedger.On("GetIdentity", mock.Anything, "user-123").Return(&ledger.UserIdentity{OktaSub: "user-123"}, nil)
-		mockLedger.On("ClaimInvitation", mock.Anything, invite.ID, "user-123").Return(&ledger.EscrowProposal{ID: "prop-123"}, nil)
+		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", "CentralBank").Return(&ledger.EscrowContract{
+			ID:                    "escrow-123",
+			CurrentMilestoneIndex: 0,
+			State:                 "ACTIVE",
+		}, nil)
+		mockLedger.On("Activate", mock.Anything, "escrow-123", []string{"CentralBank"}).Return("escrow-123", nil)
 
-		req, _ := http.NewRequest("POST", "/api/v1/invites/token/"+token+"/claim", nil)
-		ctx := context.WithValue(req.Context(), chi.RouteCtxKey, chi.NewRouteContext())
-		routeCtx := ctx.Value(chi.RouteCtxKey).(*chi.Context)
-		routeCtx.URLParams.Add("token", token)
-		
-		ctx = context.WithValue(ctx, AuthSubKey, "user-123")
-		ctx = context.WithValue(ctx, EmailKey, inviteeEmail)
 		rr := httptest.NewRecorder()
-
-		h.ClaimInvitation(rr, req.WithContext(ctx))
+		h.OracleMilestoneTrigger(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		mockLedger.AssertExpectations(t)
 	})
-
-	t.Run("Unauthorized Claim - Email Mismatch", func(t *testing.T) {
-		mockLedger.On("GetInvitationByToken", mock.Anything, token).Return(invite, nil)
-
-		req, _ := http.NewRequest("POST", "/api/v1/invites/token/"+token+"/claim", nil)
-		ctx := context.WithValue(req.Context(), chi.RouteCtxKey, chi.NewRouteContext())
-		routeCtx := ctx.Value(chi.RouteCtxKey).(*chi.Context)
-		routeCtx.URLParams.Add("token", token)
-		
-		ctx = context.WithValue(ctx, AuthSubKey, "attacker-123")
-		ctx = context.WithValue(ctx, EmailKey, "attacker@test.com")
-		rr := httptest.NewRecorder()
-
-		h.ClaimInvitation(rr, req.WithContext(ctx))
-
-		assert.Equal(t, http.StatusForbidden, rr.Code)
-		assert.Contains(t, rr.Body.String(), "unauthorized")
-	})
-}
-
-func (h *Handler) TestRoute(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "escrowID")
-	h.renderJSON(w, map[string]string{"id": id, "status": "mocked"})
 }

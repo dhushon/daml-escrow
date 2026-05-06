@@ -4,6 +4,7 @@ import (
 	"context"
 	"daml-escrow/internal/api"
 	"daml-escrow/internal/config"
+	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 	"daml-escrow/pkg/logging"
@@ -76,19 +77,38 @@ func runServer() {
 		_ = logger.Sync()
 	}()
 
+	ctx := context.Background()
+
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
 	// High-Assurance: Resolve cloud-native secrets if GCP_PROJECT_ID is present
-	if err := config.ResolveSecrets(context.Background(), cfg); err != nil {
+	if err := config.ResolveSecrets(ctx, cfg); err != nil {
 		logger.Warn("failed to resolve cloud secrets, falling back to environment/file", zap.Error(err))
 	}
 
 	logger.Info("configuration loaded", 
 		zap.String("env", cfg.Auth.Environment), 
 		zap.Bool("bypass", cfg.Auth.AuthBypass))
+
+	// Initialize high-assurance signer for Oracle Verification
+	var oracleSigner crypto.HighAssuranceSigner
+	if cfg.GCPProjectID != "" {
+		// Production: Use Cloud KMS HSM
+		logger.Info("initializing cloud KMS oracle signer", zap.String("project", cfg.GCPProjectID))
+		kmsSigner, err := crypto.NewCloudKMSSigner(ctx, "projects/"+cfg.GCPProjectID+"/locations/"+cfg.Region+"/keyRings/escrow-keyring-"+cfg.Auth.Environment+"/cryptoKeys/oracle-signer-key-"+cfg.Auth.Environment)
+		if err != nil {
+			logger.Fatal("failed to initialize cloud KMS signer", zap.Error(err))
+		}
+		oracleSigner = kmsSigner
+	} else {
+		// Development: Use Local Ephemeral Signer
+		logger.Info("using local ephemeral oracle signer")
+		localSigner, _ := crypto.NewLocalSigner()
+		oracleSigner = localSigner
+	}
 
 	var ledgerClient ledger.Client
 	if cfg.Ledger.ParticipantID != "" {
@@ -116,7 +136,7 @@ func runServer() {
 		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
 	// Perform dynamic discovery (resolve Package and Party IDs)
-	if err := ledgerClient.Discover(context.Background(), true); err != nil {
+	if err := ledgerClient.Discover(ctx, true); err != nil {
 		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
 	}
 
@@ -148,6 +168,7 @@ func runServer() {
 		stablecoinProvider,
 		complianceService,
 		cfg.Oracle.WebhookSecret,
+		oracleSigner,
 	)
 
 	handler := api.NewHandler(
@@ -180,7 +201,7 @@ func runServer() {
 	isDevBypass := cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass
 	if !isDevBypass {
 		var err error
-		verifier, err = api.NewRealVerifier(context.Background(), cfg.Auth.Issuer, cfg.Auth.Audience)
+		verifier, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
 		if err != nil {
 			logger.Fatal("failed to initialize OIDC verifier", zap.Error(err), zap.String("issuer", cfg.Auth.Issuer))
 		}
