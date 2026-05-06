@@ -30,7 +30,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	metrics := services.NewMetricsService()
 
 	db, _, _ := sqlmock.New()
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
 
 	h := NewHandler(logger, svc, metrics, configSvc, nil, nil)
@@ -115,7 +115,7 @@ providers:
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var resp services.AuthProvider
-		json.Unmarshal(rr.Body.Bytes(), &resp)
+		_ = json.Unmarshal(rr.Body.Bytes(), &resp)
 		assert.Equal(t, "https://oidc.test.com", resp.Issuer)
 	})
 }
