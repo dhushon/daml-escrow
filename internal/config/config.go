@@ -50,6 +50,7 @@ type Config struct {
 		WebhookSecret string `mapstructure:"webhookSecret" yaml:"webhookSecret"`
 	} `mapstructure:"oracle" yaml:"oracle"`
 	GCPProjectID string `mapstructure:"gcpProjectId" yaml:"gcpProjectId"`
+	Region       string `mapstructure:"region" yaml:"region"`
 }
 
 type AuthConfig struct {
@@ -73,6 +74,7 @@ func LoadConfig(path string) (*Config, error) {
 	v.SetDefault("server.port", 8081)
 	v.SetDefault("auth.environment", "production")
 	v.SetDefault("auth.authBypass", false)
+	v.SetDefault("region", "us-central1")
 
 	if path != "" {
 		v.SetConfigFile(path)
@@ -103,6 +105,7 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
 	
 	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
+	_ = v.BindEnv("region", "REGION")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -130,13 +133,13 @@ func ResolveSecrets(ctx context.Context, cfg *Config) error {
 	}
 	defer func() { _ = resolver.Close() }()
 
-	if secret, err := resolver.GetSecret(ctx, "okta-client-secret"); err == nil {
+	if secret, err := resolver.GetSecret(ctx, "okta-client-secret-"+cfg.Auth.Environment); err == nil {
 		cfg.Auth.ClientSecret = secret
 	}
-	if secret, err := resolver.GetSecret(ctx, "bitgo-access-token"); err == nil {
+	if secret, err := resolver.GetSecret(ctx, "bitgo-access-token-"+cfg.Auth.Environment); err == nil {
 		cfg.Stablecoin.BitGo.AccessToken = secret
 	}
-	if secret, err := resolver.GetSecret(ctx, "circle-api-key"); err == nil {
+	if secret, err := resolver.GetSecret(ctx, "circle-api-key-"+cfg.Auth.Environment); err == nil {
 		cfg.Stablecoin.Circle.APIKey = secret
 	}
 

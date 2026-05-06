@@ -178,6 +178,7 @@ type OracleWebhookRequest struct {
 	Event          string `json:"event"`
 	OracleProvider string `json:"oracleProvider"`
 	Signature      string `json:"signature"`
+	Asymmetric     bool   `json:"asymmetric"`
 }
 
 func (r *OracleWebhookRequest) Validate() error {
