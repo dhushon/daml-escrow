@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"daml-escrow/internal/api"
 	"daml-escrow/internal/config"
 	"daml-escrow/internal/crypto"
@@ -22,7 +24,6 @@ import (
 	"github.com/riandyrn/otelchi"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
 
@@ -30,6 +31,10 @@ var (
 	cfgFile     string
 	environment string
 	authBypass  bool
+	tlsDisabled bool
+	certFile    string
+	keyFile     string
+	caCertFile  string
 )
 
 func main() {
@@ -58,12 +63,17 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&environment, "env", "", "environment (dev, production)")
 	rootCmd.PersistentFlags().BoolVar(&authBypass, "bypass", false, "bypass JWT authentication (dev only)")
+	
+	// High-Assurance TLS Flags (Secure by Default)
+	rootCmd.PersistentFlags().BoolVar(&tlsDisabled, "notls", false, "disable mTLS enforcement (dev only)")
+	rootCmd.PersistentFlags().StringVar(&certFile, "tls-cert", "/etc/escrow/certs/tls.crt", "path to server certificate")
+	rootCmd.PersistentFlags().StringVar(&keyFile, "tls-key", "/etc/escrow/certs/tls.key", "path to server private key")
+	rootCmd.PersistentFlags().StringVar(&caCertFile, "tls-ca", "/etc/escrow/certs/ca.crt", "path to CA certificate for mTLS client validation")
 
 	rootCmd.AddCommand(serveCmd)
 }
 
 func initConfig() {
-	// If flags are provided, override viper settings
 	if environment != "" {
 		viper.Set("auth.environment", environment)
 	}
@@ -74,9 +84,7 @@ func initConfig() {
 
 func runServer() {
 	logger := logging.NewLogger()
-	defer func() {
-		_ = logger.Sync()
-	}()
+	defer func() { _ = logger.Sync() }()
 
 	ctx := context.Background()
 
@@ -85,14 +93,14 @@ func runServer() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	// High-Assurance: Resolve cloud-native secrets if GCP_PROJECT_ID is present
 	if err := config.ResolveSecrets(ctx, cfg); err != nil {
 		logger.Warn("failed to resolve cloud secrets, falling back to environment/file", zap.Error(err))
 	}
 
 	logger.Info("configuration loaded", 
 		zap.String("env", cfg.Auth.Environment), 
-		zap.Bool("bypass", cfg.Auth.AuthBypass))
+		zap.Bool("bypass", cfg.Auth.AuthBypass),
+		zap.Bool("tls", !tlsDisabled))
 
 	// 1. Initialize high-assurance telemetry
 	telemetry, err := api.InitTelemetry(ctx, "escrow-api", cfg.Auth.Environment)
@@ -105,7 +113,6 @@ func runServer() {
 	// 2. Initialize high-assurance signer for Oracle Verification
 	var oracleSigner crypto.HighAssuranceSigner
 	if cfg.GCPProjectID != "" {
-		// Production: Use Cloud KMS HSM
 		logger.Info("initializing cloud KMS oracle signer", zap.String("project", cfg.GCPProjectID))
 		kmsSigner, err := crypto.NewCloudKMSSigner(ctx, "projects/"+cfg.GCPProjectID+"/locations/"+cfg.Region+"/keyRings/escrow-keyring-"+cfg.Auth.Environment+"/cryptoKeys/oracle-signer-key-"+cfg.Auth.Environment)
 		if err != nil {
@@ -113,15 +120,12 @@ func runServer() {
 		}
 		oracleSigner = kmsSigner
 	} else {
-		// Development: Use Local Ephemeral Signer
 		logger.Info("using local ephemeral oracle signer")
-		localSigner, _ := crypto.NewLocalSigner()
-		oracleSigner = localSigner
+		oracleSigner, _ = crypto.NewLocalSigner()
 	}
 
 	var ledgerClient ledger.Client
 	if cfg.Ledger.ParticipantID != "" {
-		// High-Assurance: Isolated Participant Mode (GKE Production)
 		node, ok := cfg.Ledger.Nodes[cfg.Ledger.ParticipantID]
 		if !ok {
 			logger.Fatal("isolated participant mode requested but node configuration not found", zap.String("participantId", cfg.Ledger.ParticipantID))
@@ -129,69 +133,43 @@ func runServer() {
 		logger.Info("starting in isolated participant mode", zap.String("name", cfg.Ledger.ParticipantID), zap.String("host", node.Host), zap.Int("port", node.Port))
 		ledgerClient = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	} else if len(cfg.Ledger.Nodes) > 0 {
-		// Multi-Node Development Mode
-		logger.Info("initializing multi-node ledger clients")
 		clients := make(map[string]ledger.Client)
 		for name, node := range cfg.Ledger.Nodes {
-			logger.Info("initializing node", zap.String("name", name), zap.String("host", node.Host), zap.Int("port", node.Port))
 			clients[name] = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 		}
 		ledgerClient = ledger.NewMultiLedgerClient(logger, clients)
 	} else {
-		// Single-Node Legacy/Sandbox Mode
-		ledgerHost := cfg.Ledger.Host
-		ledgerPort := cfg.Ledger.Port
-		logger.Info("using single JSON ledger client", zap.String("host", ledgerHost), zap.Int("port", ledgerPort))
-		ledgerClient = ledger.NewJsonLedgerClient(logger, ledgerHost, ledgerPort, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+		ledgerClient = ledger.NewJsonLedgerClient(logger, cfg.Ledger.Host, cfg.Ledger.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
-	// Perform dynamic discovery (resolve Package and Party IDs)
+
 	if err := ledgerClient.Discover(ctx, true); err != nil {
-		logger.Error("ledger discovery failed (continuing with defaults)", zap.Error(err))
+		logger.Error("ledger discovery failed", zap.Error(err))
 	}
 
-	// Initialize core services
 	metricsService := services.NewMetricsService()
-
 	configService, err := services.NewConfigService(cfg.UserConfig.DSN)
 	if err != nil {
-		logger.Fatal("failed to initialize config service", zap.Error(err))
+		logger.Fatal("failed to config service", zap.Error(err))
 	}
 	defer func() { _ = configService.Close() }()
 
-	// Dynamic Stablecoin Provider Selection via Factory
 	factory := ledger.NewStablecoinFactory(logger)
 	stablecoinProvider, err := factory.CreateProvider(cfg, ledgerClient)
 	if err != nil {
-		logger.Fatal("failed to initialize stablecoin provider", zap.Error(err))
+		logger.Fatal("failed to stablecoin provider", zap.Error(err))
 	}
 
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
 	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
 	if err != nil {
-		logger.Fatal("failed to initialize identity service", zap.Error(err))
+		logger.Fatal("failed to identity service", zap.Error(err))
 	}
-	escrowService := services.NewEscrowService(
-		logger,
-		ledgerClient,
-		stablecoinProvider,
-		complianceService,
-		cfg.Oracle.WebhookSecret,
-		oracleSigner,
-	)
+	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner)
 
-	handler := api.NewHandler(
-		logger,
-		escrowService,
-		metricsService,
-		configService,
-		analyticsService,
-		identityService,
-	)
-
+	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService)
 	router := chi.NewRouter()
 
-	// 1. Core Middleware
 	if telemetry != nil {
 		router.Use(otelchi.Middleware("escrow-api", otelchi.WithChiRoutes(router)))
 	}
@@ -199,61 +177,27 @@ func runServer() {
 	router.Use(api.MetricsMiddleware(metricsService))
 
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:4321", "http://127.0.0.1:4321"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Dev-User", "X-Requested-With", "Origin"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
+		AllowedOrigins: []string{"http://localhost:4321", "https://*.vdatacloudai.com"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Dev-User"},
 	}))
 
-
-	// 3. Auth & Routes
 	var verifier api.TokenVerifier
-	isDevBypass := cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass
-	if !isDevBypass {
-		var err error
+	if !(cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass) {
 		verifier, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
 		if err != nil {
-			logger.Fatal("failed to initialize OIDC verifier", zap.Error(err), zap.String("issuer", cfg.Auth.Issuer))
+			logger.Fatal("failed to OIDC verifier", zap.Error(err))
 		}
 	}
 
 	router.Use(api.AuthMiddleware(cfg.Auth, verifier, logger))
-	router.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)),
-	))
-
-	// API Routes
+	
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
-		r.Get("/auth/discover", handler.DiscoverAuth)
-		r.Get("/identities", handler.ListIdentities)
-		r.Get("/config", handler.GetConfig)
-		r.Post("/config", handler.SaveConfig)
-		r.Get("/invites", handler.ListInvitations)
-		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
-		r.Post("/invites", handler.CreateInvitation)
-		r.Post("/invites/token/{token}/claim", handler.ClaimInvitation)
 		r.Post("/escrows", handler.ProposeEscrow)
-		r.Post("/escrows/propose", handler.ProposeEscrow)
-		r.Post("/escrows/{escrowID}/fund", handler.Fund)
-		r.Post("/escrows/{escrowID}/activate", handler.Activate)
-		r.Post("/escrows/{escrowID}/confirm", handler.ConfirmConditions)
-		r.Post("/escrows/{escrowID}/dispute", handler.RaiseDispute)
-		r.Post("/escrows/{escrowID}/propose-settlement", handler.ProposeSettlement)
-		r.Post("/escrows/{escrowID}/ratify", handler.RatifySettlement)
-		r.Post("/escrows/{escrowID}/finalize", handler.FinalizeSettlement)
-		r.Post("/escrows/{escrowID}/disburse", handler.Disburse)
-		r.Get("/escrows", handler.ListEscrows)
-		r.Get("/escrows/{escrowID}", handler.GetEscrow)
-		r.Get("/escrows/{escrowID}/lifecycle", handler.GetEscrowLifecycle)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 		r.Get("/metrics", handler.GetMetrics)
-		r.Get("/settlements", handler.ListSettlements)
-		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
-		r.Get("/wallets", handler.ListWallets)
 	})
 
 	server := &http.Server{
@@ -263,12 +207,36 @@ func runServer() {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	go func() {
-		logger.Info("starting escrow-api", zap.Int("port", cfg.Server.Port))
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("server failed", zap.Error(err))
+	// --- High-Assurance mTLS Enforcement (Secure by Default) ---
+	if !tlsDisabled {
+		caCert, err := os.ReadFile(caCertFile)
+		if err != nil {
+			logger.Fatal("failed to load CA cert (TLS enabled by default, use --notls to disable)", zap.Error(err))
 		}
-	}()
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+
+		server.TLSConfig = &tls.Config{
+			ClientCAs:    caCertPool,
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			MinVersion:   tls.VersionTLS13,
+			CipherSuites: []uint16{tls.TLS_AES_128_GCM_SHA256, tls.TLS_AES_256_GCM_SHA384},
+		}
+		
+		go func() {
+			logger.Info("starting high-assurance mTLS escrow-api", zap.Int("port", cfg.Server.Port))
+			if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				logger.Fatal("mTLS server failed", zap.Error(err))
+			}
+		}()
+	} else {
+		go func() {
+			logger.Info("starting unencrypted escrow-api (--notls active)", zap.Int("port", cfg.Server.Port))
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Fatal("server failed", zap.Error(err))
+			}
+		}()
+	}
 
 	waitForShutdown(server, logger)
 }
@@ -277,13 +245,8 @@ func waitForShutdown(server *http.Server, logger *zap.Logger) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 	<-stop
-
 	logger.Info("shutdown signal received")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("server shutdown failed", zap.Error(err))
-	}
+	_ = server.Shutdown(ctx)
 }

@@ -77,14 +77,15 @@ services:
   bank-api:
     build: .
     container_name: bank-api-dev
+    command: ["serve", "--notls"]
     environment:
       - ENVIRONMENT=dev
       - AUTH_BYPASS=true
-      - LEDGER_HOST=canton
-      - LEDGER_PORT=7575
+      - LEDGER_NODES_BANK_HOST=canton
+      - LEDGER_NODES_BANK_PORT=7575
       - PARTICIPANT_ID=bank
-      - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
     depends_on:
       canton:
         condition: service_started
@@ -94,14 +95,15 @@ services:
   buyer-api:
     build: .
     container_name: buyer-api-dev
+    command: ["serve", "--notls"]
     environment:
       - ENVIRONMENT=dev
       - AUTH_BYPASS=true
-      - LEDGER_HOST=canton
-      - LEDGER_PORT=7576
+      - LEDGER_NODES_BUYER_HOST=canton
+      - LEDGER_NODES_BUYER_PORT=7576
       - PARTICIPANT_ID=buyer
-      - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
     depends_on:
       canton:
         condition: service_started
@@ -111,14 +113,15 @@ services:
   seller-api:
     build: .
     container_name: seller-api-dev
+    command: ["serve", "--notls"]
     environment:
       - ENVIRONMENT=dev
       - AUTH_BYPASS=true
-      - LEDGER_HOST=canton
-      - LEDGER_PORT=7577
+      - LEDGER_NODES_SELLER_HOST=canton
+      - LEDGER_NODES_SELLER_PORT=7577
       - PARTICIPANT_ID=seller
-      - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
     depends_on:
       canton:
         condition: service_started
