@@ -156,6 +156,20 @@ verify-gcp-secrets: ## Authoritatively audit Secret Manager connectivity and ins
 	@echo "Auditing cloud secret vending..."
 	@go test -v -tags integration_gcp -run TestGCPSecretManagerSpecialty ./internal/config/
 
+## -- Observability & Dashboards --
+
+.PHONY: otel-up
+otel-up: ## Launch the High-Assurance Observability stack (Jaeger, Prometheus, Grafana)
+	@docker-compose -f docker-compose.otel.yml up -d
+
+.PHONY: otel-down
+otel-down: ## Stop the Observability stack
+	@docker-compose -f docker-compose.otel.yml down
+
+.PHONY: otel-logs
+otel-logs: ## Follow logs from the OTEL Collector
+	@docker logs -f otel-collector-dev
+
 ## -- Simulations --
 
 .PHONY: oracle-sim

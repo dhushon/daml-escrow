@@ -15,24 +15,33 @@ This project implements a **high-assurance, privacy-preserving stablecoin escrow
 ```mermaid
 graph TD
     User((User / Admin)) <-->|Port 4321| Astro[Astro Frontend]
-    Astro <-->|REST / JSON| Go[Go Backend API]
-    Go <-->|OIDC / JWKS| Okta[Okta Identity Provider]
-    Go <-->|REST / Signing| BG[BitGo Express Proxy]
-    Go <-->|REST / API| CR[Circle WaaS API]
-    Go <-->|Port 8081| JSON[Daml JSON API V2]
+    Astro <-->|Port 8080| Gateway[Unified API Gateway]
+    Gateway <-->|/bank| BankAPI[Bank API]
+    Gateway <-->|/buyer| BuyerAPI[Buyer API]
+    Gateway <-->|/seller| SellerAPI[Seller API]
+    
+    BankAPI <-->|OTLP| OTEL[OTEL Collector]
+    BuyerAPI <-->|OTLP| OTEL
+    SellerAPI <-->|OTLP| OTEL
+    
+    OTEL --> Jaeger[Jaeger Tracing]
+    OTEL --> Prometheus[Prometheus Metrics]
+    Prometheus --> Grafana[Grafana Dashboards]
+
+    BankAPI <-->|KMS| KMS[GCP KMS HSM]
+    BankAPI <-->|Port 8081| JSON[Daml JSON API V2]
     JSON <-->|Port 7575| Canton[Canton Ledger]
-    Canton <--> DB[(Postgres DB)]
-    Oracle((Oracle Service)) -->|Webhook| Go
 ```
 
-### Canton Network & Token Standards
+### High-Assurance Sovereignty & Observability
 
-This platform is built on the **Canton Network**, a privacy-enabled, interoperable blockchain designed for institutional finance. It leverages industry-standard protocols to ensure secure B2B stablecoin pledging and escrow:
+This platform implements a **Sovereign Tripartite Architecture**, ensuring each participant maintains data and compute isolation while providing unified operational visibility.
 
-* **CIP-0056 Token Standard:** Implements the "holding", "lockable", and "transferable" interfaces required for secure, interoperable stablecoin movement (e.g., USDCx via BitGo/Circle).
-* **Multi-Custody Support:** Dynamically pluggable providers for institutional-grade vaulting:
-    * **BitGo Enterprise:** Secure signing via BitGo Express local proxy.
-    * **Circle WaaS:** Direct integration with Developer-Controlled programmable wallets.
+*   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/buyer`, `/seller`).
+*   **OpenTelemetry (OTEL) Integration:** Distributed tracing and real-time metrics capture the institutional request lifecycle across distributed nodes.
+    *   **Jaeger Tracing:** Authoritative visualization of tripartite request spans tagged by `account.id`.
+    *   **Grafana Dashboards:** Pre-provisioned dashboards for system health, account performance, and contract-level operational velocity.
+*   **HSM-Backed Cryptography:** Authoritative settlement triggers are authoritatively proofed via **GCP Cloud KMS** hardware-backed asymmetric signatures.
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
 * **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.
