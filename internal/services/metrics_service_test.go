@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"daml-escrow/internal/ledger"
 	"fmt"
 	"testing"
@@ -15,8 +16,9 @@ func TestMetricsService(t *testing.T) {
 	svc := NewMetricsService()
 
 	t.Run("RecordRequest", func(t *testing.T) {
-		svc.RecordRequest(100*time.Millisecond, false)
-		svc.RecordRequest(200*time.Millisecond, true)
+		ctx := context.Background()
+		svc.RecordRequest(ctx, 100*time.Millisecond, false, "user-123", "escrow-456")
+		svc.RecordRequest(ctx, 200*time.Millisecond, true, "user-123", "escrow-456")
 
 		avg, count, errRate, _, _, _ := svc.GetSystemPerformance()
 		assert.Equal(t, 2, count)

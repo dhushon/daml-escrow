@@ -6,6 +6,10 @@ import (
 	"runtime"
 	"sync/atomic"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type APIStats struct {
@@ -15,22 +19,51 @@ type APIStats struct {
 }
 
 type MetricsService struct {
-	startTime    time.Time
-	apiStats     APIStats
+	startTime  time.Time
+	apiStats   APIStats
+	meter      metric.Meter
+	requestCounter  metric.Int64Counter
+	errorCounter    metric.Int64Counter
+	latencyRecorder metric.Float64Histogram
 }
 
 func NewMetricsService() *MetricsService {
+	m := otel.GetMeterProvider().Meter("escrow-api")
+	
+	req, _ := m.Int64Counter("api.requests.total", metric.WithDescription("Total institutional requests"))
+	err, _ := m.Int64Counter("api.errors.total", metric.WithDescription("Total request failures"))
+	lat, _ := m.Float64Histogram("api.latency", metric.WithDescription("Request latency in milliseconds"), metric.WithUnit("ms"))
+
 	return &MetricsService{
 		startTime: time.Now(),
+		meter:     m,
+		requestCounter:  req,
+		errorCounter:    err,
+		latencyRecorder: lat,
 	}
 }
 
-func (s *MetricsService) RecordRequest(duration time.Duration, isError bool) {
+func (s *MetricsService) RecordRequest(ctx context.Context, duration time.Duration, isError bool, accountID, contractID string) {
+	// 1. In-Memory Legacy Stats
 	atomic.AddUint64(&s.apiStats.TotalRequests, 1)
 	atomic.AddUint64(&s.apiStats.TotalDurationNS, uint64(duration.Nanoseconds()))
 	if isError {
 		atomic.AddUint64(&s.apiStats.TotalErrors, 1)
 	}
+
+	// 2. High-Assurance OTEL Metrics
+	attrs := []attribute.KeyValue{
+		attribute.String("account.id", accountID),
+	}
+	if contractID != "" {
+		attrs = append(attrs, attribute.String("contract.id", contractID))
+	}
+
+	s.requestCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
+	if isError {
+		s.errorCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
+	}
+	s.latencyRecorder.Record(ctx, float64(duration.Milliseconds()), metric.WithAttributes(attrs...))
 }
 
 func (s *MetricsService) GetHealth(configSvc *ConfigService, ledgerClient ledger.Client, oracleSecret string) ledger.HealthResponse {

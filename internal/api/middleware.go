@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -62,7 +63,17 @@ func MetricsMiddleware(metrics *services.MetricsService) func(http.Handler) http
 			next.ServeHTTP(rw, r)
 			duration := time.Since(start)
 			isError := rw.statusCode >= 400
-			metrics.RecordRequest(duration, isError)
+
+			// High-Assurance: Extract Account and Contract IDs for granular observability
+			accountID, _ := r.Context().Value(AuthSubKey).(string)
+			if accountID == "" {
+				accountID = "anonymous"
+			}
+			
+			// Optional: Extract contract ID from common path patterns if present
+			contractID := chi.URLParam(r, "escrowID")
+
+			metrics.RecordRequest(r.Context(), duration, isError, accountID, contractID)
 		})
 	}
 }

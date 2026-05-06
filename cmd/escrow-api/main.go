@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/riandyrn/otelchi"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -93,7 +94,15 @@ func runServer() {
 		zap.String("env", cfg.Auth.Environment), 
 		zap.Bool("bypass", cfg.Auth.AuthBypass))
 
-	// Initialize high-assurance signer for Oracle Verification
+	// 1. Initialize high-assurance telemetry
+	telemetry, err := api.InitTelemetry(ctx, "escrow-api", cfg.Auth.Environment)
+	if err != nil {
+		logger.Warn("failed to initialize telemetry, continuing without tracing", zap.Error(err))
+	} else {
+		defer func() { _ = telemetry.Shutdown(context.Background()) }()
+	}
+
+	// 2. Initialize high-assurance signer for Oracle Verification
 	var oracleSigner crypto.HighAssuranceSigner
 	if cfg.GCPProjectID != "" {
 		// Production: Use Cloud KMS HSM
@@ -183,6 +192,9 @@ func runServer() {
 	router := chi.NewRouter()
 
 	// 1. Core Middleware
+	if telemetry != nil {
+		router.Use(otelchi.Middleware("escrow-api", otelchi.WithChiRoutes(router)))
+	}
 	router.Use(api.LoggingMiddleware(logger))
 	router.Use(api.MetricsMiddleware(metricsService))
 
