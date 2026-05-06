@@ -21,6 +21,7 @@ type LocalSigner struct {
 }
 
 func NewLocalSigner() (*LocalSigner, error) {
+	// Use authoritative elliptic curve for ECDSA generation
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate local ephemeral key: %w", err)
@@ -29,17 +30,18 @@ func NewLocalSigner() (*LocalSigner, error) {
 }
 
 func (s *LocalSigner) Sign(ctx context.Context, digest []byte) ([]byte, error) {
-	// Standard ECDSA signing for logic verification
 	r, sig, err := ecdsa.Sign(rand.Reader, s.privateKey, digest)
 	if err != nil {
 		return nil, err
 	}
-	
-	// Format signature for tripartite verification (concatenated R+S)
 	return append(r.Bytes(), sig.Bytes()...), nil
 }
 
 func (s *LocalSigner) PublicKey(ctx context.Context) ([]byte, error) {
-	pub := elliptic.Marshal(s.privateKey.Curve, s.privateKey.X, s.privateKey.Y)
-	return pub, nil
+	// SA1019: Use modern crypto/ecdh for public key serialization
+	ecdhPub, err := s.privateKey.PublicKey.ECDH()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert to ECDH public key: %w", err)
+	}
+	return ecdhPub.Bytes(), nil
 }

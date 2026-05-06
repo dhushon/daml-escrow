@@ -41,7 +41,7 @@ func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("health check requested")
 	health := h.metricsService.GetHealth(h.configService, h.escrowService.GetLedgerClient(), h.escrowService.GetOracleSecret())
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	_ = json.NewEncoder(w).Encode(health)
 }
 
 func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(identity)
+	_ = json.NewEncoder(w).Encode(identity)
 }
 
 func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +77,7 @@ func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config)
+	_ = json.NewEncoder(w).Encode(config)
 }
 
 func (h *Handler) ListIdentities(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +87,7 @@ func (h *Handler) ListIdentities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(identities)
+	_ = json.NewEncoder(w).Encode(identities)
 }
 
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +98,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(cfg)
+	_, _ = w.Write(cfg)
 }
 
 func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +124,7 @@ func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(invites)
+	_ = json.NewEncoder(w).Encode(invites)
 }
 
 func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(invite)
+	_ = json.NewEncoder(w).Encode(invite)
 }
 
 func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +156,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(invite)
+	_ = json.NewEncoder(w).Encode(invite)
 }
 
 func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +192,7 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(proposal)
+	_ = json.NewEncoder(w).Encode(proposal)
 }
 
 func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
@@ -219,7 +219,7 @@ func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(id))
+	_, _ = w.Write([]byte(id))
 }
 
 func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +257,7 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(id))
+	_, _ = w.Write([]byte(id))
 }
 
 func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +268,7 @@ func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(id))
+	_, _ = w.Write([]byte(id))
 }
 
 func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +279,7 @@ func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write([]byte(id))
+	_, _ = w.Write([]byte(id))
 }
 
 func (h *Handler) Disburse(w http.ResponseWriter, r *http.Request) {
@@ -301,7 +301,7 @@ func (h *Handler) ListEscrows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(escrows)
+	_ = json.NewEncoder(w).Encode(escrows)
 }
 
 func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +313,7 @@ func (h *Handler) GetEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(escrow)
+	_ = json.NewEncoder(w).Encode(escrow)
 }
 
 func (h *Handler) GetEscrowLifecycle(w http.ResponseWriter, r *http.Request) {
@@ -325,7 +325,7 @@ func (h *Handler) GetEscrowLifecycle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(lifecycle)
+	_ = json.NewEncoder(w).Encode(lifecycle)
 }
 
 func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request) {
@@ -352,7 +352,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(metrics)
+	_ = json.NewEncoder(w).Encode(metrics)
 }
 
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +362,7 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(settlements)
+	_ = json.NewEncoder(w).Encode(settlements)
 }
 
 func (h *Handler) SettlePayment(w http.ResponseWriter, r *http.Request) {
@@ -383,5 +383,5 @@ func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(wallets)
+	_ = json.NewEncoder(w).Encode(wallets)
 }
