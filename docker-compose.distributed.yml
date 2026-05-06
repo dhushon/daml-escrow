@@ -1,10 +1,9 @@
-# Phase 8: Multi-Participant Sovereign Topology (Local Docker)
-# Isolated nodes and APIs for Bank, Buyer, and Seller with a unified Gateway entrypoint.
+name: daml-escrow-dev
 
 services:
   postgres:
     image: postgres:16
-    container_name: escrow-postgres-dist
+    container_name: escrow-postgres-dev
     restart: always
     command: ["postgres", "-c", "max_connections=500"]
     environment:
@@ -23,6 +22,7 @@ services:
 
   db-init:
     image: postgres:16
+    container_name: escrow-db-init-dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,6 +32,7 @@ services:
         set -e
         export PGPASSWORD=escrow
         for db in canton_bank canton_buyer canton_seller canton_sequencer canton_mediator user_config; do
+          psql -h postgres -U escrow -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$$db' AND pid <> pg_backend_pid();" || true
           psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS $$db;"
           psql -h postgres -U escrow -d postgres -c "CREATE DATABASE $$db;"
         done
@@ -51,7 +52,7 @@ services:
 
   canton:
     image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
-    container_name: escrow-ledger-dist
+    container_name: escrow-ledger-dev
     ports:
       - "7575:7575"   # Bank HTTP API
       - "7576:7576"   # Buyer HTTP API
@@ -83,6 +84,7 @@ services:
       - LEDGER_PORT=7575
       - PARTICIPANT_ID=bank
       - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     depends_on:
       canton:
         condition: service_started
@@ -99,6 +101,7 @@ services:
       - LEDGER_PORT=7576
       - PARTICIPANT_ID=buyer
       - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     depends_on:
       canton:
         condition: service_started
@@ -115,6 +118,7 @@ services:
       - LEDGER_PORT=7577
       - PARTICIPANT_ID=seller
       - USER_CONFIG_DSN=postgres://escrow:escrow@postgres:5432/user_config?sslmode=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     depends_on:
       canton:
         condition: service_started

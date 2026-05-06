@@ -1,9 +1,10 @@
-version: "3.8"
+name: daml-escrow-dev
 
 services:
   # 1. OTEL Collector: The high-assurance telemetry hub
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: otel-collector-dev
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
@@ -16,6 +17,7 @@ services:
   # 2. Prometheus: Time-series database for metrics
   prometheus:
     image: prom/prometheus:latest
+    container_name: prometheus-dev
     volumes:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
@@ -26,6 +28,7 @@ services:
   # 3. Jaeger: Distributed tracing visualization
   jaeger:
     image: jaegertracing/all-in-one:latest
+    container_name: jaeger-dev
     ports:
       - "16686:16686" # Web UI
       - "4317:4317"  # OTLP gRPC
@@ -35,11 +38,14 @@ services:
   # 4. Grafana: Unified Observability Dashboard
   grafana:
     image: grafana/grafana:latest
+    container_name: grafana-dev
     ports:
       - "3000:3000"
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./config/grafana-provisioning.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
     networks:
       - escrow-net
 
