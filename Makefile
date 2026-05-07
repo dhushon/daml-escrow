@@ -51,27 +51,17 @@ local-down: ## Definitive purge of all local tripartite and observability contai
 	@echo "Purging local tripartite stack..."
 	@docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml down -v --remove-orphans
 
-.PHONY: pilot-deploy
-pilot-deploy: ## Authoritatively deploy the tripartite manifests to the live GKE cluster
-	@echo "Deploying to GKE Pilot (api.vdatacloudai.com)..."
-	@kubectl apply -f k8s/namespaces.yaml
-	@kubectl apply -f k8s/tls-issuer.yaml
-	@kubectl apply -f k8s/cas-issuer.yaml
-	@kubectl apply -f k8s/canton-configs.yaml
-	@kubectl apply -f k8s/bank-ledger.yaml
-	@kubectl apply -f k8s/bank-api.yaml
-	@kubectl apply -f k8s/buyer-ledger.yaml
-	@kubectl apply -f k8s/buyer-api.yaml
-	@kubectl apply -f k8s/seller-ledger.yaml
-	@kubectl apply -f k8s/seller-api.yaml
-	@kubectl apply -f k8s/ingress.yaml
+.PHONY: pilot-up
+pilot-up: ## Authoritatively launch the full GKE Pilot (api.vdatacloudai.com)
+	@./scripts/gke-pilot.sh up
+
+.PHONY: pilot-down
+pilot-down: ## Definitive purge of all GKE pilot workloads and namespaces
+	@./scripts/gke-pilot.sh down
 
 .PHONY: pilot-status
 pilot-status: ## Authoritatively audit the health of the live GKE tripartite nodes
-	@echo "Auditing GKE Pilot Status..."
-	@kubectl get pods --all-namespaces -l "env=dev"
-	@kubectl get ingress -n bank
-	@kubectl get certificate --all-namespaces
+	@./scripts/gke-pilot.sh status
 
 ## -- Observability & Dashboards --
 
