@@ -33,7 +33,12 @@ spec:
           value: "vdcai-daml"
         - name: ENVIRONMENT
           value: "dev"
-        # Secret Manager will authoritatively vend OKTA_CLIENT_SECRET, etc.
+        # High-Assurance: Start in TLS mode
+        command: ["/app/escrow-api", "serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
+        volumeMounts:
+        - name: certs
+          mountPath: /etc/escrow/certs
+          readOnly: true
         resources:
           limits:
             cpu: "500m"
@@ -41,6 +46,10 @@ spec:
           requests:
             cpu: "250m"
             memory: "256Mi"
+      volumes:
+      - name: certs
+        secret:
+          secretName: bank-api-mtls-secret
 ---
 apiVersion: v1
 kind: Service
@@ -49,8 +58,9 @@ metadata:
   namespace: bank
 spec:
   ports:
-  - port: 80
+  - port: 443
     targetPort: 8080
+    name: https
   selector:
     app: bank-api
   type: ClusterIP

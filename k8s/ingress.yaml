@@ -7,9 +7,12 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
-    # High-Assurance TLS: Automate via Cert-Manager
+    # High-Assurance TLS (Public)
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     kubernetes.io/ingress.global-static-ip-name: "escrow-gateway-ip-dev"
+    # High-Assurance mTLS (Internal Origin)
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "bank/bank-api-mtls-secret"
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
 spec:
   tls:
   - hosts:
@@ -25,23 +28,23 @@ spec:
           service:
             name: bank-api
             port:
-              number: 80
+              number: 443 # Authoritatively switched to mTLS port
       - path: /buyer/(.*)
         pathType: Prefix
         backend:
           service:
             name: buyer-api-cross
             port:
-              number: 80
+              number: 443
       - path: /seller/(.*)
         pathType: Prefix
         backend:
           service:
             name: seller-api-cross
             port:
-              number: 80
+              number: 443
 ---
-# Cross-Namespace Links (ExternalName)
+# Cross-Namespace Links (mTLS Port)
 apiVersion: v1
 kind: Service
 metadata:

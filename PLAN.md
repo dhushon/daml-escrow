@@ -48,9 +48,10 @@ Goals: Establish production-grade OIDC bridge, automated infrastructure, and agg
 
 1. **Okta OIDC Bridge:** Implemented strict JWT validation against Okta JWKS. External identity assertions drive Just-In-Time (JIT) ledger provisioning.
 2. **Identity-as-Code:** Automated the entire Okta stack (Apps, Servers, Users) using Terraform.
-3. **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
-4. **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
-5. **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
+3. **Identity Registry:** Created `docs/IDENTITY.md` authoritatively defining Contributor and Deployment Service principal models for SOC2 compliance.
+4. **Deep Health Aggregator:** Created a recursive diagnostic engine that aggregates the state of Postgres, Canton, and Oracle sub-systems with latency tracking.
+5. **Directory Service:** Added a live counterparty discovery mechanism, allowing users to select authorized participants directly from the ledger.
+6. **Production CLI:** Migrated the Go API to a professional Cobra/Viper structure, supporting environment-aware configuration via flags and YAML.
 
 ------------------------------------------------------------------------
 
@@ -87,6 +88,24 @@ Goals: Transition to isolated service-per-node architecture.
 1. **Structural Sovereignty:** Refactored Go API to support `PARTICIPANT_ID` locking, ensuring each container instance is authoritatively bound to a single ledger node.
 2. **Tripartite Orchestration:** Implemented isolated Kubernetes manifests (`bank`, `buyer`, `seller`) for both Canton ledger nodes and Go API instances.
 3. **High-Assurance Release Path:** Provisioned GCP Artifact Registry and established the `k8s/` guide for sovereign institutional deployment.
+
+------------------------------------------------------------------------
+
+## Phase 10 --- Institutional Pilot & Verification (IN PROGRESS)
+
+Goals: Authoritative release and live verification under the vdatacloudai.com domain.
+
+### Achievements
+
+1. **Authoritative Release:** Successfully pushed production-grade sovereign images to the GCP Artifact Registry.
+2. **Live Orchestration:** Deployed the full tripartite stack (Bank, Buyer, Seller) to the live GKE cluster.
+3. **Sovereign Perimeter:** Established the `api.vdatacloudai.com` entrypoint via Global Static IP and Let's Encrypt TLS 1.3.
+
+### Tasks
+
+- [ ] **Internal mTLS Enforcement:** Finalize sidecar certificate injection via GCP CAS.
+- [ ] **Live Health Audit:** Perform deep health verification across all tripartite namespaces.
+- [ ] **Domain Verification:** Confirm authoritative mapping and SSL termination at api.vdatacloudai.com.
 
 ------------------------------------------------------------------------
 
