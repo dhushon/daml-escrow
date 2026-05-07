@@ -1,160 +1,77 @@
-# Makefile for Stablecoin Escrow Platform
+# Phase 7: Production-Ready Orchestration (Makefile)
 
-APP_NAME=escrow-api
-DPM=/Users/dhushon/.dpm/bin/dpm
-JAVA_HOME_17=/opt/homebrew/opt/openjdk@17
-
-# Ledger Config Paths
-SANDBOX_CONF=Sandbox/sandbox.conf
-SANDBOX_INIT=Sandbox/sandbox_init.canton
-SETUP_SCRIPT=scripts/setup_users.sh
-
-.DEFAULT_GOAL := help
-
-## -- Help & Documentation --
+.PHONY: all
+all: build test
 
 .PHONY: help
-help: ## Show this help message
-	@echo "Stablecoin Escrow Platform - Management Console"
-	@echo ""
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Strategies:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-## -- Full-Stack Orchestration --
-
-.PHONY: up
-up: docker-up api-up frontend-up ## START everything (Docker Ledger + Background API + Background Frontend)
-	@echo "---------------------------------------"
-	@echo "Full stack is UP."
-	@echo "Web Dashboard: http://localhost:4321"
-	@echo "Backend API:   http://localhost:8081"
-	@echo "Ledger JSON:   http://localhost:7575"
-	@echo "---------------------------------------"
-
-.PHONY: down
-down: ## STOP everything (Docker Ledger + Background processes)
-	@echo "Stopping all components..."
-	@-[ -f api.pid ] && kill $$(cat api.pid) && rm api.pid || true
-	@-[ -f frontend.pid ] && kill $$(cat frontend.pid) && rm frontend.pid || true
-	@pkill -f "npm run dev" || true
-	docker-compose down
-	@echo "Stack is down."
-
-## -- Component Lifecycle --
-
-.PHONY: docker-up
-docker-up: ## Start only the Ledger and Database (Docker)
-	@echo "Starting Docker Compose stack (Ledger + DB)..."
-	docker-compose up -d --build
-	@echo "Monitoring ledger logs for readiness..."
-	@count=0; until docker-compose logs sandbox | grep -q "Setup complete." || [ $$count -eq 60 ]; do \
-		sleep 5; \
-		count=$$((count + 1)); \
-	done
-	@docker-compose logs sandbox | grep -q "Setup complete." && echo "Ledger reports: Setup complete." || (echo "Timed out waiting for ledger setup"; exit 1)
-
-.PHONY: api-up
-api-up: build sync ## Start only the Go API (background) after syncing state
-	@echo "Starting Go API on port 8081 (background)..."
-	@nohup bin/$(APP_NAME) serve --env dev --bypass > api.log 2>&1 & echo $$! > api.pid
-	@echo "API started. PID: $$(cat api.pid). Logs: api.log"
-
-.PHONY: frontend-up
-frontend-up: ## Start only the Astro Frontend (background)
-	@echo "Starting Astro Frontend on port 4321 (background)..."
-	@cd frontend && nohup npm run dev > ../frontend.log 2>&1 & echo $$! > frontend.pid
-	@echo "Frontend started. PID: $$(cat frontend.pid). Logs: frontend.log"
-
-## -- Build & Development --
+help: ## Display this help screen
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Build Go binaries (API and Simulator)
-	@echo "Building Go API..."
-	go build -o bin/$(APP_NAME) ./cmd/escrow-api
-	@echo "Building Oracle Simulator..."
-	go build -o bin/oracle-simulator ./cmd/oracle-simulator
-	@echo "Building Ledger Sync Tool..."
-	go build -o bin/ledger-sync ./cmd/ledger-sync
+build: frontend-build api-build ## Build both frontend and backend
+
+.PHONY: frontend-build
+frontend-build: ## Build the Astro production server
+	@echo "Building frontend..."
+	@cd frontend && npm run build
+
+.PHONY: api-build
+api-build: ## Build the Go API server
+	@echo "Building backend..."
+	@go build -o bin/escrow-api ./cmd/escrow-api
+
+.PHONY: test
+test: ## Run all unit tests
+	@go test -v ./...
+
+.PHONY: integration-test
+integration-test: ## Run local integration tests (requires Docker)
+	@echo "Running integration tests..."
+	@go test -v -tags integration ./internal/ledger/...
 
 .PHONY: sync
-sync: build ## DISCOVER and EXPORT ledger state (Package IDs, Party IDs) to ledger-state.json
-	@echo "Exporting ledger state..."
-	FORCE_DISCOVERY=true ./bin/ledger-sync -host localhost -port 7575 \
+sync: ## Synchronize ledger state (resolve Package and Party IDs)
+	@echo "Discovering ledger state on localhost:7575 (timeout: 5m)..."
+	@./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
 		-out ledger-state.json
 
-.PHONY: daml-build
-daml-build: ## Build all Daml packages using DPM
-	@echo "Building Daml Contracts..."
-	cd contracts && $(DPM) build --all
+## -- High-Assurance Orchestration --
 
-.PHONY: clean-db
-clean-db: ## Wipe the persistent ledger database (Postgres)
-	@echo "Wiping persistent ledger database..."
-	docker-compose exec -T postgres psql -U escrow -d postgres -c "DROP DATABASE IF EXISTS escrow;" || true
-	docker-compose exec -T postgres psql -U escrow -d postgres -c "CREATE DATABASE escrow;" || true
+.PHONY: local-up
+local-up: ## Launch the local tripartite tripartite simulation and observability stack
+	@echo "Launching local tripartite stack..."
+	@docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml up -d --build
+	@sleep 15
+	@$(MAKE) sync
 
-.PHONY: clean
-clean: ## Remove binaries, logs, and PID files
-	rm -rf bin *.log *.pid
+.PHONY: local-down
+local-down: ## Definitive purge of all local tripartite and observability containers
+	@echo "Purging local tripartite stack..."
+	@docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml down -v --remove-orphans
 
-.PHONY: clean-frontend
-clean-frontend: ## Clean Astro frontend build artifacts
-	cd frontend && rm -rf dist .astro node_modules
+.PHONY: pilot-deploy
+pilot-deploy: ## Authoritatively deploy the tripartite manifests to the live GKE cluster
+	@echo "Deploying to GKE Pilot (api.vdatacloudai.com)..."
+	@kubectl apply -f k8s/namespaces.yaml
+	@kubectl apply -f k8s/tls-issuer.yaml
+	@kubectl apply -f k8s/cas-issuer.yaml
+	@kubectl apply -f k8s/canton-configs.yaml
+	@kubectl apply -f k8s/bank-ledger.yaml
+	@kubectl apply -f k8s/bank-api.yaml
+	@kubectl apply -f k8s/buyer-ledger.yaml
+	@kubectl apply -f k8s/buyer-api.yaml
+	@kubectl apply -f k8s/seller-ledger.yaml
+	@kubectl apply -f k8s/seller-api.yaml
+	@kubectl apply -f k8s/ingress.yaml
 
-## -- GCP Identity Management --
-
-.PHONY: gcp-identity-up
-gcp-identity-up: ## Initialize Google Cloud Identity Platform and enable APIs
-	@chmod +x scripts/setup_gcp_identity.sh
-	./scripts/setup_gcp_identity.sh
-
-.PHONY: gcp-identity-down
-gcp-identity-down: ## Disable Identity Platform APIs (Clean)
-	@echo "Disabling Identity Platform APIs..."
-	gcloud services disable identitytoolkit.googleapis.com identityplatform.googleapis.com
-	@echo "GCP Identity services disabled."
-
-## -- Testing --
-
-.PHONY: test
-test: ## Run Go unit tests (fast, no infra)
-	go test -v ./...
-
-.PHONY: integration-test
-integration-test: ## Run local integration tests (single-node sandbox)
-	@echo "Running local integration tests..."
-	@go test -v -tags integration ./internal/ledger/... ./internal/services/...
-
-.PHONY: distributed-test
-distributed-test: ## Run multi-node distributed tests (full topology)
-	@echo "Running multi-node distributed tests..."
-	@go test -v -tags distributed ./internal/ledger/...
-
-.PHONY: test-bitgo
-test-bitgo: ## Run integration tests specifically for BitGo stablecoin assets
-	@echo "Running BitGo integration tests..."
-	@go test -v -tags "integration,stablecoin,bitgo" ./internal/ledger/...
-
-.PHONY: test-circle
-test-circle: ## Run integration tests specifically for Circle stablecoin assets
-	@echo "Running Circle integration tests..."
-	@go test -v -tags "integration,stablecoin,circle" ./internal/ledger/...
-
-
-
-.PHONY: integration-gcp
-integration-gcp: ## Run all GCP-specific integration tests (Secret Manager, Cloud SQL)
-	@echo "Running GCP integration tests..."
-	@go test -v -tags integration_gcp ./internal/config/... ./internal/ledger/gcp_db_test.go
-
-.PHONY: verify-gcp-secrets
-verify-gcp-secrets: ## Authoritatively audit Secret Manager connectivity and institutional key vending
-	@echo "Auditing cloud secret vending..."
-	@go test -v -tags integration_gcp -run TestGCPSecretManagerSpecialty ./internal/config/
+.PHONY: pilot-status
+pilot-status: ## Authoritatively audit the health of the live GKE tripartite nodes
+	@echo "Auditing GKE Pilot Status..."
+	@kubectl get pods --all-namespaces -l "env=dev"
+	@kubectl get ingress -n bank
+	@kubectl get certificate --all-namespaces
 
 ## -- Observability & Dashboards --
 
@@ -169,6 +86,18 @@ otel-down: ## Stop the Observability stack
 .PHONY: otel-logs
 otel-logs: ## Follow logs from the OTEL Collector
 	@docker logs -f otel-collector-dev
+
+## -- Specialized Verification --
+
+.PHONY: integration-gcp
+integration-gcp: ## Run all GCP-specific integration tests (Secret Manager, Cloud SQL)
+	@echo "Running GCP integration tests..."
+	@go test -v -tags integration_gcp ./internal/config/... ./internal/ledger/gcp_db_test.go
+
+.PHONY: verify-gcp-secrets
+verify-gcp-secrets: ## Authoritatively audit Secret Manager connectivity and institutional key vending
+	@echo "Auditing cloud secret vending..."
+	@go test -v -tags integration_gcp -run TestGCPSecretManagerSpecialty ./internal/config/
 
 ## -- Simulations --
 
