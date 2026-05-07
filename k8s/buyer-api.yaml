@@ -33,7 +33,8 @@ spec:
           value: "vdcai-daml"
         - name: ENVIRONMENT
           value: "dev"
-        command: ["/app/escrow-api", "serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
+        command: ["/app/escrow-api"]
+        args: ["serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
         volumeMounts:
         - name: certs
           mountPath: /etc/escrow/certs

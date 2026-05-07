@@ -23,21 +23,21 @@ spec:
     http:
       paths:
       - path: /bank/(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: bank-api
             port:
-              number: 443 # Authoritatively switched to mTLS port
+              number: 443
       - path: /buyer/(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: buyer-api-cross
             port:
               number: 443
       - path: /seller/(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: seller-api-cross

@@ -33,8 +33,9 @@ spec:
           value: "vdcai-daml"
         - name: ENVIRONMENT
           value: "dev"
-        # High-Assurance: Start in TLS mode
-        command: ["/app/escrow-api", "serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
+        # High-Assurance: Correct command order
+        command: ["/app/escrow-api"]
+        args: ["serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
         volumeMounts:
         - name: certs
           mountPath: /etc/escrow/certs

@@ -28,6 +28,11 @@ resource "google_container_cluster" "primary" {
     services_secondary_range_name = ""
   }
 
+  # High-Assurance: Enable Workload Identity
+  workload_identity_config {
+    workload_pool = "${var.project_id}.svc.id.goog"
+  }
+
   depends_on = [google_project_service.container]
 }
 
