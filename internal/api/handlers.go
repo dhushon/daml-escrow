@@ -175,13 +175,20 @@ func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	var req ProposeEscrowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		h.logger.Error("failed to decode propose escrow request", zap.Error(err))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid json: " + err.Error()})
 		return
 	}
 	if err := req.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.logger.Error("validation failed for propose escrow request", zap.Error(err))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request: " + err.Error()})
 		return
 	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	ledgerReq := req.ToLedgerRequest()
 	ledgerReq.Buyer = userID

@@ -36,6 +36,12 @@ func (r *ProposeEscrowRequest) Validate() error {
 	if strings.TrimSpace(r.Currency) == "" {
 		return errors.New("currency is required")
 	}
+	
+	// High-Assurance: Default to 30 days if expiry is zero
+	if r.ExpiryDate.IsZero() {
+		r.ExpiryDate = time.Now().AddDate(0, 0, 30)
+	}
+
 	if r.ExpiryDate.Before(time.Now()) {
 		return errors.New("expiry date must be in the future")
 	}

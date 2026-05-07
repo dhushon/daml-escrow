@@ -199,16 +199,16 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 		}
 
 		const req = {
-			buyer: session?.identity.damlUserId || 'Buyer',
 			seller: formData.get('seller'),
 			amount: totalAmount,
 			currency: formData.get('currency'),
-			description: 'Escrow proposed via Dashboard',
-			milestones: milestones,
-			metadata: {
-				schemaUrl: formData.get('schemaUrl'),
-				payload: payload
-			}
+			assetType: 'Stablecoin',
+			assetId: 'USDC-PILOT-v1',
+			conditionDescription: milestones.map(m => `${m.label}: ${m.amount}`).join(', '),
+			conditionType: 'MILESTONE',
+			evidenceRequired: 'AUTHORITATIVE_SIGNATURE',
+			schemaUrl: formData.get('schemaUrl'),
+			payload: payload
 		};
 
 		try {
