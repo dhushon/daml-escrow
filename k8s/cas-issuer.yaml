@@ -1,0 +1,58 @@
+apiVersion: cas-issuer.jetstack.io/v1beta1
+kind: GoogleCASClusterIssuer
+metadata:
+  name: escrow-cas-issuer
+spec:
+  project: vdcai-daml
+  location: us-central1
+  caPoolId: escrow-ca-pool-dev
+---
+# High-Assurance Internal Trust Anchors
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bank-api-internal-cert
+  namespace: bank
+spec:
+  secretName: bank-api-mtls-secret
+  duration: 24h
+  renewBefore: 8h
+  dnsNames:
+    - bank-api.bank.svc.cluster.local
+  issuerRef:
+    group: cas-issuer.jetstack.io
+    kind: GoogleCASClusterIssuer
+    name: escrow-cas-issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: buyer-api-internal-cert
+  namespace: buyer
+spec:
+  secretName: buyer-api-mtls-secret
+  duration: 24h
+  renewBefore: 8h
+  dnsNames:
+    - buyer-api.buyer.svc.cluster.local
+  issuerRef:
+    group: cas-issuer.jetstack.io
+    kind: GoogleCASClusterIssuer
+    name: escrow-cas-issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: seller-api-internal-cert
+  namespace: seller
+spec:
+  secretName: seller-api-mtls-secret
+  duration: 24h
+  renewBefore: 8h
+  dnsNames:
+    - seller-api.seller.svc.cluster.local
+  issuerRef:
+    group: cas-issuer.jetstack.io
+    kind: GoogleCASClusterIssuer
+    name: escrow-cas-issuer

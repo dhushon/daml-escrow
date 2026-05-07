@@ -181,14 +181,15 @@ func runServer() {
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Dev-User"},
 	}))
-
-	var verifier api.TokenVerifier
-	if !(cfg.Auth.Environment == "dev" && cfg.Auth.AuthBypass) {
-		verifier, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
-		if err != nil {
-			logger.Fatal("failed to OIDC verifier", zap.Error(err))
-		}
+var verifier api.TokenVerifier
+if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
+	var err error
+	verifier, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
+	if err != nil {
+		logger.Fatal("failed to OIDC verifier", zap.Error(err))
 	}
+}
+
 
 	router.Use(api.AuthMiddleware(cfg.Auth, verifier, logger))
 	

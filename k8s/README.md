@@ -24,13 +24,26 @@ Apply the necessary `PersistentVolumeClaims` and `ConfigMaps` for the Canton nod
 kubectl apply -f k8s/bank-ledger.yaml
 kubectl apply -f k8s/bank-api.yaml
 ```
+### 4. High-Assurance Pilot (vdatacloudai.com)
+For production-grade pilot deployments, the platform utilizes a Global Static IP and automated Let's Encrypt certificates.
 
-### 4. High-Assurance Verification
-Verify that the Bank's API can only communicate with the Bank's ledger:
+1. **Provision Infrastructure**: Ensure `terraform/dns.tf` is applied to create the Static IP and Cloud DNS zones.
+2. **Apply TLS Identity**:
+   ```bash
+   kubectl apply -f k8s/tls-issuer.yaml
+   ```
+3. **Hardened Ingress**: Apply the ingress with Let's Encrypt annotations:
+   ```bash
+   kubectl apply -f k8s/ingress.yaml
+   ```
+
+### 5. High-Assurance Verification
+Verify that the domain is correctly mapped and protected by TLS 1.3:
 ```bash
-kubectl get pods -n bank
-kubectl logs -f deployment/bank-api -n bank
+curl -v https://api.vdatacloudai.com/bank/api/v1/health
 ```
 
 ## Security & Secrets
+...
+
 Sensitive credentials (Okta Client Secret, Stablecoin Tokens) are authoritatively vended from **GCP Secret Manager** at runtime. Ensure the GKE Node Pool has the necessary IAM permissions to access these secrets.
