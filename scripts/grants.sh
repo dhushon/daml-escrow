@@ -35,17 +35,25 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \
   --role="roles/artifactregistry.admin" --quiet > /dev/null
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$CONTRIBUTOR" \
+  --role="roles/resourcemanager.projectIamAdmin" --quiet > /dev/null
+
 # 3. GKE: Kubernetes Orchestration
 echo "[3/4] Granting GKE Admin Privileges..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \
   --role="roles/container.admin" --quiet > /dev/null
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$CONTRIBUTOR" \
+  --role="roles/container.clusterAdmin" --quiet > /dev/null
+
 # 4. COMPUTE: Network & VPC Auditing
 echo "[4/4] Granting Network Auditing Privileges..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \
-  --role="roles/compute.networkAdmin" --quiet > /dev/null
+  --role="roles/compute.admin" --quiet > /dev/null
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \

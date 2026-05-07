@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bank-config
+  namespace: bank
+data:
+  bank.conf: |
+    canton {
+      participants {
+        bank {
+          storage.type = memory
+          admin-api.port = 5001
+          ledger-api.port = 5002
+          http-ledger-api.port = 7575
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buyer-config
+  namespace: buyer
+data:
+  buyer.conf: |
+    canton {
+      participants {
+        buyer {
+          storage.type = memory
+          admin-api.port = 6001
+          ledger-api.port = 6002
+          http-ledger-api.port = 7576
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seller-config
+  namespace: seller
+data:
+  seller.conf: |
+    canton {
+      participants {
+        seller {
+          storage.type = memory
+          admin-api.port = 7001
+          ledger-api.port = 7002
+          http-ledger-api.port = 7577
+        }
+      }
+    }
