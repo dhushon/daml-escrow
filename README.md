@@ -44,6 +44,7 @@ This platform implements a **Sovereign Tripartite Architecture**, ensuring each 
     *   **Grafana Dashboards:** Pre-provisioned dashboards for system health, account performance, and contract-level operational velocity.
 *   **HSM-Backed Cryptography:** Authoritative settlement triggers are authoritatively proofed via **GCP Cloud KMS** hardware-backed asymmetric signatures.
 *   **High-Assurance Identity:** Sovereign principal models (Contributor vs Deployment Service) are authoritatively codified. See the **[Identity Registry](./docs/IDENTITY.md)** for details.
+*   **Networking & Ports:** Authoritative mapping for tripartite routing and observability. See the **[Networking Registry](./docs/NETWORKING.md)** for details.
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
 * **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.
