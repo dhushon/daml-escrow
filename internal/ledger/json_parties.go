@@ -132,7 +132,7 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 	return identities, nil
 }
 
-func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
+func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
 	damlUserID := sanitizeSub(oktaSub)
 
 	// 1. Allocate Party

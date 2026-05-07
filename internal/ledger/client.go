@@ -153,6 +153,7 @@ type UserIdentity struct {
 	DamlPartyID string `json:"damlPartyId"`
 	Email       string `json:"email"`
 	DisplayName string `json:"displayName"`
+	Role        string `json:"role"` // Buyer, Seller, Mediator
 }
 
 type OracleWebhookRequest struct {
@@ -216,7 +217,7 @@ type Client interface {
 	SettlePayment(ctx context.Context, settlementID string) error
 	ListWallets(ctx context.Context, userID string) ([]*Wallet, error)
 	GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error)
-	ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error)
+	ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error)
 	ListIdentities(ctx context.Context) ([]*UserIdentity, error)
 
 	// Utilities

@@ -77,10 +77,18 @@ func (s *IdentityService) GetOrCreateIdentity(ctx context.Context, oktaSub, emai
 		return identity, nil
 	}
 
+	// Authoritatively determine institutional role
+	role := "Buyer" // Default fallback
+	emailLower := strings.ToLower(email)
+	if strings.Contains(emailLower, "seller") {
+		role = "Seller"
+	} else if strings.Contains(emailLower, "mediator") || strings.Contains(emailLower, "banker") {
+		role = "Mediator"
+	}
+
 	// If not found, authoritatively provision the user
-	// We grant standard escrow scopes by default
 	scopes := []string{"escrow:read", "escrow:write", "escrow:accept"}
-	return ledgerClient.ProvisionUser(ctx, oktaSub, email, scopes)
+	return ledgerClient.ProvisionUser(ctx, oktaSub, email, role, scopes)
 }
 
 func (s *IdentityService) getDefaultProvider() AuthProvider {

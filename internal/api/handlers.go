@@ -190,11 +190,32 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(AuthSubKey).(string)
+	email, _ := r.Context().Value(EmailKey).(string)
+	
+	// High-Assurance: Resolve institutional role to handle bilateral initiation
+	identity, err := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
+	if err != nil {
+		h.logger.Error("failed to resolve identity for proposal", zap.Error(err))
+		http.Error(w, "Identity resolution failed", http.StatusInternalServerError)
+		return
+	}
+
 	ledgerReq := req.ToLedgerRequest()
-	ledgerReq.Buyer = userID
+
+	// Bilateral Logic: Map initiator to correct role
+	if identity.Role == "Seller" {
+		h.logger.Info("seller-initiated proposal detected", zap.String("seller", identity.DamlUserID), zap.String("buyer", req.Counterparty))
+		ledgerReq.Seller = identity.DamlUserID
+		ledgerReq.Buyer = req.Counterparty
+	} else {
+		h.logger.Info("buyer-initiated proposal detected", zap.String("buyer", identity.DamlUserID), zap.String("seller", req.Counterparty))
+		ledgerReq.Buyer = identity.DamlUserID
+		ledgerReq.Seller = req.Counterparty
+	}
 
 	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledgerReq)
 	if err != nil {
+		h.logger.Error("escrow proposal failed", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

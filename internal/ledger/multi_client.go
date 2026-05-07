@@ -276,7 +276,7 @@ func (m *MultiLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity
 	return result, nil
 }
 
-func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, scopes []string) (*UserIdentity, error) {
+func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
 	var firstIdentity *UserIdentity
 	var lastErr error
 
