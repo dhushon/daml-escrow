@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-conf
+  namespace: observability
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+    exporters:
+      logging:
+        verbosity: basic
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus, logging]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.96.0
+        command: ["--config=/etc/otel-collector-config.yaml"]
+        ports:
+        - containerPort: 4318
+        - containerPort: 8889
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel-collector-config.yaml
+          subPath: otel-collector-config.yaml
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  ports:
+  - port: 4318
+    targetPort: 4318
+    name: otlp-http
+  - port: 8889
+    targetPort: 8889
+    name: prometheus
+  selector:
+    app: otel-collector
+  type: ClusterIP

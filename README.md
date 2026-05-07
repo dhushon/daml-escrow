@@ -37,6 +37,7 @@ graph TD
 
 This platform implements a **Sovereign Tripartite Architecture**, ensuring each participant maintains data and compute isolation while providing unified operational visibility.
 
+*   **Institutional Development:** The platform authoritatively mirrors the tripartite GKE topology in the local environment. See the **[Tripartite Development Guide](./docs/DEVELOPMENT.md)** for details on the orchestration model and service registry.
 *   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/buyer`, `/seller`).
 *   **OpenTelemetry (OTEL) Integration:** Distributed tracing and real-time metrics capture the institutional request lifecycle across distributed nodes.
     *   **Authoritative Visibility:** See the **[Observability Guide](./docs/OBSERVABILITY.md)** for detailed telemetry flow diagrams and metrics dictionaries.
@@ -130,7 +131,7 @@ Accessible via `/metrics`, this dashboard visualizes the platform's efficiency u
 * `/internal`: Modular Go backend (Ledger Client, Service Layer, REST Handlers).
 * `/contracts`: Multi-package Daml structure (Interfaces, Implementation, Tests).
 * `/frontend`: Astro-based dashboard with DataCloud LNF styling.
+* `/docs`: Authoritative institutional guides (Identity, Networking, Observability, Development).
+* `/scripts`: Management and provisioning scripts.
 * `ESCROW-PROCESS.md`: The formal process specification.
 * `REGULATORY_CONFORMANCE.md`: Details on GDPR/CCPA and data sovereignty.
-\n## Kubernetes Orchestration\nSovereign participant deployments via GKE.
-\n## Production Readiness\nHigh-assurance infrastructure for institutional stablecoin escrow.
