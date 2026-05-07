@@ -33,7 +33,7 @@ done
 echo "[2/4] Granting Artifact Registry Privileges..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \
-  --role="roles/artifactregistry.repoAdmin" --quiet > /dev/null
+  --role="roles/artifactregistry.admin" --quiet > /dev/null
 
 # 3. GKE: Kubernetes Orchestration
 echo "[3/4] Granting GKE Admin Privileges..."
@@ -54,3 +54,4 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 echo "------------------------------------------------------------------------"
 echo "SUCCESS: High-Assurance Contributor Privileges Provisioned."
 echo "------------------------------------------------------------------------"
+\n# 5. DOCKER: High-Assurance Release Engineering\necho "[5/5] Configuring Docker for vdcai-daml..."\ngcloud auth configure-docker us-central1-docker.pkg.dev --project=$PROJECT_ID --quiet > /dev/null
