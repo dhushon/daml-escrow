@@ -7,9 +7,17 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
+    # High-Assurance TLS: Automate via Cert-Manager
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    kubernetes.io/ingress.global-static-ip-name: "escrow-gateway-ip-dev"
 spec:
+  tls:
+  - hosts:
+    - api.vdatacloudai.com
+    secretName: escrow-gateway-tls-secret
   rules:
-  - http:
+  - host: api.vdatacloudai.com
+    http:
       paths:
       - path: /bank/(.*)
         pathType: Prefix
@@ -22,14 +30,14 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: buyer-api-cross # Linked via ExternalName
+            name: buyer-api-cross
             port:
               number: 80
       - path: /seller/(.*)
         pathType: Prefix
         backend:
           service:
-            name: seller-api-cross # Linked via ExternalName
+            name: seller-api-cross
             port:
               number: 80
 ---
