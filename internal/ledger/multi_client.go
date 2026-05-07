@@ -40,8 +40,6 @@ func (m *MultiLedgerClient) getClientForUser(userID string) Client {
 		return m.clients["seller"]
 	}
 
-	// Default to buyer node for dynamic users (like u-okta-...)
-	// unless we implement more complex node-to-party mapping
 	return m.clients["buyer"]
 }
 
@@ -54,9 +52,7 @@ func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
 		discoveredClients := make(map[Client]bool)
 
 		for _, client := range m.clients {
-			// Skip if we've already discovered this physical client (important for Sandbox)
 			if discoveredClients[client] {
-				// Still aggregate mappings from the already discovered client
 				for k, v := range client.GetPartyMap() {
 					newMap[k] = v
 				}
@@ -69,13 +65,11 @@ func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
 			}
 			discoveredClients[client] = true
 
-			// Aggregate party mappings from this node
 			for k, v := range client.GetPartyMap() {
 				newMap[k] = v
 			}
 		}
 
-		// Check if all core parties are found
 		allFound := true
 		for _, p := range coreParties {
 			if _, ok := newMap[p]; !ok {
@@ -89,7 +83,6 @@ func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
 			m.partyMap = newMap
 			m.mu.Unlock()
 
-			// Push the aggregated map back to all children
 			for _, client := range m.clients {
 				client.SetPartyMap(newMap)
 			}
@@ -223,7 +216,6 @@ func (m *MultiLedgerClient) ListInvitations(ctx context.Context, userID string) 
 }
 
 func (m *MultiLedgerClient) GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error) {
-	// Invitations are typically on the bank node
 	return m.clients["bank"].GetInvitationByToken(ctx, tokenHash)
 }
 
@@ -244,7 +236,6 @@ func (m *MultiLedgerClient) ListWallets(ctx context.Context, userID string) ([]*
 }
 
 func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
-	// Try all nodes until one succeeds
 	for _, node := range []string{"bank", "buyer", "seller"} {
 		if client, ok := m.clients[node]; ok {
 			identity, err := client.GetIdentity(ctx, oktaSub)
@@ -258,17 +249,15 @@ func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*U
 
 func (m *MultiLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
 	uniqueUsers := make(map[string]*UserIdentity)
-	
 	for _, client := range m.clients {
 		identities, err := client.ListIdentities(ctx)
 		if err != nil {
-			continue // Skip failing nodes
+			continue
 		}
 		for _, id := range identities {
 			uniqueUsers[id.DamlUserID] = id
 		}
 	}
-
 	result := make([]*UserIdentity, 0, len(uniqueUsers))
 	for _, id := range uniqueUsers {
 		result = append(result, id)
@@ -279,16 +268,11 @@ func (m *MultiLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity
 func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
 	var firstIdentity *UserIdentity
 	var lastErr error
-
-	// Broadcast provisioning to ALL nodes to ensure global visibility
 	for _, node := range []string{"bank", "buyer", "seller"} {
 		if client, ok := m.clients[node]; ok {
-			identity, err := client.ProvisionUser(ctx, oktaSub, email, scopes)
+			identity, err := client.ProvisionUser(ctx, oktaSub, email, role, scopes)
 			if err != nil {
-				// If the party already exists, we consider this a success for this node
 				if strings.Contains(err.Error(), "already exists") {
-					m.logger.Debug("identity already exists on node", zap.String("node", node), zap.String("oktaSub", oktaSub))
-					// If we don't have an identity yet, try to fetch it from this node
 					if firstIdentity == nil {
 						if id, err := client.GetIdentity(ctx, oktaSub); err == nil {
 							firstIdentity = id
@@ -296,7 +280,6 @@ func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, e
 					}
 					continue
 				}
-				m.logger.Warn("provisioning failed on node", zap.String("node", node), zap.Error(err))
 				lastErr = err
 			} else {
 				if firstIdentity == nil {
@@ -305,12 +288,8 @@ func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, e
 			}
 		}
 	}
-
 	if firstIdentity != nil {
 		return firstIdentity, nil
-	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("no ledger nodes responded to provisioning request")
 	}
 	return nil, fmt.Errorf("failed to provision user on any node: %v", lastErr)
 }

@@ -1,3 +1,6 @@
+//go:build integration_gcp
+// +build integration_gcp
+
 package ledger
 
 import (

@@ -7,7 +7,7 @@ import DA.Date qualified
 import DA.Optional (fromSome)
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (EscrowProposal) - Step 1: Issuer offers
+-- DRAFT State (EscrowProposal) - Step 1: Initiator offers
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
@@ -22,6 +22,8 @@ template EscrowProposal
     signatory issuer
     observer  buyer, seller, mediator
 
+    -- High-Assurance Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
     ensure terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
 
     interface instance Escrow for EscrowProposal where
@@ -36,12 +38,22 @@ template EscrowProposal
       do
         create SellerAcceptedProposal with ..
 
+    -- Bilateral Consensus: Iterative Negotiation
+    choice RequestChanges : ContractId EscrowProposal
+      with 
+        newTerms : EscrowTerms
+        proposingParty : Party
+      controller proposingParty
+      do
+        assertMsg "Only Buyer or Seller can request changes" (proposingParty == buyer || proposingParty == seller)
+        create this with terms = newTerms
+
     choice CancelProposal : ()
       controller buyer, seller
       do return ()
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (SellerAcceptedProposal) - Step 2: Seller authorizes
+-- DRAFT State (SellerAcceptedProposal) - Step 2: Seller authorises
 -- ---------------------------------------------------------------------------
 template SellerAcceptedProposal
   with
@@ -55,6 +67,9 @@ template SellerAcceptedProposal
   where
     signatory issuer, seller
     observer  buyer, mediator
+
+    -- Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
 
     interface instance Escrow for SellerAcceptedProposal where
       view = View with
@@ -93,6 +108,8 @@ template EscrowContract
     signatory issuer, buyer, seller
     observer  mediator
 
+    -- Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
     ensure asset.amount > 0.0
 
     interface instance Escrow for EscrowContract where
@@ -161,6 +178,9 @@ template DisputeRecord
     signatory issuer, buyer, seller
     observer  mediator
 
+    -- Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+
     interface instance Escrow for DisputeRecord where
       view = View with
         issuer, buyer, seller, mediator, asset, terms, state = DISPUTED, metadata
@@ -195,6 +215,9 @@ template SettlementRecord
     sellerAccepted : Bool
   where
     signatory issuer, buyer, seller, mediator
+
+    -- Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
 
     interface instance Escrow for SettlementRecord where
       view = View with
@@ -240,6 +263,9 @@ template DisbursementOrder
     settlement : SettlementTerms
   where
     signatory issuer, buyer, seller, mediator
+
+    -- Role Exclusivity
+    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
 
     interface instance Escrow for DisbursementOrder where
       view = View with
@@ -288,10 +314,17 @@ template EscrowInvitation
     signatory issuer
     observer  inviter, mediator
 
+    -- High-Assurance: Rule Exclusivity check on invitation creation
+    ensure (inviter /= mediator)
+
     choice ClaimInvitation : ContractId EscrowProposal
       with claimingParty : Party
       controller mediator
       do
+        -- High-Assurance: Ensure claimant is not already an actor
+        assertMsg "Claimant cannot be the inviter" (claimingParty /= inviter)
+        assertMsg "Claimant cannot be the mediator" (claimingParty /= mediator)
+
         let isInviteeBuyer = inviteeRole == "Buyer"
         create EscrowProposal with
           issuer

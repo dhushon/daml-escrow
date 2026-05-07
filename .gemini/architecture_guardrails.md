@@ -54,3 +54,10 @@ Module-specific configuration variables MUST be prefixed with the module name (e
 - **Zero-Trust Routing:** The `MultiLedgerClient` MUST act as a smart gateway, routing commands to the specific participant node hosting the user's party.
 - **Identity Probing:** Systems MUST NOT assume a user exists on a single node. User lookups MUST be performed across the cluster cluster until found or all nodes exhausted.
 - **Deterministic Readiness:** Infrastructure scripts (Canton bootstrap) MUST NOT use temporal waits (`sleep`). They MUST use deterministic polling of the topology state until the required conditions (e.g., cross-node party visibility) are met.
+
+## 12. Tripartite Governance & Bilateral Consensus
+
+- **Role Exclusivity:** A single sovereign identity (`damlPartyId`) MUST NOT occupy more than one role (Buyer, Seller, or Mediator) within a single contract instance. This must be authoritatively enforced at the DAML template and API DTO levels.
+- **Bilateral Consensus:** Any tripartite party can propose changes to agreement terms while in the DRAFT/PROPOSAL state.
+- **Agreement Reset:** Any modification to terms MUST authoritatively reset all existing co-signatures, requiring all three parties to re-ratify the specific state of the agreement.
+- **Authoritative Transition:** Advancement to the ACTIVE state is only permitted once the Buyer, Seller, and Mediator have authoritatively agreed to the identical set of terms without outstanding changes.
