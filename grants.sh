@@ -47,6 +47,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="user:$CONTRIBUTOR" \
   --role="roles/compute.networkAdmin" --quiet > /dev/null
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$CONTRIBUTOR" \
+  --role="roles/compute.publicIpAdmin" --quiet > /dev/null
+
 echo "------------------------------------------------------------------------"
 echo "SUCCESS: High-Assurance Contributor Privileges Provisioned."
 echo "------------------------------------------------------------------------"
