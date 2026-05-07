@@ -1,41 +1,37 @@
-# -----------------------------
-# Build Stage
-# -----------------------------
-FROM golang:1.25-alpine AS builder
+# High-Assurance Tripartite API Dockerfile
+# Authoritatively supports Multi-Arch builds (ARM64/AMD64).
+
+# Stage 1: High-Assurance Build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25-alpine AS builder
+
+ARG TARGETARCH
+ARG TARGETOS
 
 WORKDIR /app
 
-# install git for module resolution
+# Install build dependencies
 RUN apk add --no-cache git
 
-# copy local dependencies needed for go mod download
-COPY third_party ./third_party
-
-# cache dependencies
+# Pre-fetch dependencies (Optimization)
 COPY go.mod go.sum ./
 RUN go mod download
 
-# copy source
+# Copy source and build
 COPY . .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -ldflags="-s -w" -o escrow-api ./cmd/escrow-api
 
-# build binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-  -o escrow-api ./cmd/escrow-api
-
-
-# -----------------------------
-# Runtime Stage
-# -----------------------------
-FROM gcr.io/distroless/base-debian12
+# Stage 2: Minimal Production Identity
+FROM gcr.io/distroless/base-debian12:latest
 
 WORKDIR /app
 
-# Copy binary and config
+# Authoritatively copy the architecture-optimized binary
 COPY --from=builder /app/escrow-api .
 COPY --from=builder /app/config ./config
 
-EXPOSE 8080
-
-USER nonroot:nonroot
+# High-Assurance Defaults
+EXPOSE 8081
 
 ENTRYPOINT ["/app/escrow-api"]
+CMD ["serve"]

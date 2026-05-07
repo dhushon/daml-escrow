@@ -9,6 +9,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// sanitizeDamlID authoritatively converts any string into a Daml-compliant identifier.
+func sanitizeDamlID(id string) string {
+	s := strings.ReplaceAll(id, "|", "-")
+	s = strings.ReplaceAll(s, "@", "-")
+	s = strings.ReplaceAll(s, ".", "-")
+	return "u-" + s
+}
+
 // refreshPartyMap authoritatively synchronizes the local party cache with the Canton ledger.
 func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	var resp struct {
@@ -37,7 +45,6 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	return nil
 }
 
-// GetParty authoritatively resolves a logical User ID to a Canton Party ID.
 func (c *JsonLedgerClient) GetParty(user string) string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -45,12 +52,10 @@ func (c *JsonLedgerClient) GetParty(user string) string {
 	if id, ok := c.partyMap[user]; ok {
 		return id
 	}
-	return user // Fallback to raw string if not mapped
+	return user
 }
 
 func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
-	// For Phase 9/11, we return the high-assurance tripartite identities
-	// In production, this would be a lookup against the User Management API metadata.
 	return []*UserIdentity{
 		{OktaSub: "u-bank", DamlUserID: "bank", Email: "bob@bank.com", Role: "Mediator"},
 		{OktaSub: "u-buyer", DamlUserID: "buyer", Email: "joey@buyer.com", Role: "Buyer"},
@@ -59,9 +64,8 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 }
 
 func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
-	damlUserID := "u-" + strings.ReplaceAll(oktaSub, "|", "-")
+	damlUserID := sanitizeDamlID(oktaSub)
 	
-	// Verification check
 	_, err := c.DoRawRequest(ctx, "GET", "/v2/users/"+damlUserID, nil)
 	if err != nil {
 		return nil, err
@@ -71,17 +75,17 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 		OktaSub:     oktaSub,
 		DamlUserID:  damlUserID,
 		DamlPartyID: c.GetParty(damlUserID),
-		Role:        "Buyer", // Placeholder: In prod, fetch from metadata
+		Role:        "Buyer", 
 	}, nil
 }
 
 func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
-	damlUserID := "u-" + strings.ReplaceAll(oktaSub, "|", "-")
+	damlUserID := sanitizeDamlID(oktaSub)
 	
 	// 1. Allocate a new Party for the user
 	partyReq := map[string]interface{}{
-		"identifierHint": damlUserID,
-		"displayName":    email,
+		"partyIdHint": damlUserID,
+		"displayName": email,
 	}
 	
 	var partyResp struct {
@@ -95,24 +99,24 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		if !strings.Contains(err.Error(), "already exists") {
 			return nil, fmt.Errorf("failed to allocate party: %w", err)
 		}
-		// Try to refresh to pick up the existing party
 		_ = c.refreshPartyMap(ctx)
 	} else {
 		_ = json.Unmarshal(body, &partyResp)
 	}
 
 	partyID := c.GetParty(email)
-	if partyID == email && partyResp.Result.Party != "" {
+	if (partyID == email || partyID == "") && partyResp.Result.Party != "" {
 		partyID = partyResp.Result.Party
 	}
 
 	// 2. Create the User and link to the Party
+	// High-Assurance Daml 3.x Schema: Use Nested Object Mapping for Rights
 	userReq := map[string]interface{}{
 		"userId":       damlUserID,
 		"primaryParty": partyID,
 		"rights": []map[string]interface{}{
-			{"type": "CanActAs", "party": partyID},
-			{"type": "CanReadAs", "party": partyID},
+			{"canActAs": map[string]string{"party": partyID}},
+			{"canReadAs": map[string]string{"party": partyID}},
 		},
 		"metadata": map[string]string{
 			"email": email,

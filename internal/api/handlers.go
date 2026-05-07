@@ -47,7 +47,9 @@ func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(AuthSubKey).(string)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	email, _ := r.Context().Value(EmailKey).(string)
@@ -55,7 +57,9 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	identity, err := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
 	if err != nil {
 		h.logger.Error("failed to resolve identity", zap.Error(err))
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Internal Error: " + err.Error()})
 		return
 	}
 

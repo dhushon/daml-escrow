@@ -1,71 +1,56 @@
-name: daml-escrow-dev
+version: '3.8'
+
+networks:
+  escrow-net:
+    name: escrow-net
+    external: false
 
 services:
-  postgres:
+  # --- Persistent Ledger Infrastructure ---
+
+  escrow-postgres:
     image: postgres:16
     container_name: escrow-postgres-dev
-    restart: always
-    command: ["postgres", "-c", "max_connections=500"]
     environment:
-      POSTGRES_USER: escrow
-      POSTGRES_PASSWORD: escrow
-      POSTGRES_DB: postgres
+      - POSTGRES_USER=escrow
+      - POSTGRES_PASSWORD=escrow
+      - POSTGRES_DB=canton
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U escrow -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U escrow -d canton"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - escrow-net
 
-  db-init:
+  escrow-db-init:
     image: postgres:16
     container_name: escrow-db-init-dev
     depends_on:
-      postgres:
+      escrow-postgres:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        export PGPASSWORD=escrow
-        for db in canton_bank canton_buyer canton_seller canton_sequencer canton_mediator user_config; do
-          psql -h postgres -U escrow -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$$db' AND pid <> pg_backend_pid();" || true
-          psql -h postgres -U escrow -d postgres -c "DROP DATABASE IF EXISTS $$db;"
-          psql -h postgres -U escrow -d postgres -c "CREATE DATABASE $$db;"
-        done
-        
-        # Initialize User Config Schema
-        psql -h postgres -U escrow -d user_config -c "
-          CREATE TABLE IF NOT EXISTS configs (
-            user_id TEXT NOT NULL,
-            config_key TEXT NOT NULL,
-            config_value JSONB NOT NULL,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, config_key)
-          );
-        "
+    command: >
+      sh -c "psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true"
     networks:
       - escrow-net
 
-  canton:
+  escrow-ledger:
     image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
     container_name: escrow-ledger-dev
     ports:
-      - "7575:7575"   # Bank HTTP API
-      - "7576:7576"   # Buyer HTTP API
-      - "7577:7577"   # Seller HTTP API
+      - "7575:7575" # Bank API
+      - "7576:7576" # Buyer API
+      - "7577:7577" # Seller API
     volumes:
-      - ./contracts:/canton/contracts
-    entrypoint: ["/app/bin/canton"]
-    command:
-      - "daemon"
-      - "--config"
-      - "/canton/contracts/DevNet/devnet.conf"
-      - "--bootstrap"
-      - "/canton/contracts/DevNet/devnet_init.canton"
+      - ./contracts/DevNet/participant.conf:/etc/canton/participant.conf
+      - ./contracts/DevNet/domain.conf:/etc/canton/domain.conf
+      - ./contracts/DevNet/devnet_init.canton:/etc/canton/init.canton
+    command: >
+      -c /etc/canton/participant.conf 
+      -c /etc/canton/domain.conf 
+      --bootstrap /etc/canton/init.canton
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -75,7 +60,10 @@ services:
   # --- Sovereign Tripartite APIs ---
 
   bank-api:
-    build: .
+    build:
+      context: .
+      args:
+        TARGETARCH: ${TARGETARCH:-arm64}
     container_name: bank-api-dev
     command: ["serve", "--notls"]
     environment:
@@ -86,14 +74,20 @@ services:
       - PARTICIPANT_ID=bank
       - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
+    ports:
+      - "8081"
     depends_on:
-      canton:
-        condition: service_started
+      - escrow-ledger
     networks:
       - escrow-net
+    links:
+      - escrow-ledger:canton
 
   buyer-api:
-    build: .
+    build:
+      context: .
+      args:
+        TARGETARCH: ${TARGETARCH:-arm64}
     container_name: buyer-api-dev
     command: ["serve", "--notls"]
     environment:
@@ -104,14 +98,20 @@ services:
       - PARTICIPANT_ID=buyer
       - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
+    ports:
+      - "8082:8081"
     depends_on:
-      canton:
-        condition: service_started
+      - escrow-ledger
     networks:
       - escrow-net
+    links:
+      - escrow-ledger:canton
 
   seller-api:
-    build: .
+    build:
+      context: .
+      args:
+        TARGETARCH: ${TARGETARCH:-arm64}
     container_name: seller-api-dev
     command: ["serve", "--notls"]
     environment:
@@ -122,29 +122,27 @@ services:
       - PARTICIPANT_ID=seller
       - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
+    ports:
+      - "8083:8081"
     depends_on:
-      canton:
-        condition: service_started
+      - escrow-ledger
     networks:
       - escrow-net
+    links:
+      - escrow-ledger:canton
 
-  # --- Unified Gateway (Nginx Ingress Simulator) ---
+  # --- Unified Institutional Gateway ---
 
-  gateway:
+  escrow-gateway:
     image: nginx:alpine
     container_name: escrow-gateway-dev
-    volumes:
-      - ./config/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:8080"
+    volumes:
+      - ./config/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - bank-api
       - buyer-api
       - seller-api
     networks:
       - escrow-net
-
-networks:
-  escrow-net:
-    name: escrow-net
-    driver: bridge

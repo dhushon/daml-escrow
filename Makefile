@@ -39,10 +39,14 @@ sync: ## Synchronize ledger state (resolve Package and Party IDs)
 
 ## -- High-Assurance Orchestration --
 
+# Native architecture detection for multi-arch builds
+LOCAL_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')
+ARCH ?= $(LOCAL_ARCH)
+
 .PHONY: local-up
-local-up: ## Launch the local tripartite tripartite simulation and observability stack
-	@echo "Launching local tripartite stack..."
-	@docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml up -d --build
+local-up: ## Launch the local tripartite tripartite simulation and observability stack (ARM64 default)
+	@echo "Launching local tripartite stack (Arch: $(ARCH))..."
+	@TARGETARCH=$(ARCH) docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml up -d --build
 	@sleep 15
 	@$(MAKE) sync
 

@@ -7,10 +7,10 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
-    # High-Assurance TLS (Public)
+    # High-Assurance Identity
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     kubernetes.io/ingress.global-static-ip-name: "escrow-gateway-ip-dev"
-    # High-Assurance mTLS (Internal Origin)
+    # mTLS (Internal)
     nginx.ingress.kubernetes.io/proxy-ssl-secret: "bank/bank-api-mtls-secret"
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
 spec:
@@ -43,22 +43,11 @@ spec:
             name: seller-api-cross
             port:
               number: 443
----
-# Cross-Namespace Links (mTLS Port)
-apiVersion: v1
-kind: Service
-metadata:
-  name: buyer-api-cross
-  namespace: bank
-spec:
-  type: ExternalName
-  externalName: buyer-api.buyer.svc.cluster.local
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: seller-api-cross
-  namespace: bank
-spec:
-  type: ExternalName
-  externalName: seller-api.seller.svc.cluster.local
+      # Let's Encrypt HTTP-01 explicitly allowed
+      - path: /.well-known/acme-challenge/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: cm-acme-http-solver
+            port:
+              number: 8089
