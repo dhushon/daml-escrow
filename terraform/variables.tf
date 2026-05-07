@@ -93,8 +93,8 @@ variable "enable_okta_idp" {
   default     = true
 }
 
-variable "enable_static_ip" {
-  description = "Toggle to enable/disable Global Static IP and DNS (Production only)"
+variable "disable_static_ip" {
+  description = "Opt-out of Global Static IP and DNS (Development only)"
   type        = bool
   default     = false
 }
