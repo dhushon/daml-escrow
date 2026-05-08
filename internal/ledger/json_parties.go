@@ -110,13 +110,19 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	}
 
 	// 2. Create the User and link to the Party
-	// High-Assurance Daml 3.x Schema: Use Nested Object Mapping for Rights
+	// High-Assurance Daml 3.x Schema: Use kind discriminator + nested payload
 	userReq := map[string]interface{}{
 		"userId":       damlUserID,
 		"primaryParty": partyID,
 		"rights": []map[string]interface{}{
-			{"canActAs": map[string]string{"party": partyID}},
-			{"canReadAs": map[string]string{"party": partyID}},
+			{
+				"kind":     "canActAs",
+				"canActAs": map[string]string{"party": partyID},
+			},
+			{
+				"kind":      "canReadAs",
+				"canReadAs": map[string]string{"party": partyID},
+			},
 		},
 		"metadata": map[string]string{
 			"email": email,
