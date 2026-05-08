@@ -109,7 +109,35 @@ Goals: Authoritative release and live verification under the vdatacloudai.com do
 
 ------------------------------------------------------------------------
 
+## Phase 11 --- Sovereign Negotiation & Off-Chain Drafts (PLANNED)
+
+Goals: Implement cost-efficient institutional negotiation via intermediate draft tables and secure counterparty invitations.
+
+### Objectives
+
+1. **Off-Chain Draft Intermediate:** Utilize the Postgres `user_config` database to house a `draft_escrows` table for low-cost bilateral negotiation before ledger commitment.
+2. **Invitation & Association Bridge:** Definitive logic for mapping email placeholders to registered chain identities upon "Promotion" to the ledger.
+3. **Bilateral Consensus Logic:** Iterative negotiation cockpit allowing either party to propose changes, resetting co-signatures until tripartite agreement is reached.
+4. **Authoritative Ledger Promotion:** A single high-assurance trigger that commits the agreement to the Canton Ledger and locks stablecoin holdings once all three parties authoritatively agree.
+
+### Tasks
+
+**Task 11.1: Draft Persistence Layer**
+- [ ] Refactor `user_config` schema with `draft_escrows` table and tripartite status tracking.
+- [ ] Implement Go handlers for Draft CRUD and secure counterparty visibility.
+
+**Task 11.2: Invitation & Association Flow**
+- [ ] Implement email-based placeholders for unprovisioned counterparties.
+- [ ] Create the "Claim and Associate" logic to bridge fresh JIT identities to existing drafts.
+
+**Task 11.3: Promotion & Settlement Trigger**
+- [ ] Implement the promotion engine that authoritatively translates a ratified draft into an `ACTIVE` Daml contract.
+- [ ] Enforce stablecoin locking as the final gate of the promotion flow.
+
+------------------------------------------------------------------------
+
 ## Phase 7 --- Production Hardening & Compliance (SOC2 / Financial Grade) (IN PROGRESS)
+
 
 Goals: Final security sweep to meet institutional regulatory and auditing standards.
 

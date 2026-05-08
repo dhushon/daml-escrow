@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "High-Assurance Escrow Agreement",
+  "description": "Definitive institutional data model for stablecoin escrow",
+  "type": "object",
+  "properties": {
+    "amount": { "type": "number", "minimum": 0 },
+    "currency": { "enum": ["USD", "EUR", "GBP"] },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "amount": { "type": "number" },
+          "completed": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "conditionDescription": { "type": "string" },
+    "expiryDate": { "type": "string", "format": "date-time" }
+  },
+  "required": ["amount", "currency", "milestones", "expiryDate"]
+}

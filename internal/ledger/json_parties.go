@@ -67,7 +67,6 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 
 	identities := make([]*UserIdentity, 0, len(resp.Result))
 	for _, u := range resp.Result {
-		// High-Assurance: Skip system admin and unprovisioned users
 		if u.ID == "participant_admin" {
 			continue
 		}
@@ -143,14 +142,26 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		if !strings.Contains(err.Error(), "already exists") {
 			return nil, fmt.Errorf("failed to allocate party: %w", err)
 		}
-		_ = c.refreshPartyMap(ctx)
 	} else {
 		_ = json.Unmarshal(body, &partyResp)
 	}
 
-	partyID := c.GetParty(damlUserID)
-	if (partyID == damlUserID || partyID == "") && partyResp.Result.Party != "" {
-		partyID = partyResp.Result.Party
+	// High-Assurance: Deterministically wait for party to appear in the ledger index
+	// This definitively resolves the UNKNOWN_RESOURCE race condition.
+	var partyID string
+	for i := 0; i < 15; i++ {
+		_ = c.refreshPartyMap(ctx)
+		partyID = c.GetParty(damlUserID)
+		if partyID != "" && partyID != damlUserID {
+			c.logger.Info("party authoritatively indexed", zap.String("id", partyID))
+			break
+		}
+		c.logger.Warn("waiting for party propagation...", zap.String("logical", damlUserID), zap.Int("attempt", i+1))
+		time.Sleep(1 * time.Second)
+	}
+
+	if partyID == "" || partyID == damlUserID {
+		return nil, fmt.Errorf("high-assurance failure: party %s never appeared on ledger", damlUserID)
 	}
 
 	// 2. Create the User and link to the Party
@@ -186,27 +197,24 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		},
 	}
 
-	// High-Assurance: Implement retry loop to handle Canton propagation latency
+	// Retry user creation until propagation succeeds
 	var provisionErr error
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		_, err = c.DoRawRequest(ctx, "POST", "/v2/users", userReq)
 		if err == nil {
 			provisionErr = nil
 			break
 		}
-		
 		if strings.Contains(err.Error(), "409") {
-			provisionErr = nil // Already exists is OK
+			provisionErr = nil
 			break
 		}
-		
 		if strings.Contains(err.Error(), "UNKNOWN_RESOURCE") {
-			c.logger.Warn("party propagation latency detected, retrying user creation...", zap.Int("attempt", i+1), zap.String("party", partyID))
+			c.logger.Warn("user service latency detected, retrying...", zap.Int("attempt", i+1))
 			time.Sleep(1 * time.Second)
 			provisionErr = err
 			continue
 		}
-		
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 

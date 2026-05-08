@@ -111,6 +111,35 @@ export async function fetchIdentities() {
     return response.json();
 }
 
+// --- Phase 11: Draft & Negotiation ---
+
+export async function saveDraft(req: any) {
+    const response = await fetch(resolveApiPath('/drafts'), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(req)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to save draft agreement');
+    }
+    return response.json();
+}
+
+export async function fetchDrafts() {
+    const response = await fetch(resolveApiPath('/drafts'), { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch draft agreements');
+    return response.json();
+}
+
+export async function promoteDraftToLedger(draftID: string) {
+    const response = await fetch(resolveApiPath(`/drafts/${draftID}/promote`), {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to promote draft to ledger');
+}
+
 export async function discoverAuth(email: string) {
     const response = await fetch(resolveApiPath(`/auth/discover?email=${encodeURIComponent(email)}`));
     if (!response.ok) throw new Error('Failed to discover auth provider');

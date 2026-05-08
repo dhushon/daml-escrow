@@ -28,7 +28,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Counterparty</label>
 						<select id="counterparty-select" name="counterparty" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
-							<option value="">Loading identities...</option>
+							<option value="">Searching institutional directory...</option>
 						</select>
 						<p class="mt-2 text-[10px] text-slate-400 italic">Only provisioned ledger identities are shown.</p>
 					</div>
@@ -48,7 +48,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				<div class="text-left">
 					<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Authorized Mediator</label>
 					<select id="mediator-select" name="mediator" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
-						<option value="">Loading mediators...</option>
+						<option value="">Searching mediators...</option>
 					</select>
 				</div>
 			</div>
@@ -96,7 +96,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 			<div class="flex items-center justify-end space-x-4 pb-12">
 				<a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Cancel</a>
 				<button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all border-none cursor-pointer">
-					Propose Agreement
+					Save & Share Draft
 				</button>
 			</div>
 		</form>
@@ -106,7 +106,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 </Layout>
 
 <script>
-	import { proposeEscrow, fetchIdentities } from '../lib/api';
+	import { saveDraft, fetchIdentities } from '../lib/api';
 	import { getSession } from '../lib/auth';
 
 	const form = document.getElementById('compose-form') as HTMLFormElement;
@@ -149,7 +149,8 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 			}
 		} catch (err) {
 			console.error('Failed to load identities', err);
-			if (counterpartySelect) counterpartySelect.innerHTML = '<option value="">Error loading directory</option>';
+			if (counterpartySelect) counterpartySelect.innerHTML = '<option value="">No identities found - Try inviting them?</option>';
+			if (mediatorSelect) mediatorSelect.innerHTML = '<option value="">No mediators found</option>';
 		}
 	}
 
@@ -203,24 +204,24 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 		}
 
 		const req = {
-			counterparty: formData.get('counterparty'),
+			counterpartyEmail: formData.get('counterparty'),
 			mediator: formData.get('mediator'),
 			amount: totalAmount,
 			currency: formData.get('currency'),
-			assetType: 'Stablecoin',
-			assetId: 'USDC-PILOT-v1',
-			conditionDescription: milestones.map(m => `${m.label}: ${m.amount}`).join(', '),
-			conditionType: 'MILESTONE',
-			evidenceRequired: 'AUTHORITATIVE_SIGNATURE',
-			schemaUrl: formData.get('schemaUrl'),
-			payload: payload
+			terms: {
+				milestones: milestones,
+				conditionDescription: milestones.map(m => `${m.label}: ${m.amount}`).join(', '),
+				expiryDate: new Date(Date.now() + 86400000 * 30).toISOString()
+			},
+			metadata: payload
 		};
 
 		try {
-			await proposeEscrow(req);
+			await saveDraft(req);
+			alert('Draft agreement authoritatively saved.');
 			window.location.href = '/';
 		} catch (err: any) {
-			alert('Proposal failed: ' + err.message);
+			alert('Failed to save draft: ' + err.message);
 		}
 	});
 </script>

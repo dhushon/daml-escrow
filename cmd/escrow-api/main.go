@@ -196,6 +196,12 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
+
+		// --- Phase 11: Draft & Negotiation ---
+		r.Post("/drafts", handler.SaveDraft)
+		r.Get("/drafts", handler.ListDrafts)
+		r.Post("/drafts/{draftID}/promote", handler.PromoteToLedger)
+
 		r.Post("/escrows", handler.ProposeEscrow)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 		r.Get("/metrics", handler.GetMetrics)
