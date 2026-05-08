@@ -29,13 +29,18 @@ function getAuthHeaders() {
  * resolveApiPath authoritatively selects the correct Gateway path based on the user's institutional role.
  */
 function resolveApiPath(path: string): string {
-    if (typeof window === 'undefined') return `${API_URL}/bank/api/v1${path}`; // Default to bank for SSR
+    // Standalone Mode Detection: If port 8081 is used, we are hitting the API directly
+    const isStandalone = API_URL.includes(':8081');
+    
+    if (typeof window === 'undefined') {
+        return isStandalone ? `${API_URL}/api/v1${path}` : `${API_URL}/bank/api/v1${path}`;
+    }
 
     const data = localStorage.getItem('auth_session');
-    if (!data) return `${API_URL}/bank/api/v1${path}`;
-    const session = JSON.parse(data);
+    if (!data || isStandalone) return `${API_URL}/api/v1${path}`;
     
-    const email = session.identity.email.toLowerCase();
+    const session = JSON.parse(data);
+    const email = session.identity.email?.toLowerCase() || '';
     let rolePath = 'bank'; // Default fallback
 
     if (email.includes('buyer')) rolePath = 'buyer';
