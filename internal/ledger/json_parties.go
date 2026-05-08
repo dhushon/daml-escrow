@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -83,7 +84,7 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	// 1. Allocate a new Party for the user
 	partyReq := map[string]interface{}{
 		"partyIdHint": damlUserID,
-		"displayName": damlUserID, // authoritatively compliant
+		"displayName": damlUserID,
 	}
 	
 	var partyResp struct {
@@ -102,8 +103,8 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		_ = json.Unmarshal(body, &partyResp)
 	}
 
-	partyID := c.GetParty(email)
-	if (partyID == email || partyID == "") && partyResp.Result.Party != "" {
+	partyID := c.GetParty(damlUserID)
+	if (partyID == damlUserID || partyID == "") && partyResp.Result.Party != "" {
 		partyID = partyResp.Result.Party
 	}
 
@@ -140,11 +141,32 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		},
 	}
 
-	_, err = c.DoRawRequest(ctx, "POST", "/v2/users", userReq)
-	if err != nil {
-		if !strings.Contains(err.Error(), "409") {
-			return nil, fmt.Errorf("failed to create user: %w", err)
+	// High-Assurance: Implement retry loop to handle Canton propagation latency
+	var provisionErr error
+	for i := 0; i < 5; i++ {
+		_, err = c.DoRawRequest(ctx, "POST", "/v2/users", userReq)
+		if err == nil {
+			provisionErr = nil
+			break
 		}
+		
+		if strings.Contains(err.Error(), "409") {
+			provisionErr = nil // Already exists is OK
+			break
+		}
+		
+		if strings.Contains(err.Error(), "UNKNOWN_RESOURCE") {
+			c.logger.Warn("party propagation latency detected, retrying user creation...", zap.Int("attempt", i+1), zap.String("party", partyID))
+			time.Sleep(1 * time.Second)
+			provisionErr = err
+			continue
+		}
+		
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	if provisionErr != nil {
+		return nil, fmt.Errorf("failed to create user after retries: %w", provisionErr)
 	}
 
 	return &UserIdentity{
