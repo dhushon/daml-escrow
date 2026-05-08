@@ -12,6 +12,7 @@ import (
 // ProposeEscrowRequest is the API DTO for proposing a new escrow.
 type ProposeEscrowRequest struct {
 	Counterparty         string                 `json:"counterparty"`
+	Mediator             string                 `json:"mediator"`
 	AssetType            string                 `json:"assetType"`
 	AssetID              string                 `json:"assetId"`
 	Amount               float64                `json:"amount"`
@@ -29,6 +30,9 @@ type ProposeEscrowRequest struct {
 func (r *ProposeEscrowRequest) Validate() error {
 	if strings.TrimSpace(r.Counterparty) == "" {
 		return errors.New("counterparty is required")
+	}
+	if strings.TrimSpace(r.Mediator) == "" {
+		return errors.New("mediator is required")
 	}
 	if r.Amount <= 0 {
 		return errors.New("amount must be greater than zero")
@@ -62,7 +66,7 @@ func (r *ProposeEscrowRequest) ToLedgerRequest() ledger.CreateEscrowRequest {
 	metadataJSON, _ := json.Marshal(metadata)
 
 	return ledger.CreateEscrowRequest{
-		// Note: Initiator/Counterparty mapping is handled in the API layer
+		Mediator: r.Mediator,
 		Asset: ledger.Asset{
 			AssetType: r.AssetType,
 			AssetID:   r.AssetID,

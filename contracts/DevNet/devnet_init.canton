@@ -41,15 +41,17 @@ Seq(bank, buyer, seller).foreach { p =>
 Thread.sleep(5000)
 val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
 
-// 5. Upload DARs
-val interfaceDar = "/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
-val escrowDar    = "/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
-val testDar      = "/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
+// 5. Upload DARs (Authoritative: No ignore here)
+println("Uploading authoritative DARs...")
+val interfaceDar = "/etc/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
+val escrowDar    = "/etc/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
+val testDar      = "/etc/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
 
 Seq(bank, buyer, seller).foreach { p =>
-  ignore(p.dars.upload(interfaceDar))
-  ignore(p.dars.upload(escrowDar))
-  ignore(p.dars.upload(testDar))
+  println(s"Provisioning ${p.name} with templates...")
+  p.dars.upload(interfaceDar)
+  p.dars.upload(escrowDar)
+  p.dars.upload(testDar)
 }
 
 // 6. Allocate Parties
@@ -97,14 +99,14 @@ Seq(bank, buyer, seller).foreach { p =>
   }
 }
 
-// 9. Create Users
+// 9. Create Users (Authoritative: ensuring V3 compliance)
 println("Creating users...")
-ignore(bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbId)))
-ignore(bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medId)))
-ignore(buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyId)))
-ignore(seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selId)))
+bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbId))
+bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medId))
+buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyId))
+seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selId))
 
-ignore(bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, buyId, selId)))
-ignore(buyer.ledger_api.users.rights.grant(id = "Buyer",          actAs = Set(buyId, cbId)))
+bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, buyId, selId))
+buyer.ledger_api.users.rights.grant(id = "Buyer",          actAs = Set(buyId, cbId))
 
 println("Bootstrap Complete.")

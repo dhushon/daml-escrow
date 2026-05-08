@@ -47,6 +47,7 @@ type SettlementTerms struct {
 type CreateEscrowRequest struct {
 	Buyer    string      `json:"buyer"`
 	Seller   string      `json:"seller"`
+	Mediator string      `json:"mediator"`
 	Asset    Asset       `json:"asset"`
 	Terms    EscrowTerms `json:"terms"`
 	Metadata string      `json:"metadata"`

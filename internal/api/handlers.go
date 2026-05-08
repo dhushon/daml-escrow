@@ -208,13 +208,23 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 
 	// Bilateral Logic: Map initiator to correct role
 	if identity.Role == "Seller" {
-		h.logger.Info("seller-initiated proposal detected", zap.String("seller", identity.DamlUserID), zap.String("buyer", req.Counterparty))
 		ledgerReq.Seller = identity.DamlUserID
 		ledgerReq.Buyer = req.Counterparty
 	} else {
-		h.logger.Info("buyer-initiated proposal detected", zap.String("buyer", identity.DamlUserID), zap.String("seller", req.Counterparty))
 		ledgerReq.Buyer = identity.DamlUserID
 		ledgerReq.Seller = req.Counterparty
+	}
+
+	// Tripartite Sovereignty: Enforce Role Exclusivity
+	if ledgerReq.Buyer == ledgerReq.Seller || ledgerReq.Buyer == ledgerReq.Mediator || ledgerReq.Seller == ledgerReq.Mediator {
+		h.logger.Error("role exclusivity violation", 
+			zap.String("buyer", ledgerReq.Buyer), 
+			zap.String("seller", ledgerReq.Seller), 
+			zap.String("mediator", ledgerReq.Mediator))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "An identity cannot occupy more than one role (Buyer, Seller, or Mediator) in a single transaction."})
+		return
 	}
 
 	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledgerReq)

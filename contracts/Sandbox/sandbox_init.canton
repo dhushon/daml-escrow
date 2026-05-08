@@ -43,18 +43,18 @@ if (!connected) { println("Failed to connect"); sys.exit(1) }
 
 val syncId = participant.synchronizers.list_connected().head.physicalSynchronizerId
 
-// 4. Upload DARs (Updated paths for v3 structure)
-println("Uploading DARs...")
-ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"))
-ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.2.dar"))
-ignore(participant.dars.upload("/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"))
+// 4. Upload DARs (Authoritative: Latest versions, no ignore)
+println("Uploading authoritative DARs...")
+participant.dars.upload("/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar")
+participant.dars.upload("/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar")
+participant.dars.upload("/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar")
 
 // 5. Allocate Parties
 println("Allocating parties...")
-ignore(participant.parties.enable("CentralBank"))
-ignore(participant.parties.enable("Buyer"))
-ignore(participant.parties.enable("Seller"))
-ignore(participant.parties.enable("EscrowMediator"))
+val cbId       = participant.parties.enable("CentralBank")
+val buyerId    = participant.parties.enable("Buyer")
+val sellerId   = participant.parties.enable("Seller")
+val mediatorId = participant.parties.enable("EscrowMediator")
 Thread.sleep(3000)
 
 // 6. Topology Mappings
@@ -62,11 +62,6 @@ import com.digitalasset.canton.topology.transaction.ParticipantPermission
 import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
 
 println("Authorizing parties...")
-val cbId       = participant.parties.find("CentralBank")
-val buyerId    = participant.parties.find("Buyer")
-val sellerId   = participant.parties.find("Seller")
-val mediatorId = participant.parties.find("EscrowMediator")
-
 Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
   ignore(participant.topology.party_to_participant_mappings.propose(
     party              = pid,
@@ -76,18 +71,18 @@ Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
   ))
 }
 
-// 7. Create Users
+// 7. Create Users (Authoritative: no ignore)
 println("Creating users...")
-ignore(participant.ledger_api.users.create("CentralBank",    primaryParty = Some(cbId)))
-ignore(participant.ledger_api.users.create("Buyer",          primaryParty = Some(buyerId)))
-ignore(participant.ledger_api.users.create("Seller",         primaryParty = Some(sellerId)))
-ignore(participant.ledger_api.users.create("EscrowMediator", primaryParty = Some(mediatorId)))
+participant.ledger_api.users.create("CentralBank",    primaryParty = Some(cbId))
+participant.ledger_api.users.create("Buyer",          primaryParty = Some(buyerId))
+participant.ledger_api.users.create("Seller",         primaryParty = Some(sellerId))
+participant.ledger_api.users.create("EscrowMediator", primaryParty = Some(mediatorId))
 
 // 8. Grant Rights
 println("Granting rights...")
-ignore(participant.ledger_api.users.rights.grant("Buyer",          actAs = Set(buyerId, cbId)))
-ignore(participant.ledger_api.users.rights.grant("Seller",         actAs = Set(sellerId)))
-ignore(participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId, buyerId, sellerId)))
-ignore(participant.ledger_api.users.rights.grant("CentralBank",    actAs = Set(cbId)))
+participant.ledger_api.users.rights.grant("Buyer",          actAs = Set(buyerId, cbId))
+participant.ledger_api.users.rights.grant("Seller",         actAs = Set(sellerId))
+participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId, buyerId, sellerId))
+participant.ledger_api.users.rights.grant("CentralBank",    actAs = Set(cbId))
 
 println("Setup complete.")

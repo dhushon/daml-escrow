@@ -94,6 +94,9 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("ledger.host", "LEDGER_HOST")
 	_ = v.BindEnv("ledger.port", "LEDGER_PORT")
 	_ = v.BindEnv("ledger.participantId", "PARTICIPANT_ID")
+	_ = v.BindEnv("ledger.nodes.bank.host", "LEDGER_NODES_BANK_HOST")
+	_ = v.BindEnv("ledger.nodes.buyer.host", "LEDGER_NODES_BUYER_HOST")
+	_ = v.BindEnv("ledger.nodes.seller.host", "LEDGER_NODES_SELLER_HOST")
 	
 	_ = v.BindEnv("stablecoin.provider", "STABLECOIN_PROVIDER")
 	_ = v.BindEnv("stablecoin.bitgo.expressUrl", "BITGO_EXPRESS_URL")
@@ -104,6 +107,7 @@ func LoadConfig(path string) (*Config, error) {
 	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
 	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
 	
+	_ = v.BindEnv("userConfig.dsn", "USER_CONFIG_DSN")
 	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
 	_ = v.BindEnv("region", "REGION")
 

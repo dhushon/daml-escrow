@@ -47,12 +47,13 @@ services:
       - ./contracts/DevNet/participant.conf:/etc/canton/participant.conf
       - ./contracts/DevNet/domain.conf:/etc/canton/domain.conf
       - ./contracts/DevNet/devnet_init.canton:/etc/canton/init.canton
+      - ./contracts:/etc/canton/contracts:ro
     command: >
       -c /etc/canton/participant.conf 
       -c /etc/canton/domain.conf 
       --bootstrap /etc/canton/init.canton
     depends_on:
-      db-init:
+      escrow-db-init:
         condition: service_completed_successfully
     networks:
       - escrow-net

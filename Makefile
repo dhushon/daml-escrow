@@ -39,16 +39,25 @@ sync: ## Synchronize ledger state (resolve Package and Party IDs)
 
 ## -- High-Assurance Orchestration --
 
-# Native architecture detection for multi-arch builds
+# Detection logic for multi-arch builds
 LOCAL_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')
 ARCH ?= $(LOCAL_ARCH)
 
 .PHONY: local-up
-local-up: ## Launch the local tripartite tripartite simulation and observability stack (ARM64 default)
+local-up: ## Launch the local tripartite stack (Optimized for ARM64)
 	@echo "Launching local tripartite stack (Arch: $(ARCH))..."
 	@TARGETARCH=$(ARCH) docker-compose -f docker-compose.distributed.yml -f docker-compose.otel.yml up -d --build
 	@sleep 15
 	@$(MAKE) sync
+
+.PHONY: pilot-release
+pilot-release: ## Build and push the high-assurance AMD64 image to GCP
+	@echo "Releasing GKE Pilot API (Arch: amd64)..."
+	@docker build --build-arg TARGETARCH=amd64 -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
+	@docker push us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest
+	@kubectl rollout restart deployment bank-api -n bank
+	@kubectl rollout restart deployment buyer-api -n buyer
+	@kubectl rollout restart deployment seller-api -n seller
 
 .PHONY: local-down
 local-down: ## Definitive purge of all local tripartite and observability containers
