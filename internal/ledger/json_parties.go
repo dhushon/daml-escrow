@@ -9,14 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// sanitizeDamlID authoritatively converts any string into a Daml-compliant identifier.
-func sanitizeDamlID(id string) string {
-	s := strings.ReplaceAll(id, "|", "-")
-	s = strings.ReplaceAll(s, "@", "-")
-	s = strings.ReplaceAll(s, ".", "-")
-	return "u-" + s
-}
-
 // refreshPartyMap authoritatively synchronizes the local party cache with the Canton ledger.
 func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	var resp struct {
@@ -57,16 +49,19 @@ func (c *JsonLedgerClient) GetParty(user string) string {
 
 func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
 	return []*UserIdentity{
-		{OktaSub: "u-bank", DamlUserID: "bank", Email: "bob@bank.com", Role: "Mediator"},
-		{OktaSub: "u-buyer", DamlUserID: "buyer", Email: "joey@buyer.com", Role: "Buyer"},
-		{OktaSub: "u-seller", DamlUserID: "seller", Email: "jimmy@seller.com", Role: "Seller"},
+		{OktaSub: "u-bank", DamlUserID: "bank", Email: "bob@bank.devlocal", Role: "Mediator"},
+		{OktaSub: "u-buyer", DamlUserID: "buyer", Email: "joey@buyer.devlocal", Role: "Buyer"},
+		{OktaSub: "u-seller", DamlUserID: "seller", Email: "jimmy@seller.devlocal", Role: "Seller"},
 	}, nil
 }
 
 func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
-	damlUserID := sanitizeDamlID(oktaSub)
+	damlUserID, err := SanitizeID(oktaSub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sanitize okta sub: %w", err)
+	}
 	
-	_, err := c.DoRawRequest(ctx, "GET", "/v2/users/"+damlUserID, nil)
+	_, err = c.DoRawRequest(ctx, "GET", "/v2/users/"+damlUserID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +75,15 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 }
 
 func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
-	damlUserID := sanitizeDamlID(oktaSub)
+	damlUserID, err := SanitizeID(oktaSub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sanitize user identity: %w", err)
+	}
 	
 	// 1. Allocate a new Party for the user
 	partyReq := map[string]interface{}{
 		"partyIdHint": damlUserID,
-		"displayName": email,
+		"displayName": damlUserID, // authoritatively compliant
 	}
 	
 	var partyResp struct {
@@ -110,7 +108,6 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	}
 
 	// 2. Create the User and link to the Party
-	// High-Assurance Daml 3.x Schema: Wrapped 'user' object + 'id' field
 	userReq := map[string]interface{}{
 		"user": map[string]interface{}{
 			"id":            damlUserID,

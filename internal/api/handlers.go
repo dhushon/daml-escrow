@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 
 	"github.com/go-chi/chi/v5"
@@ -206,24 +207,42 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 
 	ledgerReq := req.ToLedgerRequest()
 
+	// High-Assurance Sanitization: Ensure all tripartite identities are Daml-compliant
+	sanitizedCounterparty, err := ledger.SanitizeID(req.Counterparty)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Counterparty error: " + err.Error()})
+		return
+	}
+	
+	sanitizedMediator := ""
+	if req.Mediator != "" {
+		sanitizedMediator, err = ledger.SanitizeID(req.Mediator)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Mediator error: " + err.Error()})
+			return
+		}
+	}
+
 	// Bilateral Logic: Map initiator to correct role
 	if identity.Role == "Seller" {
 		ledgerReq.Seller = identity.DamlUserID
-		ledgerReq.Buyer = req.Counterparty
+		ledgerReq.Buyer = sanitizedCounterparty
 	} else {
 		ledgerReq.Buyer = identity.DamlUserID
-		ledgerReq.Seller = req.Counterparty
+		ledgerReq.Seller = sanitizedCounterparty
 	}
+	ledgerReq.Mediator = sanitizedMediator
 
-	// Tripartite Sovereignty: Enforce Role Exclusivity
-	if ledgerReq.Buyer == ledgerReq.Seller || ledgerReq.Buyer == ledgerReq.Mediator || ledgerReq.Seller == ledgerReq.Mediator {
-		h.logger.Error("role exclusivity violation", 
-			zap.String("buyer", ledgerReq.Buyer), 
-			zap.String("seller", ledgerReq.Seller), 
-			zap.String("mediator", ledgerReq.Mediator))
+	// High-Assurance: Authoritatively enforce role exclusivity and mandatory parties
+	if err := ledger.ValidateTripartiteRoles(ledgerReq.Buyer, ledgerReq.Seller, ledgerReq.Mediator); err != nil {
+		h.logger.Error("institutional mandate violation", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "An identity cannot occupy more than one role (Buyer, Seller, or Mediator) in a single transaction."})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 

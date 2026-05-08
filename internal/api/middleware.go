@@ -126,8 +126,14 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 					devUser := r.Header.Get("X-Dev-User")
 					if devUser != "" {
 						scopes := []string{ScopeEscrowRead, ScopeEscrowWrite, ScopeEscrowAccept}
+						// High-Assurance: Check if already an email to avoid double-suffix
+						email := devUser
+						if !strings.Contains(devUser, "@") {
+							email = devUser + "@dev.local"
+						}
+
 						ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
-						ctx = context.WithValue(ctx, EmailKey, devUser+"@dev.local")
+						ctx = context.WithValue(ctx, EmailKey, email)
 						ctx = context.WithValue(ctx, ScopesKey, scopes)
 						next.ServeHTTP(w, r.WithContext(ctx))
 						return
@@ -147,8 +153,14 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 				// Grant broad scopes for development flexibility
 				scopes := []string{ScopeEscrowRead, ScopeEscrowWrite, ScopeEscrowAccept, ScopeSystemAdmin}
 
+				// High-Assurance: Handle full emails correctly
+				email := devUser
+				if !strings.Contains(devUser, "@") {
+					email = devUser + "@dev.local"
+				}
+
 				ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
-				ctx = context.WithValue(ctx, EmailKey, devUser+"@dev.local")
+				ctx = context.WithValue(ctx, EmailKey, email)
 				ctx = context.WithValue(ctx, ScopesKey, scopes)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
