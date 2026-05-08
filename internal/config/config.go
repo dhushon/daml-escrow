@@ -88,34 +88,29 @@ func LoadConfig(path string) (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// High-Assurance: Authoritatively bind environment variables AFTER reading config file
+	// to ensure environment-level overrides take precedence in containerized workloads.
 	_ = v.BindEnv("auth.environment", "ENVIRONMENT")
 	_ = v.BindEnv("auth.authBypass", "AUTH_BYPASS")
 	
 	_ = v.BindEnv("ledger.host", "LEDGER_HOST")
 	_ = v.BindEnv("ledger.port", "LEDGER_PORT")
 	_ = v.BindEnv("ledger.participantId", "PARTICIPANT_ID")
+	
+	// High-Assurance: Bind node-specific host overrides for GKE tripartite nodes
 	_ = v.BindEnv("ledger.nodes.bank.host", "LEDGER_NODES_BANK_HOST")
 	_ = v.BindEnv("ledger.nodes.buyer.host", "LEDGER_NODES_BUYER_HOST")
 	_ = v.BindEnv("ledger.nodes.seller.host", "LEDGER_NODES_SELLER_HOST")
 	
-	_ = v.BindEnv("stablecoin.provider", "STABLECOIN_PROVIDER")
-	_ = v.BindEnv("stablecoin.bitgo.expressUrl", "BITGO_EXPRESS_URL")
-	_ = v.BindEnv("stablecoin.bitgo.accessToken", "BITGO_ACCESS_TOKEN")
-	_ = v.BindEnv("stablecoin.bitgo.enterprise", "BITGO_ENTERPRISE")
-	_ = v.BindEnv("stablecoin.bitgo.coin", "BITGO_COIN")
-	_ = v.BindEnv("stablecoin.circle.baseUrl", "CIRCLE_BASE_URL")
-	_ = v.BindEnv("stablecoin.circle.apiKey", "CIRCLE_API_KEY")
-	_ = v.BindEnv("stablecoin.circle.entitySecret", "CIRCLE_ENTITY_SECRET")
-	
 	_ = v.BindEnv("userConfig.dsn", "USER_CONFIG_DSN")
 	_ = v.BindEnv("gcpProjectId", "GCP_PROJECT_ID")
 	_ = v.BindEnv("region", "REGION")
-
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
-	}
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

@@ -50,8 +50,8 @@ resource "google_container_node_pool" "spot_nodes" {
   }
 
   node_config {
-    # e2-standard-2 provides 2 vCPU / 8GB RAM - necessary for Canton JVM
-    machine_type = "e2-standard-2"
+    # e2-standard-4 provides 4 vCPU / 16GB RAM - mandatory for Tripartite Canton workloads
+    machine_type = "e2-standard-4"
     
     # Cost-Saving: Use SPOT instances (up to 90% cheaper)
     spot = true

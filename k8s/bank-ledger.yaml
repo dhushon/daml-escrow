@@ -36,6 +36,13 @@ spec:
             secretKeyRef:
               name: db-secrets
               key: password
+        resources:
+          limits:
+            cpu: "2.0"
+            memory: "4Gi"
+          requests:
+            cpu: "1.0"
+            memory: "2Gi"
         command: ["/app/bin/canton"]
         args:
         - "daemon"

@@ -44,6 +44,16 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 					</form>
 				</div>
 
+				<!-- JIT Provisioning Status Bar -->
+				<div id="provisioning-status" class="hidden mt-6 space-y-4">
+					<div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+						<div id="status-bar" class="bg-blue-600 h-full transition-all duration-700 w-0"></div>
+					</div>
+					<p id="status-text" class="text-xs font-bold text-blue-600 dark:text-blue-400 text-center animate-pulse uppercase tracking-widest">
+						Allocating Institutional Identity...
+					</p>
+				</div>
+
 				{showDevMode && (
 					<div class="mt-10">
 						<div class="relative flex py-5 items-center">
@@ -112,16 +122,42 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 		}
 	});
 
+	const discoveryView = document.getElementById('discovery-view');
+	const provisioningStatus = document.getElementById('provisioning-status');
+	const statusBar = document.getElementById('status-bar');
+	const statusText = document.getElementById('status-text');
+
+	const updateStatus = (pct: number, text: string) => {
+		if (statusBar) statusBar.style.width = `${pct}%`;
+		if (statusText) statusText.innerText = text;
+	};
+
 	devRoles.forEach(btn => {
 		btn.addEventListener('click', async () => {
 			const role = btn.getAttribute('data-role');
 			if (!role) return;
 
+			// Show High-Assurance Status Bar
+			discoveryView?.classList.add('hidden');
+			provisioningStatus?.classList.remove('hidden');
+			if (errorMsg) errorMsg.classList.add('hidden');
+			
+			updateStatus(20, 'Authenticating institutional principal...');
+
 			try {
+				updateStatus(45, 'Allocating ledger identity...');
 				await loginAsRole(role);
-				window.location.href = getRedirect();
+				updateStatus(85, 'Synchronizing tripartite roles...');
+				
+				setTimeout(() => {
+					updateStatus(100, 'Handshake Verified.');
+					window.location.href = getRedirect();
+				}, 1000);
+
 			} catch (err: any) {
 				alert('Bypass failed: ' + err.message);
+				discoveryView?.classList.remove('hidden');
+				provisioningStatus?.classList.add('hidden');
 			}
 		});
 	});

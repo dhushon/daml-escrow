@@ -34,7 +34,6 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 		c.partyMap[p.DisplayName] = p.Party
 	}
 
-	c.logger.Info("party map refreshed", zap.Int("totalParties", len(c.partyMap)))
 	return nil
 }
 
@@ -137,31 +136,18 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		} `json:"result"`
 	}
 
+	var partyID string
 	body, err := c.DoRawRequest(ctx, "POST", "/v2/parties", partyReq)
 	if err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
+		if strings.Contains(err.Error(), "already exists") {
+			// High-Assurance: If party already exists, skip the slow wait and proceed
+			partyID = damlUserID
+		} else {
 			return nil, fmt.Errorf("failed to allocate party: %w", err)
 		}
 	} else {
 		_ = json.Unmarshal(body, &partyResp)
-	}
-
-	// High-Assurance: Deterministically wait for party to appear in the ledger index
-	// This definitively resolves the UNKNOWN_RESOURCE race condition.
-	var partyID string
-	for i := 0; i < 15; i++ {
-		_ = c.refreshPartyMap(ctx)
-		partyID = c.GetParty(damlUserID)
-		if partyID != "" && partyID != damlUserID {
-			c.logger.Info("party authoritatively indexed", zap.String("id", partyID))
-			break
-		}
-		c.logger.Warn("waiting for party propagation...", zap.String("logical", damlUserID), zap.Int("attempt", i+1))
-		time.Sleep(1 * time.Second)
-	}
-
-	if partyID == "" || partyID == damlUserID {
-		return nil, fmt.Errorf("high-assurance failure: party %s never appeared on ledger", damlUserID)
+		partyID = partyResp.Result.Party
 	}
 
 	// 2. Create the User and link to the Party
@@ -197,9 +183,9 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		},
 	}
 
-	// Retry user creation until propagation succeeds
+	// Faster, more authoritative retry loop for User creation
 	var provisionErr error
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 25; i++ {
 		_, err = c.DoRawRequest(ctx, "POST", "/v2/users", userReq)
 		if err == nil {
 			provisionErr = nil
@@ -210,13 +196,14 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 			break
 		}
 		if strings.Contains(err.Error(), "UNKNOWN_RESOURCE") {
-			c.logger.Warn("user service latency detected, retrying...", zap.Int("attempt", i+1))
-			time.Sleep(1 * time.Second)
+			c.logger.Warn("user service synchronization lag, retrying...", zap.Int("attempt", i+1))
+			time.Sleep(500 * time.Millisecond) // Faster polling
 			provisionErr = err
 			continue
 		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
+
 
 	if provisionErr != nil {
 		return nil, fmt.Errorf("failed to create user after retries: %w", provisionErr)

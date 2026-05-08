@@ -18,13 +18,15 @@ spec:
       - name: canton
         image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
         ports:
-        - containerPort: 6001
+        - containerPort: 5001
           name: admin
-        - containerPort: 6002
+        - containerPort: 5002
           name: ledger-api
-        - containerPort: 7576
+        - containerPort: 7575
           name: http-api
         env:
+        - name: POSTGRES_HOST
+          value: "escrow-postgres-dist.default.svc.cluster.local"
         - name: POSTGRES_DB
           value: "canton_buyer"
         - name: POSTGRES_USER
@@ -34,6 +36,13 @@ spec:
             secretKeyRef:
               name: db-secrets
               key: password
+        resources:
+          limits:
+            cpu: "2.0"
+            memory: "4Gi"
+          requests:
+            cpu: "1.0"
+            memory: "2Gi"
         command: ["/app/bin/canton"]
         args:
         - "daemon"
@@ -54,7 +63,7 @@ metadata:
   namespace: buyer
 spec:
   ports:
-  - port: 7576
+  - port: 7575
     name: http-api
   selector:
     app: buyer-ledger

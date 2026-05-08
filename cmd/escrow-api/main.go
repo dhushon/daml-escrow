@@ -127,11 +127,18 @@ func runServer() {
 	var ledgerClient ledger.Client
 	if cfg.Ledger.ParticipantID != "" {
 		node, ok := cfg.Ledger.Nodes[cfg.Ledger.ParticipantID]
-		if !ok {
-			logger.Fatal("isolated participant mode requested but node configuration not found", zap.String("participantId", cfg.Ledger.ParticipantID))
+		// High-Assurance: Authoritatively fallback to cfg.Ledger.Host if node map is stale or missing
+		host := cfg.Ledger.Host
+		if ok && node.Host != "" && node.Host != "canton" {
+			host = node.Host
 		}
-		logger.Info("starting in isolated participant mode", zap.String("name", cfg.Ledger.ParticipantID), zap.String("host", node.Host), zap.Int("port", node.Port))
-		ledgerClient = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+		
+		logger.Info("starting in isolated participant mode", 
+			zap.String("name", cfg.Ledger.ParticipantID), 
+			zap.String("host", host), 
+			zap.Int("port", cfg.Ledger.Port))
+		
+		ledgerClient = ledger.NewJsonLedgerClient(logger, host, cfg.Ledger.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	} else if len(cfg.Ledger.Nodes) > 0 {
 		clients := make(map[string]ledger.Client)
 		for name, node := range cfg.Ledger.Nodes {

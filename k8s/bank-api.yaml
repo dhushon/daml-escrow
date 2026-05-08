@@ -25,6 +25,8 @@ spec:
           value: "8080"
         - name: LEDGER_HOST
           value: "bank-ledger.bank.svc.cluster.local"
+        - name: LEDGER_NODES_BANK_HOST
+          value: "bank-ledger.bank.svc.cluster.local"
         - name: LEDGER_PORT
           value: "7575"
         - name: PARTICIPANT_ID
@@ -33,7 +35,8 @@ spec:
           value: "vdcai-daml"
         - name: ENVIRONMENT
           value: "dev"
-        # High-Assurance: Correct command order
+        - name: USER_CONFIG_DSN
+          value: "postgres://escrow:escrow@escrow-postgres-dist.default.svc.cluster.local:5432/user_config?sslmode=disable"
         command: ["/app/escrow-api"]
         args: ["serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
         volumeMounts:

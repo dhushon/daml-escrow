@@ -8,9 +8,22 @@ data:
     canton {
       participants {
         bank {
-          storage.type = memory
+          storage.type = postgres
+          storage.config {
+            dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+            properties {
+              serverName = "escrow-postgres-dist.default.svc.cluster.local"
+              portNumber = 5432
+              databaseName = "canton_bank"
+              user = "escrow"
+              password = "escrow"
+            }
+          }
+          admin-api.address = 0.0.0.0
           admin-api.port = 5001
+          ledger-api.address = 0.0.0.0
           ledger-api.port = 5002
+          http-ledger-api.address = 0.0.0.0
           http-ledger-api.port = 7575
         }
       }
@@ -26,10 +39,23 @@ data:
     canton {
       participants {
         buyer {
-          storage.type = memory
-          admin-api.port = 6001
-          ledger-api.port = 6002
-          http-ledger-api.port = 7576
+          storage.type = postgres
+          storage.config {
+            dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+            properties {
+              serverName = "escrow-postgres-dist.default.svc.cluster.local"
+              portNumber = 5432
+              databaseName = "canton_buyer"
+              user = "escrow"
+              password = "escrow"
+            }
+          }
+          admin-api.address = 0.0.0.0
+          admin-api.port = 5001
+          ledger-api.address = 0.0.0.0
+          ledger-api.port = 5002
+          http-ledger-api.address = 0.0.0.0
+          http-ledger-api.port = 7575
         }
       }
     }
@@ -44,10 +70,23 @@ data:
     canton {
       participants {
         seller {
-          storage.type = memory
-          admin-api.port = 7001
-          ledger-api.port = 7002
-          http-ledger-api.port = 7577
+          storage.type = postgres
+          storage.config {
+            dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+            properties {
+              serverName = "escrow-postgres-dist.default.svc.cluster.local"
+              portNumber = 5432
+              databaseName = "canton_seller"
+              user = "escrow"
+              password = "escrow"
+            }
+          }
+          admin-api.address = 0.0.0.0
+          admin-api.port = 5001
+          ledger-api.address = 0.0.0.0
+          ledger-api.port = 5002
+          http-ledger-api.address = 0.0.0.0
+          http-ledger-api.port = 7575
         }
       }
     }

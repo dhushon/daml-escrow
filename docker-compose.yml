@@ -67,6 +67,11 @@ services:
   sandbox:
     image: europe-docker.pkg.dev/da-images/public/docker/canton-base:3.4.11
     container_name: escrow-ledger
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
     ports:
       - "6865:6865"   # Ledger API (gRPC)
       - "6866:6866"   # Admin API

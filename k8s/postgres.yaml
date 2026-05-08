@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: escrow-postgres-dist
+  namespace: default
+spec:
+  serviceName: "escrow-postgres-dist"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "escrow"
+        - name: POSTGRES_PASSWORD
+          value: "escrow"
+        - name: POSTGRES_DB
+          value: "postgres"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata" # Authoritative subdirectory fix
+        resources:
+          limits:
+            cpu: "1.0"
+            memory: "2Gi"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "premium-rwo"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: escrow-postgres-dist
+  namespace: default
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: postgres
+  type: ClusterIP
+---
+# High-Assurance Database Initializer (One-Shot)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: escrow-db-init
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: init
+        image: postgres:16
+        env:
+        - name: PGPASSWORD
+          value: "escrow"
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          until psql -h escrow-postgres-dist -U escrow -d postgres -c "select 1"; do sleep 5; done;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_bank;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_buyer;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_seller;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE user_config;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_bank TO escrow;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_buyer TO escrow;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_seller TO escrow;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE user_config TO escrow;" || true;
+      restartPolicy: OnFailure

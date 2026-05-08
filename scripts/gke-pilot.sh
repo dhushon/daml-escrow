@@ -1,6 +1,8 @@
 #!/bin/bash
-# High-Assurance GKE Pilot Management Script
-# authoritatively manages the bring-up and clean-up of the Stablecoin Escrow platform.
+# scripts/gke-pilot.sh --- Tier 2: Workload Orchestration
+# authoritatively manages GKE cluster, tripartite nodes, and pilot deployments.
+
+set -e
 
 PROJECT_ID="vdcai-daml"
 REGION="us-central1"
@@ -14,6 +16,12 @@ function log() {
 }
 
 function up() {
+  log "TIER 2: PROVISIONING WORKLOAD INFRASTRUCTURE"
+  cd terraform/workload
+  terraform init
+  terraform apply -auto-approve -var="project_id=$PROJECT_ID"
+  cd ../..
+
   log "VERIFYING AUTHORITATIVE CONTEXT: $CLUSTER_NAME"
   gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
 
@@ -21,7 +29,6 @@ function up() {
   kubectl apply -f k8s/namespaces.yaml
 
   log "[2/5] DEPLOYING IDENTITY CONTROLLERS"
-  # Core TLS/Identity infrastructure
   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
   kubectl apply -f https://github.com/jetstack/google-cas-issuer/releases/download/v0.8.0/google-cas-issuer-v0.8.0.yaml
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
@@ -41,7 +48,7 @@ function up() {
 
   log "[5/5] HARDENING PUBLIC ENTRYPOINT"
   kubectl apply -f k8s/ingress.yaml
-  # Patch Ingress to use our reserved Regional Static IP
+  # Patch Ingress to use our reserved Regional Static IP (from Tier 1)
   kubectl patch service ingress-nginx-controller -n ingress-nginx -p '{"spec": {"loadBalancerIP": "34.31.124.124"}}'
 
   log "BRING-UP COMPLETE: Awaiting GKE LoadBalancer & Certificate propagation."
@@ -57,7 +64,7 @@ function down() {
 
 function status() {
   log "AUDITING PILOT HEALTH"
-  kubectl get pods --all-namespaces -l "env=dev"
+  kubectl get pods --all-namespaces | grep -E "bank|buyer|seller"
   kubectl get ingress -n bank
   kubectl get certificate --all-namespaces
 }
