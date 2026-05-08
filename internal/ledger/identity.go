@@ -12,7 +12,8 @@ func SanitizeID(id string) (string, error) {
 		return "", errors.New("identity identifier cannot be null or empty")
 	}
 
-	if strings.HasPrefix(id, "u-") && !strings.ContainsAny(id, "@|.") {
+	// If already valid, do not sanitize
+	if IsValidID(id) {
 		return id, nil
 	}
 
@@ -22,14 +23,37 @@ func SanitizeID(id string) (string, error) {
 	return "u-" + s, nil
 }
 
+// IsValidID is a common validator checking if an ID matches the required Daml-compliant pattern.
+// Nil/Empty is authoritatively NOT valid.
+func IsValidID(id string) bool {
+	if strings.TrimSpace(id) == "" {
+		return false
+	}
+	// Must start with u- and contain no forbidden characters
+	return strings.HasPrefix(id, "u-") && !strings.ContainsAny(id, "@|.")
+}
+
+// CheckValidID verifies if an ID is valid independently of roles.
+// It returns an error for invalid patterns or empty strings.
+func CheckValidID(id string) error {
+	if strings.TrimSpace(id) == "" {
+		return errors.New("identity cannot be null or empty")
+	}
+	if !IsValidID(id) {
+		return errors.New("identity does not match the required Daml-compliant pattern (u- prefix, no special characters)")
+	}
+	return nil
+}
+
 // ValidateTripartiteRoles authoritatively enforces the institutional role requirements.
 // Buyer and Seller are MANDATORY; Mediator is optional.
 func ValidateTripartiteRoles(buyer, seller, mediator string) error {
-	if strings.TrimSpace(buyer) == "" {
-		return errors.New("institutional mandate violation: Buyer identity cannot be null")
+	// First check basic validity of mandatory roles
+	if err := CheckValidID(buyer); err != nil {
+		return errors.New("institutional mandate violation: " + err.Error())
 	}
-	if strings.TrimSpace(seller) == "" {
-		return errors.New("institutional mandate violation: Seller identity cannot be null")
+	if err := CheckValidID(seller); err != nil {
+		return errors.New("institutional mandate violation: " + err.Error())
 	}
 
 	// Roles MUST be distinct (enforced here and in DAML)
@@ -38,6 +62,9 @@ func ValidateTripartiteRoles(buyer, seller, mediator string) error {
 	}
 
 	if mediator != "" {
+		if err := CheckValidID(mediator); err != nil {
+			return errors.New("mediator validation error: " + err.Error())
+		}
 		if mediator == buyer || mediator == seller {
 			return errors.New("role exclusivity violation: Mediator cannot be a transacting party (Buyer or Seller)")
 		}
