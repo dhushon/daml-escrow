@@ -122,8 +122,10 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 			const session = getSession();
 			const currentUserId = session?.identity.damlUserId;
 
+			const identityList = identities || [];
+
 			// Filter counterparties (anyone not me and not a mediator)
-			const counterpartyOptions = (identities || [])
+			const counterpartyOptions = identityList
 				.filter((id: any) => id.damlUserId !== currentUserId && id.role !== 'Mediator')
 				.map((id: any) => {
 					const emailPrefix = id.email.split('@')[0];
@@ -132,7 +134,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				}).join('');
 			
 			// Filter mediators
-			const mediatorOptions = (identities || [])
+			const mediatorOptions = identityList
 				.filter((id: any) => id.role === 'Mediator')
 				.map((id: any) => {
 					const emailPrefix = id.email.split('@')[0];
@@ -140,13 +142,14 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				}).join('');
 
 			if (counterpartySelect) {
-				counterpartySelect.innerHTML = counterpartyOptions || '<option value="">No other identities found</option>';
+				counterpartySelect.innerHTML = counterpartyOptions || '<option value="">No other identities found - Try inviting them?</option>';
 			}
 			if (mediatorSelect) {
 				mediatorSelect.innerHTML = mediatorOptions || '<option value="">No mediators found</option>';
 			}
 		} catch (err) {
 			console.error('Failed to load identities', err);
+			if (counterpartySelect) counterpartySelect.innerHTML = '<option value="">Error loading directory</option>';
 		}
 	}
 

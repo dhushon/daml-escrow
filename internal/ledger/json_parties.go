@@ -49,11 +49,44 @@ func (c *JsonLedgerClient) GetParty(user string) string {
 }
 
 func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
-	return []*UserIdentity{
-		{OktaSub: "u-bank", DamlUserID: "bank", Email: "bob@bank.devlocal", Role: "Mediator"},
-		{OktaSub: "u-buyer", DamlUserID: "buyer", Email: "joey@buyer.devlocal", Role: "Buyer"},
-		{OktaSub: "u-seller", DamlUserID: "seller", Email: "jimmy@seller.devlocal", Role: "Seller"},
-	}, nil
+	var resp struct {
+		Result []struct {
+			ID           string `json:"id"`
+			PrimaryParty string `json:"primaryParty"`
+			Metadata     struct {
+				Annotations map[string]string `json:"annotations"`
+			} `json:"metadata"`
+		} `json:"result"`
+	}
+
+	body, err := c.DoRawRequest(ctx, "GET", "/v2/users", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch live institutional directory: %w", err)
+	}
+	_ = json.Unmarshal(body, &resp)
+
+	identities := make([]*UserIdentity, 0, len(resp.Result))
+	for _, u := range resp.Result {
+		// High-Assurance: Skip system admin and unprovisioned users
+		if u.ID == "participant_admin" {
+			continue
+		}
+		
+		email := u.Metadata.Annotations["email"]
+		role := u.Metadata.Annotations["role"]
+		if email == "" { email = u.ID + "@devlocal" }
+		if role == "" { role = "Buyer" }
+
+		identities = append(identities, &UserIdentity{
+			DamlUserID:  u.ID,
+			DamlPartyID: u.PrimaryParty,
+			Email:       email,
+			Role:        role,
+			DisplayName: u.ID,
+		})
+	}
+
+	return identities, nil
 }
 
 func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
@@ -62,16 +95,28 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 		return nil, fmt.Errorf("failed to sanitize okta sub: %w", err)
 	}
 	
-	_, err = c.DoRawRequest(ctx, "GET", "/v2/users/"+damlUserID, nil)
+	body, err := c.DoRawRequest(ctx, "GET", "/v2/users/"+damlUserID, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	var resp struct {
+		Result struct {
+			ID           string `json:"id"`
+			PrimaryParty string `json:"primaryParty"`
+			Metadata     struct {
+				Annotations map[string]string `json:"annotations"`
+			} `json:"metadata"`
+		} `json:"result"`
+	}
+	_ = json.Unmarshal(body, &resp)
+
 	return &UserIdentity{
 		OktaSub:     oktaSub,
 		DamlUserID:  damlUserID,
-		DamlPartyID: c.GetParty(damlUserID),
-		Role:        "Buyer", 
+		DamlPartyID: resp.Result.PrimaryParty,
+		Email:       resp.Result.Metadata.Annotations["email"],
+		Role:        resp.Result.Metadata.Annotations["role"],
 	}, nil
 }
 
