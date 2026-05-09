@@ -103,13 +103,20 @@ The Go backend aggregates real-time diagnostics from all critical sub-systems:
 *   **Oracle:** Validates security credentials and trigger readiness.
 The frontend dashboard provides a live cockpit for monitoring these states with 15s polling.
 
-### 5. High-Assurance Identity (Phase 9)
+### 6. Off-Chain Negotiation & Bipartite Onboarding (Phase 12)
 
-Transitioned from static mocks to a production-grade **OIDC Identity Bridge**:
-*   **Okta Integration:** Cryptographic JWT validation via JWKS signatures.
-*   **JIT Provisioning:** Automated allocation of ledger parties and user metadata upon first login.
-*   **Scoped Authority:** OIDC scopes (e.g., `system:admin`) are mapped directly to cryptographically enforced ledger permissions.
-*   **Dynamic Discovery:** Automatically resolves Package IDs and Party IDs at runtime, ensuring environment resilience.
+Evolved the bipartite handshake to support cost-optimized institutional negotiation before ledger commitment:
+*   **Draft Tunnel:** Propose terms, milestones, and mediators in a high-speed Postgres intermediate layer with zero transaction fees.
+*   **Invitation Codes:** Bridge novel email identities to real ledger principals using cryptographically secure registration codes.
+*   **Postgres-to-Canton Promotion:** authoritatively commit to the ledger only when all three parties (Buyer + Seller + Mediator) have definitively ratified the terms.
+
+### 7. 3-Tier Terraform Governance (Phase 12)
+
+Hardened the physical infrastructure orchestration with three distinct security perimeters:
+*   **Tier 1 (Admin):** Manages the high-assurance cloud foundation (GCP Root CA, Audit Sinks, DNS).
+*   **Tier 2 (Workload):** Orchestrates tripartite GKE nodes, KMS HSM keys, and pilot workloads.
+*   **Tier 3 (Identity):** Dedicated to SAML/Okta institutional federation.
+*   **Outcome:** Enforced strict principle separation and least-privilege operations, fulfilling the definitive SOC2 readiness mandate.
 
 ------------------------------------------------------------------------
 

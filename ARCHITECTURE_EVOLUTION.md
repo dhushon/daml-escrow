@@ -183,14 +183,49 @@ sequenceDiagram
 
 *   **Outcome:** A production-ready financial backbone capable of handling real-world tokenized assets with institutional-grade security and bilateral authority.
 
-## Phase 11: Sovereign Tripartite Orchestration (Active)
+## Phase 12: High-Assurance Governance & Off-Chain Negotiation (Active)
 
-Evolved the platform from a logical distributed model (local Docker) to a physical isolated model (GKE/Kubernetes), enforcing true structural sovereignty for all participants.
+Transitioned the platform to a professional institutional grade with strict governance tiers and cost-optimized bipartite negotiation.
 
 ### Key Architectural Enhancements:
-1.  **Logical Isolation (Namespaces):** Established hard boundaries between tripartite participants (`bank`, `buyer`, `seller`) within the GKE cluster, ensuring that compute and network resources are strictly separated.
-2.  **Structural Sovereignty:** Refactored the Go API to support `PARTICIPANT_ID` authoritative locking. In production, a Buyer API instance is cryptographically and logically incapable of communicating with the Bank or Seller ledger nodes.
-3.  **Stateful Stability:** Implemented `StatefulSets` for Canton ledger nodes to ensure persistent identity and high-availability across institutional nodes.
-4.  **Institutional Release Path:** Integrated with **GCP Artifact Registry** for high-assurance container storage and established the `k8s/` orchestration guide.
+1.  **3-Tier Terraform Governance:** authoritatively refactored the infrastructure into three distinct security perimeters:
+    *   **Tier 1 (Admin):** Cloud-native Root of Trust (GCP CAS, Audit, DNS).
+    *   **Tier 2 (Workload):** Tripartite Orchestration (GKE, KMS, Registry).
+    *   **Tier 3 (Identity):** External Federation (Okta, SAML).
+    *   **Outcome:** Enforced strict principle separation and least-privilege operations, fulfilling the definitive SOC2 readiness mandate.
+2.  **Off-Chain Negotiation Tunnel:** implemented a high-assurance bipartite negotiation layer in **Postgres (`draft_escrows`)**.
+    *   **Zero-Latency Handshake:** Parties iterate on terms, milestones, and mediators off-chain with instant feedback and zero ledger transaction fees.
+    *   **Invitation Bridge:** uses secure **Registration Codes** to bridge novel email-based identities to real ledger principals upon JIT provisioning.
+3.  **Institutional Persistence:** hardened the GKE tripartite ledgers with **SSD-Premium Persistence (Premium RWO)** and sidecar database initialization.
+4.  **Resilient JIT Status:** Synchronized the backend "Fast Identity Recovery" with a frontend **Progress Status Bar**, authoritatively informing users of their ledger allocation state during the authentication handshake.
 
-*   **Outcome:** A high-assurance, distributed platform ready for institutional deployment where data sovereignty is enforced at the container and network layers.
+### Bipartite Draft-to-Ledger Flow:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant I as Initiator (e.g. Jimmy)
+    participant DB as Postgres (Draft Tunnel)
+    participant C as Counterparty (e.g. Joey)
+    participant L as Canton Ledger
+
+    Note over I,DB: Step 1: Speculative Draft
+    I->>DB: SaveDraft (with invitee_email)
+    DB-->>I: Invitation Code: XYZ
+    
+    Note over C,DB: Step 2: Onboarding & Claim
+    C->>C: Login (JIT Provisioning)
+    C->>DB: ClaimDraft (XYZ + damlPartyId)
+    DB->>DB: Associate Identity
+    
+    Note over I,C: Step 3: Off-Chain Negotiation
+    I->>DB: Propose Change
+    C->>DB: Review & Edit
+    
+    Note over I,L: Step 4: Ledger Promotion
+    I->>DB: Ratify Agreement
+    C->>DB: Ratify Agreement
+    DB->>L: Promote (Submit Create EscrowProposal)
+    L-->>I & C: On-Chain Settlement Finality
+```
+
+*   **Outcome:** A cost-efficient, high-performance institutional platform that balances human-scale negotiation with cryptographic ledger finality.
