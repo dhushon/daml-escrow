@@ -55,11 +55,19 @@ function up() {
 }
 
 function down() {
-  log "PURGING TRI-PARTITE PILOT STACK"
-  kubectl delete -f k8s/ingress.yaml --ignore-not-found
-  kubectl delete namespaces bank buyer seller --ignore-not-found
-  kubectl delete namespace observability --ignore-not-found
-  log "CLEAN-UP COMPLETE."
+  log "TIER 2: DESTROYING EXPENSIVE WORKLOAD INFRASTRUCTURE"
+  
+  # [1/2] Purge K8s resources to ensure clean load balancer detachment
+  kubectl delete -f k8s/ingress.yaml --ignore-not-found || true
+  kubectl delete namespaces bank buyer seller --ignore-not-found || true
+  
+  # [2/2] Authoritative Terraform destruction
+  cd terraform/workload
+  terraform init
+  terraform destroy -auto-approve -var="project_id=$PROJECT_ID"
+  cd ../..
+  
+  log "TAKEDOWN COMPLETE: GKE Cluster and node pools definitively purged."
 }
 
 function status() {

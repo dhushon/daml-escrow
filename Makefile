@@ -54,7 +54,7 @@ pilot-local: ## Authoritatively launch local services pointing to GKE (api.vdata
 	@echo "SUCCESS: Local UX pointing to GKE LIVE on http://localhost:4321"
 
 .PHONY: pilot-down
-pilot-down: ## Tier 2: Purge tripartite pilot workloads and namespaces
+pilot-down: ## Tier 2: authoritatively DESTROY GKE cluster and node pools (Cost Protection)
 	@./scripts/gke-pilot.sh down
 
 .PHONY: pilot-release
