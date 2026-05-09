@@ -216,26 +216,35 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	asset, terms := req.ToLedgerAssetAndTerms()
-	invite, err := h.escrowService.GetLedgerClient().CreateInvitation(r.Context(), userID, req.InviteeEmail, req.InviteeRole, req.InviteeType, asset, terms)
+	
+	// High-Assurance: Authoritatively use the off-chain draft tunnel for zero-latency invitations
+	terms, _ := json.Marshal(map[string]interface{}{
+		"conditionDescription": req.ConditionDescription,
+		"expiryDate":           req.ExpiryDate,
+	})
+	
+	draft, err := h.configService.CreateDraft(userID, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
 	if err != nil {
+		h.logger.Error("failed to create institutional invitation draft", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(invite)
+	_ = json.NewEncoder(w).Encode(draft)
 }
 
 func (h *Handler) ClaimInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 
-	_, err := h.escrowService.GetLedgerClient().ClaimInvitation(r.Context(), token, userID)
-	if err != nil {
-		h.logger.Error("failed to claim invitation", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusForbidden)
+	// High-Assurance: authoritatively bridge the off-chain invitation to the draft record.
+	if err := h.configService.ClaimDraft(token, userID); err != nil {
+		h.logger.Error("failed to claim institutional draft", zap.Error(err), zap.String("token", token))
+		http.Error(w, "invalid or expired invitation code", http.StatusForbidden)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

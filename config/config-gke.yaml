@@ -1,0 +1,30 @@
+server:
+  port: 8081
+
+ledger:
+  host: "api.vdatacloudai.com"
+  port: 443
+  participantId: "bank"
+  nodes:
+    bank:
+      host: "api.vdatacloudai.com"
+      port: 443
+    buyer:
+      host: "api.vdatacloudai.com"
+      port: 443
+    seller:
+      host: "api.vdatacloudai.com"
+      port: 443
+  packages:
+    implementation: "stablecoin-escrow"
+    interfaces: "stablecoin-escrow-interfaces"
+
+userConfig:
+  dsn: "postgres://escrow:escrow@localhost:5432/user_config?sslmode=disable"
+
+auth:
+  environment: "dev"
+  authBypass: true
+
+gcpProjectId: "vdcai-daml"
+region: "us-central1"

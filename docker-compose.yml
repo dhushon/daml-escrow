@@ -49,14 +49,16 @@ services:
 
           CREATE TABLE IF NOT EXISTS draft_escrows (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            invitation_code TEXT UNIQUE,
             initiator_id TEXT NOT NULL,
             counterparty_email TEXT NOT NULL,
+            counterparty_id TEXT, -- Populated upon 'Claim'
             mediator_id TEXT,
             amount DECIMAL(18, 2) NOT NULL,
             currency TEXT NOT NULL,
             terms JSONB NOT NULL,
             metadata JSONB,
-            status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT, NEGOTIATION, RATIFIED
+            status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT, CLAIMED, NEGOTIATION, RATIFIED
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );

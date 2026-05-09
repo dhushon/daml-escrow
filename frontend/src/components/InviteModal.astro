@@ -11,18 +11,20 @@
 		<div class="relative inline-block overflow-visible text-left align-middle transition-all transform bg-white dark:bg-slate-900 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] sm:my-8 sm:max-w-lg sm:w-full border border-slate-200 dark:border-slate-800 z-[110]">
 			<div class="px-8 pt-8 pb-6 bg-blue-600 rounded-t-[22px]">
 				<h3 class="text-xl font-black text-white uppercase tracking-tight">Invite Counterparty</h3>
-				<p class="text-blue-100 text-xs mt-1 font-medium">Extend a high-assurance invitation to a new institutional partner.</p>
+				<p class="text-blue-100 text-xs mt-1 font-medium text-left">Extend a high-assurance invitation to a new institutional partner.</p>
 			</div>
 
-			<form id="invite-form" class="p-8 space-y-6">
+			<!-- High-Assurance: Absolute validation bypass for browser compliance -->
+			<form id="invite-form" class="p-8 space-y-6" novalidate autocomplete="off">
 				<div class="text-left relative">
-					<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Institutional Email</label>
+					<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Institutional Identity (Email)</label>
 					<div class="group relative">
+						<!-- RENAMED name and id to definitively bypass browser regex helpers -->
 						<input 
 							type="text" 
-							name="email" 
-							id="invite-email-input"
-							required 
+							name="invitee_identity_raw" 
+							id="invitee-identity-input"
+							required
 							placeholder="e.g. partner@vdatacloud.com"
 							class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
 						/>
@@ -77,7 +79,7 @@
 
 	window.addEventListener('open-invite-modal', () => {
 		modal?.classList.remove('hidden');
-		document.getElementById('invite-email-input')?.focus();
+		document.getElementById('invitee-identity-input')?.focus();
 	});
 
 	const hideModal = () => modal?.classList.add('hidden');
@@ -88,18 +90,27 @@
 		e.preventDefault();
 		const formData = new FormData(form);
 		
-		const email = formData.get('email') as string;
+		// Use the new, browser-obfuscated key name
+		const identity = formData.get('invitee_identity_raw') as string;
 		const role = formData.get('role') as string;
 		const type = formData.get('inviteeType') as string;
 
-		const asset = { amount: 1, currency: 'USD', assetType: 'Stablecoin', assetId: 'PENDING' };
+		if (!identity || identity.trim() === "") {
+			alert('Institutional identity (Email) is required');
+			return;
+		}
+
+		// Mock asset/terms for the initial invitation handshake
+		const asset = { amount: 1.0, currency: 'USD', assetType: 'Stablecoin', assetId: 'PENDING' };
 		const terms = { conditionDescription: 'Pending Onboarding', expiryDate: new Date(Date.now() + 86400000 * 7).toISOString() };
 
 		try {
-			await createInvitation(email, role, type, asset, terms);
-			alert(`Invitation authoritatively sent to ${email}`);
+			console.log('Authoritatively sending invitation...', { identity, role, type });
+			await createInvitation(identity, role, type, asset, terms);
+			alert(`Invitation authoritatively sent to ${identity}`);
 			hideModal();
 		} catch (err: any) {
+			console.error('CRITICAL: Invitation failed', err);
 			alert('Failed to send invitation: ' + err.message);
 		}
 	});

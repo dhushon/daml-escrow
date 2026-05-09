@@ -209,6 +209,9 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 		r.Get("/drafts", handler.ListDrafts)
 		r.Post("/drafts/{draftID}/promote", handler.PromoteToLedger)
 
+		r.Post("/invites", handler.CreateInvitation)
+		r.Get("/invites", handler.ListInvitations)
+
 		r.Post("/escrows", handler.ProposeEscrow)
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 		r.Get("/metrics", handler.GetMetrics)

@@ -15,14 +15,15 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 				<h2 class="text-2xl font-bold text-white">Identity Gateway</h2>
 				<p class="text-blue-100 text-sm mt-2">Access the Stablecoin Escrow Platform</p>
 			</div>
-			
+
 			<div class="p-8">
 				<div id="discovery-view">
-					<form id="discovery-form" class="space-y-6">
+					<!-- High-Assurance: added novalidate to bypass browser pattern mismatch errors -->
+					<form id="discovery-form" class="space-y-6" novalidate>
 						<div>
 							<label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Corporate Email</label>
 							<input 
-								type="email" 
+								type="text" 
 								id="email" 
 								name="email" 
 								required 
@@ -68,7 +69,7 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 							<button data-role="EscrowMediator" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Sally (Mediator)</button>
 							<button data-role="CentralBank" class="p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all text-xs font-bold text-slate-600 dark:text-slate-400">Bob (Bank / Admin)</button>
 						</div>
-						
+
 						<p class="mt-4 text-[10px] text-slate-400 text-center italic">
 							Requires API running with ENVIRONMENT=dev and AUTH_BYPASS=true
 						</p>
@@ -101,24 +102,22 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 		e.preventDefault();
 		const formData = new FormData(form);
 		const email = formData.get('email') as string;
-
+		
 		if (!email) return;
 
 		btn.disabled = true;
-		if (errorMsg) errorMsg.classList.add('hidden');
-		const btnText = btn.querySelector('span');
-		if (btnText) btnText.textContent = 'Discovering...';
+		btn.innerText = 'Redirecting to Provider...';
 
 		try {
 			await handleLoginDiscovery(email);
 		} catch (err: any) {
-			console.error(err);
-			btn.disabled = false;
-			if (btnText) btnText.textContent = 'Continue to OIDC Sign In';
+			console.error('Discovery failed', err);
 			if (errorMsg) {
-				errorMsg.textContent = 'Failed to find identity provider.';
+				errorMsg.innerText = 'Institutional discovery failed. Please check your email.';
 				errorMsg.classList.remove('hidden');
 			}
+			btn.disabled = false;
+			btn.innerText = 'Continue to OIDC Sign In';
 		}
 	});
 

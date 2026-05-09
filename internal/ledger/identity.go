@@ -17,10 +17,16 @@ func SanitizeID(id string) (string, error) {
 		return id, nil
 	}
 
-	s := strings.ReplaceAll(id, "|", "-")
-	s = strings.ReplaceAll(s, "@", "-")
-	s = strings.ReplaceAll(s, ".", "-")
-	return "u-" + s, nil
+	// Institutional Grade Sanitization: Replace all non-alphanumeric with '-'
+	s := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		return '-'
+	}, id)
+	
+	// Prepend 'u-' and ensure lowercase
+	return "u-" + strings.ToLower(s), nil
 }
 
 // IsValidID is a common validator checking if an ID matches the required Daml-compliant pattern.

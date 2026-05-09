@@ -22,7 +22,7 @@ standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081
 	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321"
 
 .PHONY: standalone-down
-standalone-up: ## Purge all local standalone processes and containers
+standalone-down: ## Purge all local standalone processes and containers
 	@pkill -f "escrow-api" || true
 	@pkill -f "astro" || true
 	@docker compose down -v
@@ -45,6 +45,13 @@ pilot-up: ## Tier 2: Provision Workload (GKE, KMS) and deploy tripartite nodes
 .PHONY: pilot-status
 pilot-status: ## Tier 2: Audit pod health and mTLS certificate status
 	@./scripts/gke-pilot.sh status
+
+.PHONY: pilot-local
+pilot-local: ## Authoritatively launch local services pointing to GKE (api.vdatacloudai.com)
+	@echo "Launching local services in GCP-Proxy mode..."
+	@nohup go run ./cmd/escrow-api serve --notls --bypass --port 8081 --config config/config-gke.yaml > log/pilot-local-api.log 2>&1 &
+	@cd frontend && PUBLIC_API_URL=http://localhost:8081 npm run dev -- --port 4321 > ../log/pilot-local-frontend.log 2>&1 &
+	@echo "SUCCESS: Local UX pointing to GKE LIVE on http://localhost:4321"
 
 .PHONY: pilot-down
 pilot-down: ## Tier 2: Purge tripartite pilot workloads and namespaces

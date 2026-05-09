@@ -318,10 +318,15 @@ template EscrowInvitation
     ensure (inviter /= mediator)
 
     choice ClaimInvitation : ContractId EscrowProposal
-      with claimingParty : Party
-      controller mediator
+      with 
+        claimingParty : Party
+        registrationToken : Text
+      controller claimingParty
       do
-        -- High-Assurance: Ensure claimant is not already an actor
+        -- High-Assurance: authoritatively verify the registration token
+        assertMsg "Invalid registration token" (registrationToken == tokenHash)
+        
+        -- Role Exclusivity
         assertMsg "Claimant cannot be the inviter" (claimingParty /= inviter)
         assertMsg "Claimant cannot be the mediator" (claimingParty /= mediator)
 
