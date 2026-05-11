@@ -76,3 +76,13 @@
     - Translates `DraftEscrow` -> `EscrowInvitation` (if counterparty is only known by email).
 - **Atomicity:** Promotion must update the off-chain status to `PROMOTED` only after the ledger transaction is confirmed.
 
+## 10. Triple-Tier Identity Alignment
+
+The platform authoritatively enforces a 3-tier identity model to ensure privacy, sovereignty, and interoperability:
+
+1.  **Registration Identity (T1):** External OIDC Subject (Okta `sub`) and Email. This is the "Human" layer stored in Postgres.
+2.  **Ledger User ID (T2):** A namespaced account on a specific Participant Node (e.g., `u-dan-hushon`). This layer manages permissions (`actAs`, `readAs`).
+3.  **Canton Network Identity (T3):** Cryptographic `damlPartyId`. This is the "Sovereign" layer used for on-chain signatures and data visibility.
+
+**Rule:** Every API response involving participants MUST "Decorate" T3 identifiers with T1 metadata fetched from the Postgres layer to ensure a high-fidelity user experience without leaking PII on the ledger.
+
