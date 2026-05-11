@@ -207,8 +207,10 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 		// --- Phase 11: Draft & Negotiation ---
 		r.Post("/drafts", handler.SaveDraft)
 		r.Get("/drafts", handler.ListDrafts)
+		r.Get("/drafts/{draftID}", handler.GetDraft)
+		r.Post("/drafts/{draftID}/amend", handler.AmendDraft)
+		r.Post("/drafts/{draftID}/approve", handler.ApproveDraft)
 		r.Post("/drafts/{draftID}/promote", handler.PromoteToLedger)
-
 		r.Post("/invites", handler.CreateInvitation)
 		r.Get("/invites", handler.ListInvitations)
 

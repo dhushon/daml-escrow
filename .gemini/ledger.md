@@ -67,3 +67,12 @@
 - **Distributed Identity:** In a 3-node cluster, `GetIdentity` must probe ALL nodes. A user might be provisioned on the Buyer node but the query hits the Bank node.
 - **Connection Resiliency:** The `MultiLedgerClient` should implement a "Node Routing" strategy: route to the participant hosting the `primaryParty` of the user.
 
+## 9. Phase 11: Draft Negotiation & Promotion Engine
+
+- **Bilateral Negotiation:** Drafts support multi-versioned state in Postgres/Cloud SQL.
+- **Ratification Rule:** A draft is only `RATIFIED` when `len(approvals) >= 2` (explicit co-sign from both Buyer and Seller).
+- **Promotion Mechanics:** 
+    - Translates `DraftEscrow` -> `EscrowProposal` (if counterparty has a known `damlPartyId`).
+    - Translates `DraftEscrow` -> `EscrowInvitation` (if counterparty is only known by email).
+- **Atomicity:** Promotion must update the off-chain status to `PROMOTED` only after the ledger transaction is confirmed.
+

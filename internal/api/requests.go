@@ -205,11 +205,36 @@ func (r *OracleWebhookRequest) Validate() error {
 }
 
 func (r *OracleWebhookRequest) ToLedgerRequest() ledger.OracleWebhookRequest {
-	return ledger.OracleWebhookRequest{
-		EscrowID:       r.EscrowID,
-		MilestoneIndex: r.MilestoneIndex,
-		Event:          r.Event,
-		OracleProvider: r.OracleProvider,
-		Signature:      r.Signature,
-	}
+        return ledger.OracleWebhookRequest{
+                EscrowID:       r.EscrowID,
+                MilestoneIndex: r.MilestoneIndex,
+                Event:          r.Event,
+                OracleProvider: r.OracleProvider,
+                Signature:      r.Signature,
+        }
 }
+
+// AmendDraftRequest is the API DTO for proposing a change to a draft agreement.
+type AmendDraftRequest struct {
+        Summary  string          `json:"summary"`
+        Amount   float64         `json:"amount"`
+        Currency string          `json:"currency"`
+        Terms    json.RawMessage `json:"terms"`
+        Metadata json.RawMessage `json:"metadata"`
+}
+
+func (r *AmendDraftRequest) Validate() error {
+        if strings.TrimSpace(r.Summary) == "" {
+                return errors.New("amendment summary is required")
+        }
+        if r.Amount <= 0 {
+                return errors.New("amount must be greater than zero")
+        }
+        return nil
+}
+
+// ApprovalRequest is the API DTO for approving a draft version.
+type ApprovalRequest struct {
+        Approved bool `json:"approved"`
+}
+

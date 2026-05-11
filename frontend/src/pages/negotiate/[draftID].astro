@@ -1,0 +1,208 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../lib/api';
+
+const { draftID } = Astro.params;
+---
+
+<Layout title="Negotiate Agreement">
+	<main class="max-w-4xl mx-auto px-6 py-12">
+		<header class="mb-12">
+			<h1 class="text-4xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Negotiate Agreement</h1>
+			<p class="text-slate-500 dark:text-slate-400 mt-2 font-medium">Review, amend, and ratify the off-chain draft before ledger promotion.</p>
+		</header>
+
+		<div id="draft-loading" class="py-12 text-center">
+			<div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+			<p class="mt-4 text-slate-500 font-bold">Fetching latest version...</p>
+		</div>
+
+		<div id="draft-container" class="hidden space-y-8">
+			<!-- Negotiation Cockpit -->
+			<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-sm">
+				<div class="flex justify-between items-start mb-6">
+					<div>
+						<h2 id="draft-title" class="text-xl font-bold text-slate-900 dark:text-white">Draft Agreement</h2>
+						<p id="draft-meta" class="text-sm text-slate-500 mt-1"></p>
+					</div>
+					<span id="draft-status" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"></span>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+					<div class="space-y-4">
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Financials</label>
+						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+							<div class="text-2xl font-black text-slate-900 dark:text-white">
+								<span id="display-amount">0.00</span> <span id="display-currency" class="text-sm text-slate-400">USD</span>
+							</div>
+						</div>
+					</div>
+					<div class="space-y-4">
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Version History</label>
+						<div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+							<p id="display-version" class="font-bold text-slate-900 dark:text-white">Version 1</p>
+							<p id="display-summary" class="text-xs text-slate-500 mt-1 italic">Initial Proposal</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-4 mb-8">
+					<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Approvals</label>
+					<div id="approvals-list" class="flex flex-wrap gap-2">
+						<!-- Approvals inject here -->
+					</div>
+				</div>
+
+				<!-- Actions -->
+				<div class="flex flex-wrap gap-4 pt-8 border-t border-slate-100 dark:border-slate-800">
+					<button id="btn-approve" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl text-xs font-bold shadow-xl shadow-green-500/20 transition-all uppercase tracking-widest">
+						Approve Version
+					</button>
+					<button id="btn-amend" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-3 rounded-xl text-xs font-bold shadow-xl transition-all uppercase tracking-widest">
+						Propose Amendment
+					</button>
+					<button id="btn-promote" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-xs font-bold shadow-xl shadow-blue-500/20 transition-all uppercase tracking-widest">
+						Promote to Ledger
+					</button>
+				</div>
+			</div>
+
+			<!-- Amendment Modal (Simplified for prototype) -->
+			<div id="amend-modal" class="hidden fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+				<div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800">
+					<h3 class="text-2xl font-black text-slate-900 dark:text-white mb-6 uppercase">Propose Amendment</h3>
+					<div class="space-y-6">
+						<div>
+							<label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Change Summary</label>
+							<textarea id="amend-summary" class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500 h-24" placeholder="Describe your changes..."></textarea>
+						</div>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">New Amount</label>
+								<input type="number" id="amend-amount" class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500" />
+							</div>
+							<div>
+								<label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Currency</label>
+								<input type="text" id="amend-currency" class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-500" readonly />
+							</div>
+						</div>
+						<div class="flex gap-4 pt-4">
+							<button id="btn-submit-amend" class="flex-1 bg-blue-600 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest">Submit Proposal</button>
+							<button id="btn-close-amend" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest">Cancel</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../lib/api';
+
+	const pathParts = window.location.pathname.split('/');
+	const draftID = pathParts[pathParts.length - 1];
+
+	let currentDraft = null;
+
+	async function init() {
+		try {
+			currentDraft = await fetchDraft(draftID);
+			render();
+		} catch (err) {
+			console.error(err);
+			alert('Failed to load draft.');
+		}
+	}
+
+	function render() {
+		document.getElementById('draft-loading').classList.add('hidden');
+		document.getElementById('draft-container').classList.remove('hidden');
+
+		document.getElementById('draft-meta').innerText = `Root ID: ${currentDraft.rootId}`;
+		document.getElementById('display-amount').innerText = currentDraft.amount.toLocaleString();
+		document.getElementById('display-currency').innerText = currentDraft.currency;
+		document.getElementById('display-version').innerText = `Version ${currentDraft.version}`;
+		document.getElementById('display-summary').innerText = currentDraft.changeSummary || 'Initial Proposal';
+
+		const statusEl = document.getElementById('draft-status');
+		statusEl.innerText = currentDraft.status;
+		
+		const statusColors = {
+			DRAFT: 'bg-slate-100 text-slate-600',
+			NEGOTIATION: 'bg-blue-100 text-blue-600',
+			RATIFIED: 'bg-green-100 text-green-600',
+			PROMOTED: 'bg-purple-100 text-purple-600'
+		};
+		statusEl.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${statusColors[currentDraft.status] || 'bg-slate-100'}`;
+
+		// Approvals
+		const approvalsList = document.getElementById('approvals-list');
+		approvalsList.innerHTML = '';
+		if (currentDraft.approvals && currentDraft.approvals.length > 0) {
+			currentDraft.approvals.forEach(user => {
+				const badge = document.createElement('span');
+				badge.className = 'bg-green-500/10 text-green-600 text-[10px] font-bold px-3 py-1 rounded-lg border border-green-500/20';
+				badge.innerText = `✓ ${user}`;
+				approvalsList.appendChild(badge);
+			});
+		} else {
+			approvalsList.innerHTML = '<span class="text-xs text-slate-400 italic">No approvals yet</span>';
+		}
+
+		// Promotion Logic
+		if (currentDraft.status === 'RATIFIED') {
+			document.getElementById('btn-promote').classList.remove('hidden');
+		} else {
+			document.getElementById('btn-promote').classList.add('hidden');
+		}
+	}
+
+	// Interaction
+	document.getElementById('btn-approve').onclick = async () => {
+		try {
+			await approveDraft(draftID);
+			window.location.reload();
+		} catch (err) {
+			alert(err.message);
+		}
+	};
+
+	document.getElementById('btn-amend').onclick = () => {
+		document.getElementById('amend-amount').value = currentDraft.amount;
+		document.getElementById('amend-currency').value = currentDraft.currency;
+		document.getElementById('amend-modal').classList.remove('hidden');
+	};
+
+	document.getElementById('btn-close-amend').onclick = () => {
+		document.getElementById('amend-modal').classList.add('hidden');
+	};
+
+	document.getElementById('btn-submit-amend').onclick = async () => {
+		const req = {
+			summary: document.getElementById('amend-summary').value,
+			amount: parseFloat(document.getElementById('amend-amount').value),
+			currency: document.getElementById('amend-currency').value,
+			terms: currentDraft.terms,
+			metadata: currentDraft.metadata
+		};
+		try {
+			await amendDraft(draftID, req);
+			window.location.reload();
+		} catch (err) {
+			alert(err.message);
+		}
+	};
+
+	document.getElementById('btn-promote').onclick = async () => {
+		try {
+			const res = await promoteDraftToLedger(draftID);
+			alert('Agreement authoritatively promoted to ledger!');
+			window.location.href = '/';
+		} catch (err) {
+			alert(err.message);
+		}
+	};
+
+	init();
+</script>

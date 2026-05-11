@@ -129,10 +129,39 @@ export async function saveDraft(req: any) {
 export async function fetchDrafts() {
     const response = await fetch(resolveApiPath('/drafts'), { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch draft agreements');
-    return response.json();
+    return await response.json();
+}
+
+export async function fetchDraft(draftID: string) {
+    const response = await fetch(resolveApiPath(`/drafts/${draftID}`), { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch draft agreement');
+    return await response.json();
+}
+
+export async function amendDraft(draftID: string, req: any) {
+    const response = await fetch(resolveApiPath(`/drafts/${draftID}/amend`), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(req)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to amend draft');
+    }
+    return await response.json();
+}
+
+export async function approveDraft(draftID: string) {
+    const response = await fetch(resolveApiPath(`/drafts/${draftID}/approve`), {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to approve draft');
+    return true;
 }
 
 export async function promoteDraftToLedger(draftID: string) {
+
     const response = await fetch(resolveApiPath(`/drafts/${draftID}/promote`), {
         method: 'POST',
         headers: getAuthHeaders()

@@ -49,19 +49,26 @@ services:
 
           CREATE TABLE IF NOT EXISTS draft_escrows (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            invitation_code TEXT UNIQUE,
+            root_id UUID NOT NULL, -- Grouping ID for all versions of one negotiation
+            version INTEGER NOT NULL DEFAULT 1,
+            proposer_id TEXT NOT NULL,
+            invitation_code TEXT, -- Only set for version 1
             initiator_id TEXT NOT NULL,
             counterparty_email TEXT NOT NULL,
-            counterparty_id TEXT, -- Populated upon 'Claim'
+            counterparty_id TEXT,
             mediator_id TEXT,
             amount DECIMAL(18, 2) NOT NULL,
             currency TEXT NOT NULL,
             terms JSONB NOT NULL,
             metadata JSONB,
-            status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT, CLAIMED, NEGOTIATION, RATIFIED
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            change_summary TEXT,
+            approvals JSONB NOT NULL DEFAULT '[]', -- Array of identities who signed this version
+            status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT, CLAIMED, NEGOTIATION, RATIFIED, PROMOTED
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
+
+          CREATE INDEX IF NOT EXISTS idx_draft_root ON draft_escrows(root_id);
+          CREATE INDEX IF NOT EXISTS idx_draft_invite ON draft_escrows(invitation_code) WHERE invitation_code IS NOT NULL;
         "
     environment:
       PGPASSWORD: escrow

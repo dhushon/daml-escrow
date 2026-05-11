@@ -164,23 +164,89 @@ func (h *Handler) ListDrafts(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(drafts)
 }
 
-func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetDraft(w http.ResponseWriter, r *http.Request) {
 	draftID := chi.URLParam(r, "draftID")
-	_, err := h.configService.GetDraft(draftID)
+	draft, err := h.configService.GetLatestDraft(draftID) // Assuming draftID here is root_id for simplicity or we fetch by ID
 	if err != nil {
 		http.Error(w, "draft not found", http.StatusNotFound)
 		return
 	}
 
-	// High-Assurance: Authoritatively verify counterparty is registered on ledger
-	// In the final release, this promotion logic translates DraftEscrow -> ledger.CreateEscrowRequest
-	// and authoritatively executes the Daml proposal transaction.
-	
-	if err := h.configService.UpdateDraftStatus(draftID, "RATIFIED"); err != nil {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(draft)
+}
+
+func (h *Handler) AmendDraft(w http.ResponseWriter, r *http.Request) {
+	rootID := chi.URLParam(r, "draftID")
+	var body AmendDraftRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	draft, err := h.configService.ProposeAmendment(rootID, userID, body.Summary, body.Amount, body.Currency, body.Terms, body.Metadata)
+	if err != nil {
+		h.logger.Error("failed to amend draft", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(draft)
+}
+
+func (h *Handler) ApproveDraft(w http.ResponseWriter, r *http.Request) {
+	rootID := chi.URLParam(r, "draftID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.configService.AddApproval(rootID, userID); err != nil {
+		h.logger.Error("failed to approve draft", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Check if both parties have approved to auto-ratify
+	draft, err := h.configService.GetLatestDraft(rootID)
+	if err == nil && len(draft.Approvals) >= 2 {
+		_ = h.configService.UpdateDraftStatus(draft.ID, "RATIFIED")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
+	draftID := chi.URLParam(r, "draftID")
+	draft, err := h.configService.GetLatestDraft(draftID)
+	if err != nil {
+		http.Error(w, "draft not found", http.StatusNotFound)
+		return
+	}
+
+	// High-Assurance: Only promoter or initiator can trigger promotion
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	ledgerID, err := h.escrowService.PromoteDraft(r.Context(), draft, userID)
+	if err != nil {
+		h.logger.Error("failed to promote draft", zap.Error(err))
+		http.Error(w, "Failed to promote draft: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.configService.UpdateDraftStatus(draft.ID, "PROMOTED"); err != nil {
 		h.logger.Error("failed to update draft status", zap.Error(err))
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":   "PROMOTED",
+		"ledgerId": ledgerID,
+	})
 }
 
 func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {

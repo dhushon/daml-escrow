@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import EscrowCard from '../components/EscrowCard.astro';
 import InviteModal from '../components/InviteModal.astro';
-import { fetchEscrows, fetchProposals } from '../lib/api';
+import { fetchEscrows, fetchProposals, fetchDrafts } from '../lib/api';
 
 const userEmail = Astro.cookies.get('user_email')?.value;
 const userScopes = (Astro.cookies.get('user_scopes')?.value || '').split(',');
@@ -17,16 +17,26 @@ const tab = Astro.url.searchParams.get('tab') || 'active';
 // Determine Effective Role for UI
 let effectiveRole = 'Guest';
 if (userScopes.includes('system:admin')) {
-	effectiveRole = view === 'Buyer' ? 'Issuer' : 'Mediator';
+        effectiveRole = view === 'Buyer' ? 'Issuer' : 'Mediator';
 } else if (userScopes.includes('escrow:write')) {
-	effectiveRole = view;
+        effectiveRole = view;
 }
 
 let escrows = [];
 let proposals = [];
+let drafts = [];
 let error = null;
----
 
+if (isAuthenticated) {
+    try {
+        escrows = await fetchEscrows();
+        proposals = await fetchProposals();
+        drafts = await fetchDrafts();
+    } catch (err) {
+        error = err.message;
+    }
+}
+---
 <Layout title="Dashboard | Stablecoin Escrow">
 	{!isAuthenticated ? (
 		/* Public Landing Page */
@@ -109,14 +119,19 @@ let error = null;
 				>
 					Active Contracts
 				</a>
-				<a 
-					href={`/?view=${view}&tab=proposals`} 
+				<a
+					href={`/?view=${view}&tab=proposals`}
 					class={`pb-4 px-6 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${tab === 'proposals' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
 				>
 					Pending Proposals
 				</a>
-			</div>
-
+				<a
+					href={`/?view=${view}&tab=negotiations`}
+					class={`pb-4 px-6 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${tab === 'negotiations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+				>
+					Negotiations
+				</a>
+				</div>
 			{error && (
 				<div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-8 rounded-r-xl transition-colors font-mono">
 					<p class="text-sm font-bold text-red-700 dark:text-red-400">Connection Error: {error}</p>
