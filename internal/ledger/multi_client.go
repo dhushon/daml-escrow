@@ -33,18 +33,18 @@ func (m *MultiLedgerClient) getClientForUser(userID string) Client {
 	if strings.Contains(userID, "bank.com") || userID == CentralBankUser || userID == EscrowMediatorUser {
 		return m.clients["bank"]
 	}
-	if strings.Contains(userID, "buyer.com") || userID == BuyerUser {
-		return m.clients["buyer"]
+	if strings.Contains(userID, "depositor.com") || userID == DepositorUser {
+		return m.clients["depositor"]
 	}
-	if strings.Contains(userID, "seller.com") || userID == SellerUser {
-		return m.clients["seller"]
+	if strings.Contains(userID, "beneficiary.com") || userID == BeneficiaryUser {
+		return m.clients["beneficiary"]
 	}
 
-	return m.clients["buyer"]
+	return m.clients["depositor"]
 }
 
 func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
-	coreParties := []string{CentralBankUser, BuyerUser, SellerUser, EscrowMediatorUser}
+	coreParties := []string{CentralBankUser, DepositorUser, BeneficiaryUser, EscrowMediatorUser}
 	
 	var lastErr error
 	for retry := 0; retry < 1; retry++ {
@@ -236,7 +236,7 @@ func (m *MultiLedgerClient) ListWallets(ctx context.Context, userID string) ([]*
 }
 
 func (m *MultiLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*UserIdentity, error) {
-	for _, node := range []string{"bank", "buyer", "seller"} {
+	for _, node := range []string{"bank", "depositor", "beneficiary"} {
 		if client, ok := m.clients[node]; ok {
 			identity, err := client.GetIdentity(ctx, oktaSub)
 			if err == nil {
@@ -268,7 +268,7 @@ func (m *MultiLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity
 func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
 	var firstIdentity *UserIdentity
 	var lastErr error
-	for _, node := range []string{"bank", "buyer", "seller"} {
+	for _, node := range []string{"bank", "depositor", "beneficiary"} {
 		if client, ok := m.clients[node]; ok {
 			identity, err := client.ProvisionUser(ctx, oktaSub, email, role, scopes)
 			if err != nil {

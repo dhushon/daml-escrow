@@ -10,16 +10,16 @@ The platform utilizes a generic Daml template (`StablecoinEscrow`) to manage the
 
 ### Structural Elements
 
-- **Parties:** `Buyer`, `Seller`, `Issuer` (Central Bank), and `Mediator`.
+- **Parties:** `Depositor`, `Beneficiary`, `Issuer` (Central Bank), and `Mediator`.
 - **Financials:** `totalAmount`, `currency`.
 - **Workflow:** `currentMilestoneIndex` tracks progress through an array of `Milestones`.
-- **State:** Explicit transitions between `Active` and `Disputed` (via the `DisputedEscrow` template).
+- **State:** Explicit transitions between `Active` and `Disputed` (via the `DisputeRecord` template).
 
 ### Mechanics
 
-1. **Approval:** The `Buyer` (or an authorized Oracle acting as Buyer) exercises `ApproveMilestone`.
-2. **Settlement:** Each approval triggers the creation of an `EscrowSettlement` contract, signaling the `Issuer` to release stablecoins.
-3. **Dispute:** If terms are not met, the `Buyer` exercises `RaiseDispute`, freezing further milestones until the `Mediator` resolves the split.
+1. **Approval:** The `Depositor` (or an authorized Oracle acting on their behalf) exercises `ConfirmConditions`.
+2. **Settlement:** Each approval triggers the creation of a `DisbursementOrder` contract, signaling the `Issuer` to release stablecoins.
+3. **Dispute:** If terms are not met, the `Depositor` exercises `RaiseDispute`, freezing further milestones until the `Mediator` resolves the split.
 
 ------------------------------------------------------------------------
 

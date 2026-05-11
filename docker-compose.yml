@@ -54,8 +54,10 @@ services:
             proposer_id TEXT NOT NULL,
             invitation_code TEXT, -- Only set for version 1
             initiator_id TEXT NOT NULL,
-            counterparty_email TEXT NOT NULL,
-            counterparty_id TEXT,
+            initiator_role TEXT NOT NULL, -- 'Depositor' or 'Beneficiary'
+            depositor_id TEXT,
+            beneficiary_email TEXT NOT NULL,
+            beneficiary_id TEXT,
             mediator_id TEXT,
             amount DECIMAL(18, 2) NOT NULL,
             currency TEXT NOT NULL,

@@ -71,4 +71,4 @@ Due to the persistent connection pools required by multiple Canton participant n
 ### 5.3 Step 3: Advanced Discovery & 'Invite Now' Mechanics
 - **Identity Directory**: Implement an API to enumerate or validate ledger-provisioned identities for counterparty selection.
 - **Cryptographic Invites**: Implement the 'Invite Now' workflow where a user provides a target email, generating an opaque token cryptographically bound to that specific identity suffix.
-- **Role Alignment**: Ensure that provisioned roles (Buyer, Seller, etc.) are strictly checked against ledger-level contract participation before allowing transitions.
+- **Role Alignment**: Ensure that provisioned roles (Depositor, Beneficiary, etc.) are strictly checked against ledger-level contract participation before allowing transitions.

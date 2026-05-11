@@ -125,11 +125,11 @@ func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		CounterpartyEmail string          `json:"counterpartyEmail"`
-		Amount            float64         `json:"amount"`
-		Currency          string          `json:"currency"`
-		Terms             json.RawMessage `json:"terms"`
-		Metadata          json.RawMessage `json:"metadata"`
+		BeneficiaryEmail string          `json:"beneficiaryEmail"`
+		Amount           float64         `json:"amount"`
+		Currency         string          `json:"currency"`
+		Terms            json.RawMessage `json:"terms"`
+		Metadata         json.RawMessage `json:"metadata"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -137,7 +137,16 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	draft, err := h.configService.CreateDraft(userID, body.CounterpartyEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
+	// High-Assurance: Resolve initiator role from context/identity
+	email, _ := r.Context().Value(EmailKey).(string)
+	identity, _ := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
+	
+	role := "Depositor"
+	if identity != nil && identity.Role != "" {
+		role = identity.Role
+	}
+
+	draft, err := h.configService.CreateDraft(userID, role, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
 	if err != nil {
 		h.logger.Error("failed to create draft", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
@@ -282,6 +291,14 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := r.Context().Value(AuthSubKey).(string)
+	// High-Assurance: Resolve initiator role from context/identity
+	email, _ := r.Context().Value(EmailKey).(string)
+	identity, _ := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
+	
+	role := "Depositor"
+	if identity != nil && identity.Role != "" {
+		role = identity.Role
+	}
 	
 	// High-Assurance: Authoritatively use the off-chain draft tunnel for zero-latency invitations
 	terms, _ := json.Marshal(map[string]interface{}{
@@ -289,7 +306,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		"expiryDate":           req.ExpiryDate,
 	})
 	
-	draft, err := h.configService.CreateDraft(userID, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
+	draft, err := h.configService.CreateDraft(userID, role, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
 	if err != nil {
 		h.logger.Error("failed to create institutional invitation draft", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -345,11 +362,11 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	ledgerReq := req.ToLedgerRequest()
 
 	// High-Assurance Sanitization: Ensure all tripartite identities are Daml-compliant
-	sanitizedCounterparty, err := ledger.SanitizeID(req.Counterparty)
+	sanitizedBeneficiary, err := ledger.SanitizeID(req.Beneficiary)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Counterparty error: " + err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Beneficiary error: " + err.Error()})
 		return
 	}
 	
@@ -365,17 +382,17 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Bilateral Logic: Map initiator to correct role
-	if identity.Role == "Seller" {
-		ledgerReq.Seller = identity.DamlUserID
-		ledgerReq.Buyer = sanitizedCounterparty
+	if identity.Role == "Beneficiary" {
+		ledgerReq.Beneficiary = identity.DamlUserID
+		ledgerReq.Depositor = sanitizedBeneficiary
 	} else {
-		ledgerReq.Buyer = identity.DamlUserID
-		ledgerReq.Seller = sanitizedCounterparty
+		ledgerReq.Depositor = identity.DamlUserID
+		ledgerReq.Beneficiary = sanitizedBeneficiary
 	}
 	ledgerReq.Mediator = sanitizedMediator
 
 	// High-Assurance: Authoritatively enforce role exclusivity and mandatory parties
-	if err := ledger.ValidateTripartiteRoles(ledgerReq.Buyer, ledgerReq.Seller, ledgerReq.Mediator); err != nil {
+	if err := ledger.ValidateTripartiteRoles(ledgerReq.Depositor, ledgerReq.Beneficiary, ledgerReq.Mediator); err != nil {
 		h.logger.Error("institutional mandate violation", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -450,7 +467,7 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.BuyerReturn)
+	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.DepositorReturn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

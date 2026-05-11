@@ -12,8 +12,8 @@ This document defines the requirements for integrating real institutional stable
 
 ## 2. Vault-Centric Logic & Vocabulary
 
-- **Buyer-Pledger:** The party (T3) who authoritatively owns the initial holding and initiates the `Lock` (Pledge) choice.
-- **Seller-Pledgee:** The intended recipient (T3) of the holding upon settlement.
+- **Depositor:** The party (T3) who authoritatively owns the initial holding and initiates the `Lock` choice.
+- **Beneficiary:** The intended recipient (T3) of the holding upon settlement.
 - **Holding-Based Escrow:** The Escrow contract MUST NOT store a "balance" number. It MUST store a **Contract ID Reference** or a **Template Lock** on a real CIP-0056 holding.
 - **Authoritative State Transitions:** Transitioning from `FUNDED` to `ACTIVE` MUST execute the `Lock` choice on the holding, freezing the asset under the ledger's authority.
 - **Zero-Trust Settlement:** Transfers must be driven by the ledger's authority (the `Unlock` and `Transfer` sequence), not by "Instructional" API calls that trust the backend to move numbers.

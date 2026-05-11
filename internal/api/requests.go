@@ -11,81 +11,80 @@ import (
 
 // ProposeEscrowRequest is the API DTO for proposing a new escrow.
 type ProposeEscrowRequest struct {
-	Counterparty         string                 `json:"counterparty"`
-	Mediator             string                 `json:"mediator"`
-	AssetType            string                 `json:"assetType"`
-	AssetID              string                 `json:"assetId"`
-	Amount               float64                `json:"amount"`
-	Currency             string                 `json:"currency"`
-	ConditionDescription string                 `json:"conditionDescription"`
-	ConditionType        string                 `json:"conditionType"`
-	EvidenceRequired     string                 `json:"evidenceRequired"`
-	ExpiryDate           time.Time              `json:"expiryDate"`
-	GracePeriodDays      int                    `json:"gracePeriodDays"`
-	DisputeWindowDays    int                    `json:"disputeWindowDays"`
-	SchemaURL            string                 `json:"schemaUrl"`
-	Payload              map[string]interface{} `json:"payload"`
+        Beneficiary          string                 `json:"beneficiary"`
+        Mediator             string                 `json:"mediator"`
+        AssetType            string                 `json:"assetType"`
+        AssetID              string                 `json:"assetId"`
+        Amount               float64                `json:"amount"`
+        Currency             string                 `json:"currency"`
+        ConditionDescription string                 `json:"conditionDescription"`
+        ConditionType        string                 `json:"conditionType"`
+        EvidenceRequired     string                 `json:"evidenceRequired"`
+        ExpiryDate           time.Time              `json:"expiryDate"`
+        GracePeriodDays      int                    `json:"gracePeriodDays"`
+        DisputeWindowDays    int                    `json:"disputeWindowDays"`
+        SchemaURL            string                 `json:"schemaUrl"`
+        Payload              map[string]interface{} `json:"payload"`
 }
 
 func (r *ProposeEscrowRequest) Validate() error {
-	if strings.TrimSpace(r.Counterparty) == "" {
-		return errors.New("counterparty is required")
-	}
-	if strings.TrimSpace(r.Mediator) == "" {
-		return errors.New("mediator is required")
-	}
-	if r.Amount <= 0 {
-		return errors.New("amount must be greater than zero")
-	}
-	if strings.TrimSpace(r.Currency) == "" {
-		return errors.New("currency is required")
-	}
-	
-	// High-Assurance: Default to 30 days if expiry is zero
-	if r.ExpiryDate.IsZero() {
-		r.ExpiryDate = time.Now().AddDate(0, 0, 30)
-	}
+        if strings.TrimSpace(r.Beneficiary) == "" {
+                return errors.New("beneficiary is required")
+        }
+        if strings.TrimSpace(r.Mediator) == "" {
+                return errors.New("mediator is required")
+        }
+        if r.Amount <= 0 {
+                return errors.New("amount must be greater than zero")
+        }
+        if strings.TrimSpace(r.Currency) == "" {
+                return errors.New("currency is required")
+        }
 
-	if r.ExpiryDate.Before(time.Now()) {
-		return errors.New("expiry date must be in the future")
-	}
-	if r.GracePeriodDays < 0 {
-		return errors.New("grace period days cannot be negative")
-	}
-	if r.DisputeWindowDays < 0 {
-		return errors.New("dispute window days cannot be negative")
-	}
-	return nil
+        // High-Assurance: Default to 30 days if expiry is zero
+        if r.ExpiryDate.IsZero() {
+                r.ExpiryDate = time.Now().AddDate(0, 0, 30)
+        }
+
+        if r.ExpiryDate.Before(time.Now()) {
+                return errors.New("expiry date must be in the future")
+        }
+        if r.GracePeriodDays < 0 {
+                return errors.New("grace period days cannot be negative")
+        }
+        if r.DisputeWindowDays < 0 {
+                return errors.New("dispute window days cannot be negative")
+        }
+        return nil
 }
 
 func (r *ProposeEscrowRequest) ToLedgerRequest() ledger.CreateEscrowRequest {
-	metadata := map[string]interface{}{
-		"schemaUrl": r.SchemaURL,
-		"payload":   r.Payload,
-	}
-	metadataJSON, _ := json.Marshal(metadata)
+        metadata := map[string]interface{}{
+                "schemaUrl": r.SchemaURL,
+                "payload":   r.Payload,
+        }
+        metadataJSON, _ := json.Marshal(metadata)
 
-	return ledger.CreateEscrowRequest{
-		Mediator: r.Mediator,
-		Asset: ledger.Asset{
-			AssetType: r.AssetType,
-			AssetID:   r.AssetID,
-			Amount:    r.Amount,
-			Currency:  r.Currency,
-		},
-		Terms: ledger.EscrowTerms{
-			ConditionDescription: r.ConditionDescription,
-			ConditionType:        r.ConditionType,
-			EvidenceRequired:     r.EvidenceRequired,
-			ExpiryDate:           r.ExpiryDate,
-			GracePeriodDays:      r.GracePeriodDays,
-			DisputeWindowDays:    r.DisputeWindowDays,
-			PartialSchedule:      []string{},
-		},
-		Metadata: string(metadataJSON),
-	}
+        return ledger.CreateEscrowRequest{
+                Mediator: r.Mediator,
+                Asset: ledger.Asset{
+                        AssetType: r.AssetType,
+                        AssetID:   r.AssetID,
+                        Amount:    r.Amount,
+                        Currency:  r.Currency,
+                },
+                Terms: ledger.EscrowTerms{
+                        ConditionDescription: r.ConditionDescription,
+                        ConditionType:        r.ConditionType,
+                        EvidenceRequired:     r.EvidenceRequired,
+                        ExpiryDate:           r.ExpiryDate,
+                        GracePeriodDays:      r.GracePeriodDays,
+                        DisputeWindowDays:    r.DisputeWindowDays,
+                        PartialSchedule:      []string{},
+                },
+                Metadata: string(metadataJSON),
+        }
 }
-
 // FundEscrowRequest is the API DTO for funding an escrow.
 type FundEscrowRequest struct {
 	CustodyRef string `json:"custodyRef"`
@@ -104,17 +103,17 @@ func (r *FundEscrowRequest) Validate() error {
 
 // ProposeSettlementRequest is the API DTO for proposing a settlement during a dispute.
 type ProposeSettlementRequest struct {
-	SettlementType string  `json:"settlementType"`
-	BuyerReturn    float64 `json:"buyerReturn"`
-	SellerPayment  float64 `json:"sellerPayment"`
-	MediatorFee    float64 `json:"mediatorFee"`
+	SettlementType     string  `json:"settlementType"`
+	DepositorReturn    float64 `json:"depositorReturn"`
+	BeneficiaryPayment float64 `json:"beneficiaryPayment"`
+	MediatorFee        float64 `json:"mediatorFee"`
 }
 
 func (r *ProposeSettlementRequest) Validate() error {
 	if strings.TrimSpace(r.SettlementType) == "" {
 		return errors.New("settlementType is required")
 	}
-	if r.BuyerReturn < 0 || r.SellerPayment < 0 || r.MediatorFee < 0 {
+	if r.DepositorReturn < 0 || r.BeneficiaryPayment < 0 || r.MediatorFee < 0 {
 		return errors.New("settlement amounts cannot be negative")
 	}
 	return nil
@@ -122,46 +121,46 @@ func (r *ProposeSettlementRequest) Validate() error {
 
 func (r *ProposeSettlementRequest) ToLedgerTerms() ledger.SettlementTerms {
 	return ledger.SettlementTerms{
-		SettlementType: r.SettlementType,
-		BuyerReturn:    r.BuyerReturn,
-		SellerPayment:  r.SellerPayment,
-		MediatorFee:    r.MediatorFee,
+		SettlementType:     r.SettlementType,
+		DepositorReturn:    r.DepositorReturn,
+		BeneficiaryPayment: r.BeneficiaryPayment,
+		MediatorFee:        r.MediatorFee,
 	}
 }
 
 // CreateInvitationRequest is the API DTO for creating an invitation.
 type CreateInvitationRequest struct {
-	InviteeEmail         string    `json:"inviteeEmail"`
-	InviteeRole          string    `json:"inviteeRole"`
-	InviteeType          string    `json:"inviteeType"`
-	AssetType            string    `json:"assetType"`
-	AssetID              string    `json:"assetId"`
-	Amount               float64   `json:"amount"`
-	Currency             string    `json:"currency"`
-	ConditionDescription string    `json:"conditionDescription"`
-	ConditionType        string    `json:"conditionType"`
-	EvidenceRequired     string    `json:"evidenceRequired"`
-	ExpiryDate           time.Time `json:"expiryDate"`
-	GracePeriodDays      int       `json:"gracePeriodDays"`
-	DisputeWindowDays    int       `json:"disputeWindowDays"`
+        InviteeEmail         string    `json:"inviteeEmail"`
+        InviteeRole          string    `json:"inviteeRole"` // Depositor or Beneficiary
+        InviteeType          string    `json:"inviteeType"`
+        AssetType            string    `json:"assetType"`
+        AssetID              string    `json:"assetId"`
+        Amount               float64   `json:"amount"`
+        Currency             string    `json:"currency"`
+        ConditionDescription string    `json:"conditionDescription"`
+        ConditionType        string    `json:"conditionType"`
+        EvidenceRequired     string    `json:"evidenceRequired"`
+        ExpiryDate           time.Time `json:"expiryDate"`
+        GracePeriodDays      int       `json:"gracePeriodDays"`
+        DisputeWindowDays    int       `json:"disputeWindowDays"`
 }
 
 func (r *CreateInvitationRequest) Validate() error {
         if strings.TrimSpace(r.InviteeEmail) == "" {
                 return errors.New("inviteeEmail is required")
         }
-        if r.InviteeRole != "Buyer-Pledger" && r.InviteeRole != "Seller-Pledgee" {
-                return errors.New("inviteeRole must be 'Buyer-Pledger' or 'Seller-Pledgee'")
+        if r.InviteeRole != "Depositor" && r.InviteeRole != "Beneficiary" {
+                return errors.New("inviteeRole must be 'Depositor' or 'Beneficiary'")
         }
         if r.Amount <= 0 {
                 return errors.New("amount must be greater than zero")
         }
-
-	if r.ExpiryDate.Before(time.Now()) {
-		return errors.New("expiry date must be in the future")
-	}
-	return nil
+        if r.ExpiryDate.Before(time.Now()) {
+                return errors.New("expiry date must be in the future")
+        }
+        return nil
 }
+
 
 func (r *CreateInvitationRequest) ToLedgerAssetAndTerms() (ledger.Asset, ledger.EscrowTerms) {
 	asset := ledger.Asset{

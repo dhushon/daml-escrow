@@ -85,8 +85,8 @@ The platform authoritatively enforces a 3-tier identity model to ensure privacy,
 3.  **Canton Network Identity (T3):** Cryptographic `damlPartyId`. This is the "Sovereign" layer used for on-chain signatures and data visibility.
 
 **Vocabulary Mapping:**
-- **Buyer-Pledger:** Initiates the escrow, authoritatively pledges stablecoins (T3 owner), and ratifies settlement.
-- **Seller-Pledgee:** The counterparty who authoritatively receives disbursement (T3 newOwner).
+- **Depositor:** Initiates the escrow, authoritatively pledges/deposits stablecoins (T3 owner), and ratifies settlement.
+- **Beneficiary:** The counterparty who authoritatively receives disbursement (T3 newOwner).
 
 **Rule:** Every API response involving participants MUST "Decorate" T3 identifiers with T1 metadata fetched from the Postgres layer to ensure a high-fidelity user experience without leaking PII on the ledger.
 

@@ -24,6 +24,7 @@ const { draftID } = Astro.params;
 					<div>
 						<h2 id="draft-title" class="text-xl font-bold text-slate-900 dark:text-white">Escrow Agreement Draft</h2>
 						<p id="draft-meta" class="text-sm text-slate-500 mt-1"></p>
+						<p id="initiator-info" class="text-[10px] text-blue-600 font-bold uppercase mt-2"></p>
 					</div>
 					<span id="draft-status" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"></span>
 				</div>
@@ -135,8 +136,9 @@ const { draftID } = Astro.params;
 		document.getElementById('draft-container').classList.remove('hidden');
 
 		document.getElementById('draft-meta').innerText = `Root ID: ${currentDraft.rootId}`;
-		document.getElementById('display-buyer').innerText = currentDraft.initiatorId;
-		document.getElementById('display-seller').innerText = currentDraft.counterpartyEmail;
+		document.getElementById('display-buyer').innerText = currentDraft.depositorId || 'Pending...';
+		document.getElementById('display-seller').innerText = currentDraft.beneficiaryEmail;
+		document.getElementById('initiator-info').innerText = `Initiated by ${currentDraft.initiatorRole}: ${currentDraft.initiatorId}`;
 		document.getElementById('display-amount').innerText = currentDraft.amount.toLocaleString();
 		document.getElementById('display-currency').innerText = currentDraft.currency;
 		document.getElementById('display-version').innerText = `Version ${currentDraft.version}`;

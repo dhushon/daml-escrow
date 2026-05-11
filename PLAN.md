@@ -15,7 +15,7 @@ Goals: Align contract dynamics with formal escrow standards and establish a prod
 ### Achievements
 
 1. **Robust Escrow Lifecycle:** Refactored DAML and Go to support the standard `DRAFT → FUNDED → ACTIVE → DISPUTED → PROPOSED → SETTLED` sequence per `ESCROW-PROCESS.md`.
-2. **Tripartite Authority:** Enforced co-signature requirements for Buyer, Seller, and Issuer (Bank) on terms agreement and settlement ratification.
+2. **Tripartite Authority:** Enforced co-signature requirements for Depositor, Beneficiary, and Issuer (Bank) on terms agreement and settlement ratification.
 3. **Bilateral Dispute Resolution:** Implemented a two-stage mediated settlement flow requiring explicit ratification from both disputing parties.
 4. **Dynamic Discovery:** Unified Go client to dynamically resolve `packageID` and `partyID` at runtime, ensuring portability across environments.
 5. **JIT Identity Bridge:** Established automated mapping between Okta OIDC `sub` claims and unique DAML parties via the User Management API.
@@ -30,7 +30,7 @@ Goals: Move to multi-participant topology and real stablecoin integration.
 ### Achievements
 
 1. **Multi-Participant Infrastructure:** Created `contracts/DevNet/devnet.conf` and robust `devnet_init.canton` for distributed topology with deterministic propagation checks.
-2. **Local Distributed Environment:** Added `docker-compose.distributed.yml` to enable local testing of separate Bank, Buyer, and Seller nodes.
+2. **Local Distributed Environment:** Added `docker-compose.distributed.yml` to enable local testing of separate Bank, Depositor, and Beneficiary nodes.
 3. **Frontend Lifecycle Alignment:** Refactored `api.ts` and `EscrowCard.astro` to support the full high-assurance state machine (`DRAFT` → `FUNDED` → `ACTIVE` → `DISPUTED` → `PROPOSED` → `SETTLED`).
 4. **Distributed Gateway:** Implemented `MultiLedgerClient` in Go for role-based node routing and resilient identity resolution across clusters.
 5. **Testing Hierarchy:** Established three-tier testing strategy (Unit, Integration, Distributed) with reusable lifecycle logic and deterministic readiness checks.
@@ -74,7 +74,7 @@ Goals: Implement specialized verification for real-world cloud environments (GCP
 ### Phase 13 Achievements
 
 1. **High-Assurance GKE Foundation:** Provisioned cost-optimized zonal GKE clusters with Spot instances and institutional naming strategy (`-dev`).
-2. **Unified API Gateway:** Implemented sovereign path-based routing (/bank, /buyer, /seller) using Nginx Ingress to bridge tripartite namespaces.
+2. **Unified API Gateway:** Implemented sovereign path-based routing (/bank, /depositor, /beneficiary) using Nginx Ingress to bridge tripartite namespaces.
 3. **Specialized Cloud Verification:** Created the `integration_gcp` test suite to authoritatively verify Secret Manager connectivity and Cloud SQL schemas.
 
 ------------------------------------------------------------------------
@@ -86,7 +86,7 @@ Goals: Transition to isolated service-per-node architecture.
 ### Phase 8Achievements
 
 1. **Structural Sovereignty:** Refactored Go API to support `PARTICIPANT_ID` locking, ensuring each container instance is authoritatively bound to a single ledger node.
-2. **Tripartite Orchestration:** Implemented isolated Kubernetes manifests (`bank`, `buyer`, `seller`) for both Canton ledger nodes and Go API instances.
+2. **Tripartite Orchestration:** Implemented isolated Kubernetes manifests (`bank`, `depositor`, `beneficiary`) for both Canton ledger nodes and Go API instances.
 3. **High-Assurance Release Path:** Provisioned GCP Artifact Registry and established the `k8s/` guide for sovereign institutional deployment.
 
 ------------------------------------------------------------------------
@@ -98,7 +98,7 @@ Goals: Authoritative release and live verification under the vdatacloudai.com do
 ### Phase 10 Achievements
 
 1. **Authoritative Release:** Successfully pushed production-grade sovereign images to the GCP Artifact Registry.
-2. **Live Orchestration:** Deployed the full tripartite stack (Bank, Buyer, Seller) to the live GKE cluster.
+2. **Live Orchestration:** Deployed the full tripartite stack (Bank, Depositor, Beneficiary) to the live GKE cluster.
 3. **Sovereign Perimeter:** Established the `api.vdatacloudai.com` entrypoint via Global Static IP and Let's Encrypt TLS 1.3.
 
 ### Tasks
@@ -109,7 +109,7 @@ Goals: Authoritative release and live verification under the vdatacloudai.com do
 
 ------------------------------------------------------------------------
 
-## Phase 11 --- Sovereign Negotiation & Off-Chain Drafts (PLANNED)
+## Phase 11 --- Sovereign Negotiation & Off-Chain Drafts (IN PROGRESS)
 
 Goals: Implement cost-efficient institutional negotiation via intermediate draft tables and secure counterparty invitations.
 
@@ -120,20 +120,21 @@ Goals: Implement cost-efficient institutional negotiation via intermediate draft
 3. **Bilateral Consensus Logic:** Iterative negotiation cockpit allowing either party to propose changes, resetting co-signatures until tripartite agreement is reached.
 4. **Authoritative Ledger Promotion:** A single high-assurance trigger that commits the agreement to the Canton Ledger and locks stablecoin holdings once all three parties authoritatively agree it is signature ready.
 
-### Task 11.1: Draft Persistence Layer
+### Task 11.1: Draft Persistence Layer (COMPLETE)
 
-- [ ] Refactor `user_config` schema with `draft_escrows` table and tripartite status tracking.
-- [ ] Implement Go handlers for Draft CRUD and secure counterparty visibility.
+- [x] Refactor `user_config` schema with `draft_escrows` table and tripartite status tracking.
+- [x] Implement Go handlers for Draft CRUD and secure counterparty visibility.
+- [x] Track negotiation "Initiator" and their role to preserve bipartite rights.
 
-### Task 11.2: Invitation & Association Flow
+### Task 11.2: Invitation & Association Flow (COMPLETE)
 
-- [ ] Implement email-based placeholders for unprovisioned counterparties.
-- [ ] Create the "Claim and Associate" logic to bridge fresh JIT identities to existing drafts.
+- [x] Implement email-based placeholders for unprovisioned counterparties.
+- [x] Create the "Claim and Associate" logic to bridge fresh JIT identities to existing drafts.
 
-### Task 11.3: Promotion & Settlement Trigger
+### Task 11.3: Promotion & Settlement Trigger (COMPLETE)
 
-- [ ] Implement the promotion engine that authoritatively translates a ratified draft into an `ACTIVE` Daml contract.
-- [ ] Enforce stablecoin locking as the final gate of the promotion flow.
+- [x] Implement the promotion engine that authoritatively translates a ratified draft into an `ACTIVE` Daml contract.
+- [x] Enforce stablecoin locking as the final gate of the promotion flow.
 
 ------------------------------------------------------------------------
 
@@ -150,7 +151,7 @@ Goals: Final security sweep to meet institutional regulatory and auditing standa
 ### Task 7.1: Zero-Trust Networking (mTLS)
 
 - [ ] Provision **GCP Certificate Authority Service (CAS)** for internal cluster identity.
-- [ ] Implement **Mutual TLS (mTLS)** enforcement across tripartite namespaces (`bank`, `buyer`, `seller`).
+- [ ] Implement **Mutual TLS (mTLS)** enforcement across tripartite namespaces (`bank`, `depositor`, `beneficiary`).
 - [ ] Enforce TLS 1.3 for all external entry points via Ingress.
 
 ### Task 7.2: HSM & Key Management (COMPLETE)

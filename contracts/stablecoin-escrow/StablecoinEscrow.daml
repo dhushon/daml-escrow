@@ -7,36 +7,36 @@ import DA.Date qualified
 import DA.Optional (fromSome)
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (EscrowProposal) - Step 1: Initiator (Buyer-Pledger) offers
+-- DRAFT State (EscrowProposal) - Step 1: Initiator (Depositor) offers
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
-    issuer   : Party
-    buyer    : Party -- Buyer-Pledger
-    seller   : Party -- Seller-Pledgee
-    mediator : Party
-    asset    : Asset
-    terms    : EscrowTerms
-    metadata : Text
+    issuer      : Party
+    depositor   : Party
+    beneficiary : Party
+    mediator    : Party
+    asset       : Asset
+    terms       : EscrowTerms
+    metadata    : Text
   where
     signatory issuer
-    observer  buyer, seller, mediator
+    observer  depositor, beneficiary, mediator
 
     -- High-Assurance Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
     ensure terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
 
     interface instance Escrow for EscrowProposal where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state = DRAFT, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state = DRAFT, metadata
       
       activateEscrow = do
         error "Cannot activate a DRAFT proposal. Must be FUNDED first."
 
-    choice SellerAccept : ContractId SellerAcceptedProposal
-      controller seller
+    choice BeneficiaryAccept : ContractId BeneficiaryAcceptedProposal
+      controller beneficiary
       do
-        create SellerAcceptedProposal with ..
+        create BeneficiaryAcceptedProposal with ..
 
     -- Bilateral Consensus: Iterative Negotiation
     choice RequestChanges : ContractId EscrowProposal
@@ -45,35 +45,35 @@ template EscrowProposal
         proposingParty : Party
       controller proposingParty
       do
-        assertMsg "Only Buyer or Seller can request changes" (proposingParty == buyer || proposingParty == seller)
+        assertMsg "Only Depositor or Beneficiary can request changes" (proposingParty == depositor || proposingParty == beneficiary)
         create this with terms = newTerms
 
     choice CancelProposal : ()
-      controller buyer, seller
+      controller depositor, beneficiary
       do return ()
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (SellerAcceptedProposal) - Step 2: Seller authorises
+-- DRAFT State (BeneficiaryAcceptedProposal) - Step 2: Beneficiary authorises
 -- ---------------------------------------------------------------------------
-template SellerAcceptedProposal
+template BeneficiaryAcceptedProposal
   with
-    issuer   : Party
-    buyer    : Party
-    seller   : Party
-    mediator : Party
-    asset    : Asset
-    terms    : EscrowTerms
-    metadata : Text
+    issuer      : Party
+    depositor   : Party
+    beneficiary : Party
+    mediator    : Party
+    asset       : Asset
+    terms       : EscrowTerms
+    metadata    : Text
   where
-    signatory issuer, seller
-    observer  buyer, mediator
+    signatory issuer, beneficiary
+    observer  depositor, mediator
 
     -- Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
 
-    interface instance Escrow for SellerAcceptedProposal where
+    interface instance Escrow for BeneficiaryAcceptedProposal where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state = DRAFT, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state = DRAFT, metadata
       
       activateEscrow = do
         error "Cannot activate a proposal. Must be FUNDED first."
@@ -82,10 +82,10 @@ template SellerAcceptedProposal
       with 
         custodyRef : Text
         holdingCid : ContractId CIP56.Holding
-      controller buyer
+      controller depositor
       do
         create EscrowContract with
-          issuer, buyer, seller, mediator
+          issuer, depositor, beneficiary, mediator
           asset = asset with 
             custodyRef = Some custodyRef
             holdingCid = Some holdingCid
@@ -96,25 +96,25 @@ template SellerAcceptedProposal
 -- ---------------------------------------------------------------------------
 template EscrowContract
   with
-    issuer   : Party
-    buyer    : Party
-    seller   : Party
-    mediator : Party
-    asset    : Asset
-    terms    : EscrowTerms
-    metadata : Text
-    state    : EscrowState
+    issuer      : Party
+    depositor   : Party
+    beneficiary : Party
+    mediator    : Party
+    asset       : Asset
+    terms       : EscrowTerms
+    metadata    : Text
+    state       : EscrowState
   where
-    signatory issuer, buyer, seller
+    signatory issuer, depositor, beneficiary
     observer  mediator
 
     -- Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
     ensure asset.amount > 0.0
 
     interface instance Escrow for EscrowContract where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state, metadata
       
       activateEscrow = do
         assertMsg "Escrow must be in FUNDED state to activate" (state == FUNDED)
@@ -129,7 +129,7 @@ template EscrowContract
         
         -- High-Assurance Validation
         assertMsg "Holding amount must match escrow amount" (hv.amount == asset.amount)
-        assertMsg "Holding must be owned by the buyer" (hv.owner == buyer)
+        assertMsg "Holding must be owned by the depositor" (hv.owner == depositor)
         
         -- Authoritative Locking (CIP-0056)
         lockedHoldingCid <- exercise lcid CIP56.Lock 
@@ -146,20 +146,20 @@ template EscrowContract
       do
         assertMsg "Mediator can only confirm in ACTIVE state" (state == ACTIVE)
         create DisbursementOrder with
-          issuer, buyer, seller, mediator, asset, terms, metadata
+          issuer, depositor, beneficiary, mediator, asset, terms, metadata
           settlement = SettlementTerms with
             settlementType = "FullRelease"
-            buyerReturn = 0.0
-            sellerPayment = asset.amount
+            depositorReturn = 0.0
+            beneficiaryPayment = asset.amount
             mediatorFee = 0.0
 
     choice RaiseDispute : ContractId DisputeRecord
-      controller buyer
+      controller depositor
       do
         assertMsg "Can only dispute FUNDED or ACTIVE escrow" (state == ACTIVE || state == FUNDED)
         create DisputeRecord with
-          issuer, buyer, seller, mediator, asset, terms, metadata
-          raisingParty = buyer
+          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          raisingParty = depositor
 
 -- ---------------------------------------------------------------------------
 -- DISPUTED State (DisputeRecord)
@@ -167,23 +167,23 @@ template EscrowContract
 template DisputeRecord
   with
     issuer       : Party
-    buyer        : Party
-    seller       : Party
+    depositor    : Party
+    beneficiary  : Party
     mediator     : Party
     asset        : Asset
     terms        : EscrowTerms
     metadata     : Text
     raisingParty : Party
   where
-    signatory issuer, buyer, seller
+    signatory issuer, depositor, beneficiary
     observer  mediator
 
     -- Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
 
     interface instance Escrow for DisputeRecord where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state = DISPUTED, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state = DISPUTED, metadata
       
       activateEscrow = do error "Already in dispute."
 
@@ -191,37 +191,37 @@ template DisputeRecord
       with proposal : SettlementTerms
       controller mediator
       do
-        assert (proposal.buyerReturn + proposal.sellerPayment + proposal.mediatorFee == asset.amount)
+        assert (proposal.depositorReturn + proposal.beneficiaryPayment + proposal.mediatorFee == asset.amount)
         create SettlementRecord with
-          issuer, buyer, seller, mediator, asset, terms, metadata
+          issuer, depositor, beneficiary, mediator, asset, terms, metadata
           settlement = proposal
-          buyerAccepted = False
-          sellerAccepted = False
+          depositorAccepted = False
+          beneficiaryAccepted = False
 
 -- ---------------------------------------------------------------------------
 -- PROPOSED State (SettlementRecord)
 -- ---------------------------------------------------------------------------
 template SettlementRecord
   with
-    issuer         : Party
-    buyer          : Party
-    seller         : Party
-    mediator       : Party
-    asset          : Asset
-    terms          : EscrowTerms
-    metadata       : Text
-    settlement     : SettlementTerms
-    buyerAccepted  : Bool
-    sellerAccepted : Bool
+    issuer              : Party
+    depositor           : Party
+    beneficiary         : Party
+    mediator            : Party
+    asset               : Asset
+    terms               : EscrowTerms
+    metadata            : Text
+    settlement          : SettlementTerms
+    depositorAccepted   : Bool
+    beneficiaryAccepted : Bool
   where
-    signatory issuer, buyer, seller, mediator
+    signatory issuer, depositor, beneficiary, mediator
 
     -- Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
 
     interface instance Escrow for SettlementRecord where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state = PROPOSED, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state = PROPOSED, metadata
       
       activateEscrow = do error "Settlement proposed."
 
@@ -229,24 +229,24 @@ template SettlementRecord
       with actor : Party
       controller actor
       do
-        assert (actor == buyer || actor == seller)
-        if actor == buyer 
-          then create this with buyerAccepted = True
-          else create this with sellerAccepted = True
+        assert (actor == depositor || actor == beneficiary)
+        if actor == depositor 
+          then create this with depositorAccepted = True
+          else create this with beneficiaryAccepted = True
 
     choice FinalizeSettlement : ContractId DisbursementOrder
       controller mediator
       do
-        assert (buyerAccepted && sellerAccepted)
+        assert (depositorAccepted && beneficiaryAccepted)
         create DisbursementOrder with
-          issuer, buyer, seller, mediator, asset, terms, metadata, settlement
+          issuer, depositor, beneficiary, mediator, asset, terms, metadata, settlement
 
     choice RejectSettlement : ContractId DisputeRecord
-      controller buyer
+      controller depositor
       do
         create DisputeRecord with
-          issuer, buyer, seller, mediator, asset, terms, metadata
-          raisingParty = buyer
+          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          raisingParty = depositor
 
 -- ---------------------------------------------------------------------------
 -- SETTLED State (DisbursementOrder)
@@ -254,22 +254,22 @@ template SettlementRecord
 template DisbursementOrder
   with
     issuer     : Party
-    buyer      : Party
-    seller     : Party
+    depositor  : Party
+    beneficiary: Party
     mediator   : Party
     asset      : Asset
     terms      : EscrowTerms
     metadata   : Text
     settlement : SettlementTerms
   where
-    signatory issuer, buyer, seller, mediator
+    signatory issuer, depositor, beneficiary, mediator
 
     -- Role Exclusivity
-    ensure (buyer /= seller) && (buyer /= mediator) && (seller /= mediator)
+    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
 
     interface instance Escrow for DisbursementOrder where
       view = View with
-        issuer, buyer, seller, mediator, asset, terms, state = SETTLED, metadata
+        issuer, depositor, beneficiary, mediator, asset, terms, state = SETTLED, metadata
       
       activateEscrow = do error "Already settled."
 
@@ -286,11 +286,11 @@ template DisbursementOrder
         let tcid : ContractId CIP56.Transferable = coerceContractId hcid_unlocked
         
         -- 2. Execute authoritative transfers based on settlement
-        if settlement.sellerPayment > 0.0 then do
-          _ <- exercise tcid CIP56.Transfer with newOwner = seller
+        if settlement.beneficiaryPayment > 0.0 then do
+          _ <- exercise tcid CIP56.Transfer with newOwner = beneficiary
           return ()
         else do
-          _ <- exercise tcid CIP56.Transfer with newOwner = buyer
+          _ <- exercise tcid CIP56.Transfer with newOwner = depositor
           return ()
 
         return ()
@@ -303,7 +303,7 @@ template EscrowInvitation
     issuer       : Party
     inviter      : Party
     inviteeEmail : Text
-    inviteeRole  : Text -- "Buyer-Pledger" or "Seller-Pledgee"
+    inviteeRole  : Text -- "Depositor" or "Beneficiary"
     inviteeType  : Text -- "Individual" or "Business"
     tokenHash    : Text
     asset        : Asset
@@ -330,9 +330,9 @@ template EscrowInvitation
         assertMsg "Claimant cannot be the inviter" (claimingParty /= inviter)
         assertMsg "Claimant cannot be the mediator" (claimingParty /= mediator)
 
-        let isInviteeBuyer = inviteeRole == "Buyer"
+        let isInviteeDepositor = inviteeRole == "Depositor"
         create EscrowProposal with
           issuer
-          buyer = if isInviteeBuyer then claimingParty else inviter
-          seller = if isInviteeBuyer then inviter else claimingParty
+          depositor = if isInviteeDepositor then claimingParty else inviter
+          beneficiary = if isInviteeDepositor then inviter else claimingParty
           mediator, asset, terms, metadata

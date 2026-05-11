@@ -23,7 +23,7 @@ func (m *MockLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRe
 	return args.Get(0).(*EscrowProposal), args.Error(1)
 }
 
-func (m *MockLedgerClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
+func (m *MockLedgerClient) BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error) {
 	args := m.Called(ctx, id, userID)
 	return args.String(0), args.Error(1)
 }

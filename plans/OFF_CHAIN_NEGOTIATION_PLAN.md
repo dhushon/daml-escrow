@@ -9,7 +9,7 @@ To minimize ledger transaction costs and institutional friction, negotiation occ
 ### Negotiation Lifecycle
 1.  **DRAFT**: Initiator creates a draft agreement. Counterparty can be a registered ID or a raw email address.
 2.  **NEGOTIATION**: Parties propose changes to milestones, amounts, or mediators. Each change authoritatively resets all existing approvals.
-3.  **RATIFIED**: All three parties (Buyer, Seller, Mediator) have clicked "Approve" on the identical draft version.
+3.  **RATIFIED**: All three parties (Depositor, Beneficiary, Mediator) have clicked "Approve" on the identical draft version.
 4.  **PROMOTED**: A single high-assurance trigger commits the draft to the ledger and locks stablecoin holdings.
 
 ## 2. Invitation & Association Bridge

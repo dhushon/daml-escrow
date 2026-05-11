@@ -4,10 +4,10 @@ import type { EscrowResponse } from '../lib/api';
 interface Props {
 	escrow: EscrowResponse;
 	isAdmin?: boolean;
-	userRole?: string; // 'Buyer', 'Seller', 'Mediator', 'Issuer'
+	userRole?: string; // 'Depositor', 'Beneficiary', 'Mediator', 'Issuer'
 }
 
-const { escrow, isAdmin = false, userRole = 'Buyer' } = Astro.props;
+const { escrow, isAdmin = false, userRole = 'Depositor' } = Astro.props;
 
 const statusColors: Record<string, string> = {
 	DRAFT: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
@@ -75,7 +75,7 @@ const milestones = escrow.milestones || [];
 
 	<div class="bg-slate-50 dark:bg-slate-800/50 px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-3 transition-colors">
 		<div class="flex w-full gap-2">
-			{state === 'DRAFT' && userRole === 'Buyer' && (
+			{state === 'DRAFT' && userRole === 'Depositor' && (
 				<button 
 					data-action="fund" 
 					data-id={escrow.id}
@@ -106,7 +106,7 @@ const milestones = escrow.milestones || [];
 							Approve
 						</button>
 					)}
-					{(userRole === 'Buyer' || userRole === 'Seller') && (
+					{(userRole === 'Depositor' || userRole === 'Beneficiary') && (
 						<button 
 							data-action="dispute" 
 							data-id={escrow.id}
@@ -118,7 +118,7 @@ const milestones = escrow.milestones || [];
 				</>
 			)}
 
-			{state === 'PROPOSED' && (userRole === 'Buyer' || userRole === 'Seller') && (
+			{state === 'PROPOSED' && (userRole === 'Depositor' || userRole === 'Beneficiary') && (
 				<button 
 					data-action="ratify" 
 					data-id={escrow.id}

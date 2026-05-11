@@ -8,10 +8,10 @@ ledger:
     bank:
       host: "canton"
       port: 7575
-    buyer:
+    depositor:
       host: "canton"
       port: 7576
-    seller:
+    beneficiary:
       host: "canton"
       port: 7577
   packages:

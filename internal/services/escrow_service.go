@@ -42,7 +42,7 @@ func NewEscrowService(
 // ---------------------------------------------------------------------------
 
 func (s *EscrowService) ProposeEscrow(ctx context.Context, req ledger.CreateEscrowRequest) (*ledger.EscrowProposal, error) {
-	s.logger.Info("proposing new escrow", zap.String("buyer", req.Buyer), zap.String("seller", req.Seller))
+	s.logger.Info("proposing new escrow", zap.String("depositor", req.Depositor), zap.String("beneficiary", req.Beneficiary))
 	return s.ledger.ProposeEscrow(ctx, req)
 }
 
@@ -70,10 +70,10 @@ func (s *EscrowService) RaiseDispute(ctx context.Context, id string, userID stri
 func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, userID string, amount float64) (string, error) {
 	s.logger.Info("proposing settlement", zap.String("id", id), zap.Float64("amount", amount))
 	proposal := ledger.SettlementTerms{
-		SettlementType: "PARTIAL",
-		BuyerReturn:    amount,
-		SellerPayment:  0.0, // Simplified for this call
-		MediatorFee:    0.0,
+		SettlementType:     "PARTIAL",
+		DepositorReturn:    amount,
+		BeneficiaryPayment: 0.0, // Simplified for this call
+		MediatorFee:        0.0,
 	}
 	return s.ledger.ProposeSettlement(ctx, id, proposal, userID)
 }
@@ -148,10 +148,10 @@ func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.
 func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, userID string) (string, error) {
 	s.logger.Info("promoting draft to ledger", zap.String("rootId", draft.RootID), zap.String("userID", userID))
 
-	// 1. Authoritatively determine if counterparty is registered
-	if draft.CounterpartyID == "" {
-		// No counterparty ID yet, we must create an Invitation
-		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.CounterpartyEmail, "Seller-Pledgee", "Business", ledger.Asset{
+	// 1. Authoritatively determine if beneficiary is registered
+	if draft.BeneficiaryID == "" {
+		// No beneficiary ID yet, we must create an Invitation
+		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.CounterpartyEmail, "Beneficiary", "Business", ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
 		}, ledger.EscrowTerms{
@@ -163,11 +163,11 @@ func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, us
 		return inv.ID, nil
 	}
 
-	// 2. Counterparty is registered, create a Proposal
+	// 2. Beneficiary is registered, create a Proposal
 	req := ledger.CreateEscrowRequest{
-		Buyer:    draft.InitiatorID,
-		Seller:   draft.CounterpartyID,
-		Mediator: "EscrowMediator", // Default for now
+		Depositor:   draft.InitiatorID,
+		Beneficiary: draft.BeneficiaryID,
+		Mediator:    "EscrowMediator", // Default for now
 		Asset: ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
