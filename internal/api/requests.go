@@ -147,15 +147,16 @@ type CreateInvitationRequest struct {
 }
 
 func (r *CreateInvitationRequest) Validate() error {
-	if strings.TrimSpace(r.InviteeEmail) == "" {
-		return errors.New("inviteeEmail is required")
-	}
-	if r.InviteeRole != "Buyer" && r.InviteeRole != "Seller" {
-		return errors.New("inviteeRole must be 'Buyer' or 'Seller'")
-	}
-	if r.Amount <= 0 {
-		return errors.New("amount must be greater than zero")
-	}
+        if strings.TrimSpace(r.InviteeEmail) == "" {
+                return errors.New("inviteeEmail is required")
+        }
+        if r.InviteeRole != "Buyer-Pledger" && r.InviteeRole != "Seller-Pledgee" {
+                return errors.New("inviteeRole must be 'Buyer-Pledger' or 'Seller-Pledgee'")
+        }
+        if r.Amount <= 0 {
+                return errors.New("amount must be greater than zero")
+        }
+
 	if r.ExpiryDate.Before(time.Now()) {
 		return errors.New("expiry date must be in the future")
 	}

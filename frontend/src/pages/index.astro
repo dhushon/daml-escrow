@@ -11,13 +11,13 @@ const isAuthenticated = !!userEmail;
 const adminCookie = Astro.cookies.get('admin-mode');
 const isAdmin = adminCookie?.value === 'true' || userScopes.includes('system:admin');
 
-const view = Astro.url.searchParams.get('view') || 'Buyer';
+const view = Astro.url.searchParams.get('view') || 'Buyer-Pledger';
 const tab = Astro.url.searchParams.get('tab') || 'active';
 
 // Determine Effective Role for UI
 let effectiveRole = 'Guest';
 if (userScopes.includes('system:admin')) {
-        effectiveRole = view === 'Buyer' ? 'Issuer' : 'Mediator';
+        effectiveRole = view === 'Buyer-Pledger' ? 'Issuer' : 'Mediator';
 } else if (userScopes.includes('escrow:write')) {
         effectiveRole = view;
 }
@@ -105,11 +105,12 @@ if (isAuthenticated) {
 				</div>
 				
 				<div class="flex items-center space-x-4">
-					<div id="view-toggle" class={`inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-[10px] font-black uppercase tracking-widest ${isAdmin ? 'hidden' : ''}`}>
-						<a href={`/?view=Buyer&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Buyer</a>
-						<a href={`/?view=Seller&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Seller</a>
-					</div>
+				        <div id="view-toggle" class={`inline-flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm transition-colors text-[10px] font-black uppercase tracking-widest ${isAdmin ? 'hidden' : ''}`}>
+				                <a href={`/?view=Buyer-Pledger&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Buyer-Pledger' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Buyer-Pledger</a>
+				                <a href={`/?view=Seller-Pledgee&tab=${tab}`} class={`px-4 py-1.5 rounded-lg transition-all ${view === 'Seller-Pledgee' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Seller-Pledgee</a>
+				        </div>
 				</div>
+
 			</div>
 
 			<div class="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">

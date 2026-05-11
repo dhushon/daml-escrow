@@ -7,13 +7,13 @@ import DA.Date qualified
 import DA.Optional (fromSome)
 
 -- ---------------------------------------------------------------------------
--- DRAFT State (EscrowProposal) - Step 1: Initiator offers
+-- DRAFT State (EscrowProposal) - Step 1: Initiator (Buyer-Pledger) offers
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
     issuer   : Party
-    buyer    : Party
-    seller   : Party
+    buyer    : Party -- Buyer-Pledger
+    seller   : Party -- Seller-Pledgee
     mediator : Party
     asset    : Asset
     terms    : EscrowTerms
@@ -303,7 +303,7 @@ template EscrowInvitation
     issuer       : Party
     inviter      : Party
     inviteeEmail : Text
-    inviteeRole  : Text -- "Buyer" or "Seller"
+    inviteeRole  : Text -- "Buyer-Pledger" or "Seller-Pledgee"
     inviteeType  : Text -- "Individual" or "Business"
     tokenHash    : Text
     asset        : Asset

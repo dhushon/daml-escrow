@@ -22,7 +22,7 @@ const { draftID } = Astro.params;
 			<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-sm">
 				<div class="flex justify-between items-start mb-6">
 					<div>
-						<h2 id="draft-title" class="text-xl font-bold text-slate-900 dark:text-white">Draft Agreement</h2>
+						<h2 id="draft-title" class="text-xl font-bold text-slate-900 dark:text-white">Escrow Agreement Draft</h2>
 						<p id="draft-meta" class="text-sm text-slate-500 mt-1"></p>
 					</div>
 					<span id="draft-status" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"></span>
@@ -30,7 +30,22 @@ const { draftID } = Astro.params;
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 					<div class="space-y-4">
-						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Financials</label>
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Buyer-Pledger (Funds Source)</label>
+						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+							<div id="display-buyer" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
+						</div>
+					</div>
+					<div class="space-y-4">
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Seller-Pledgee (Funds Target)</label>
+						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+							<div id="display-seller" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+					<div class="space-y-4">
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Financials (Pledge Amount)</label>
 						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
 							<div class="text-2xl font-black text-slate-900 dark:text-white">
 								<span id="display-amount">0.00</span> <span id="display-currency" class="text-sm text-slate-400">USD</span>
@@ -120,6 +135,8 @@ const { draftID } = Astro.params;
 		document.getElementById('draft-container').classList.remove('hidden');
 
 		document.getElementById('draft-meta').innerText = `Root ID: ${currentDraft.rootId}`;
+		document.getElementById('display-buyer').innerText = currentDraft.initiatorId;
+		document.getElementById('display-seller').innerText = currentDraft.counterpartyEmail;
 		document.getElementById('display-amount').innerText = currentDraft.amount.toLocaleString();
 		document.getElementById('display-currency').innerText = currentDraft.currency;
 		document.getElementById('display-version').innerText = `Version ${currentDraft.version}`;

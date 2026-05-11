@@ -8,8 +8,8 @@ import (
 // User IDs mapped in init.canton
 const (
 	CentralBankUser    = "CentralBank"
-	BuyerUser          = "Buyer"
-	SellerUser         = "Seller"
+	BuyerUser          = "Buyer-Pledger"
+	SellerUser         = "Seller-Pledgee"
 	EscrowMediatorUser = "EscrowMediator"
 )
 
@@ -154,7 +154,7 @@ type UserIdentity struct {
 	DamlPartyID string `json:"damlPartyId"`
 	Email       string `json:"email"`
 	DisplayName string `json:"displayName"`
-	Role        string `json:"role"` // Buyer, Seller, Mediator
+	Role        string `json:"role"` // Buyer-Pledger, Seller-Pledgee, Mediator
 }
 
 type OracleWebhookRequest struct {

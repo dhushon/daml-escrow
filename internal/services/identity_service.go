@@ -78,10 +78,10 @@ func (s *IdentityService) GetOrCreateIdentity(ctx context.Context, oktaSub, emai
 	}
 
 	// Authoritatively determine institutional role
-	role := "Buyer" // Default fallback
+	role := "Buyer-Pledger" // Default fallback
 	emailLower := strings.ToLower(email)
-	if strings.Contains(emailLower, "seller") {
-		role = "Seller"
+	if strings.Contains(emailLower, "seller") || strings.Contains(emailLower, "pledgee") {
+		role = "Seller-Pledgee"
 	} else if strings.Contains(emailLower, "mediator") || strings.Contains(emailLower, "banker") {
 		role = "Mediator"
 	}
