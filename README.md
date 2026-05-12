@@ -38,7 +38,7 @@ graph TD
 This platform implements a **Sovereign Tripartite Architecture**, ensuring each participant maintains data and compute isolation while providing unified operational visibility.
 
 *   **Institutional Development:** The platform authoritatively mirrors the tripartite GKE topology in the local environment. See the **[Tripartite Development Guide](./docs/DEVELOPMENT.md)** for details on the orchestration model and service registry.
-*   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/buyer`, `/seller`).
+*   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/depositor`, `/beneficiary`).
 *   **OpenTelemetry (OTEL) Integration:** Distributed tracing and real-time metrics capture the institutional request lifecycle across distributed nodes.
     *   **Authoritative Visibility:** See the **[Observability Guide](./docs/OBSERVABILITY.md)** for detailed telemetry flow diagrams and metrics dictionaries.
     *   **Jaeger Tracing:** Authoritative visualization of tripartite request spans tagged by `account.id`.

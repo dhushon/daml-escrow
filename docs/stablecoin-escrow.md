@@ -33,15 +33,15 @@ Interoperability in the Canton Network is driven by the **CIP-0056** token stand
 A robust escrow process requires three critical phases: Locking, Validation, and Terminal Settlement.
 
 ### Step 1: Locking (Daml)
-The Buyer proposes an escrow agreement, specifying the amount and conditions. Once terms are signed, stablecoins (**USDCx**) are locked from the Buyer's account into the escrow smart contract using a Daml script or command.
+The Depositor proposes an escrow agreement, specifying the amount and conditions. Once terms are signed, stablecoins (**USDCx**) are locked from the Depositor's account into the escrow smart contract using a Daml script or command.
 
 ### Step 2: Validation (Noves)
 The system uses the **Noves API** to confirm that the deposit has been correctly recorded on-ledger and matches the expected amount and asset ID. The escrow is only transition to the `ACTIVE` state once this external validation is complete.
 
 ### Step 3: Release or Revert (Daml)
 Based on the outcome of the agreement:
-- **Success:** The contract automatically releases funds to the Seller's address.
-- **Default/Dispute:** The contract reverts funds to the Buyer or executes a mediated settlement.
+- **Success:** The contract automatically releases funds to the Beneficiary's address.
+- **Default/Dispute:** The contract reverts funds to the Depositor or executes a mediated settlement.
 
 ---
 

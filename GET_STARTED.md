@@ -55,41 +55,38 @@ cd ..
 
 ## 2. Run & Test
 
-### Launch the Distributed Ledger (3-Node)
-This starts separate Bank, Buyer, and Seller nodes with isolated PostgreSQL persistence.
+The platform supports three development tiers via the root `Makefile`.
+
+### Standalone (Single-Node)
+Best for core UX and API development.
 ```bash
-docker-compose -f docker-compose.distributed.yml up -d
+make standalone-up
 ```
 
-### Synchronize Package IDs
-Ensures the Go API is aware of the latest contract hashes.
+### Tripartite (Distributed)
+Required for testing cross-node privacy and distributed synchronization. Starts separate Bank, Depositor, and Beneficiary nodes.
 ```bash
-make sync
+make tri-up
 ```
 
-### Start the Backend API
-The API uses a Cobra-based CLI. Use the `--bypass` flag for local development without real OIDC tokens.
+### GCP Proxy (Hybrid)
+Points local services to a GKE-hosted ledger environment.
 ```bash
-# Start in Dev mode with Auth Bypass enabled
-go run cmd/escrow-api/main.go serve --env dev --bypass
+make pilot-local
 ```
 
-### Start the Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
 Navigate to `http://localhost:4321` to access the dashboard.
 
 ------------------------------------------------------------------------
 
 ## 3. Makefile Commands
 
-The root `Makefile` provides several utility targets:
+The root `Makefile` provides several utility targets for authoritative orchestration:
 
-*   `make test`: Run all Go unit tests.
-*   `make integration-test`: Run local integration tests against a single-node sandbox.
-*   `make distributed-test`: Run multi-node distributed tests (requires the 3-node docker topology).
-*   `make sync`: Update `ledger-state.json` with current package IDs from the ledger.
-*   `make up`: (Legacy) Starts simple single-node sandbox.
+*   **`make standalone-up`**: Authoritatively launch local baseline (Single-Node).
+*   **`make standalone-down`**: Purge all standalone processes and containers.
+*   **`make tri-up`**: Authoritatively launch distributed tripartite stack.
+*   **`make tri-down`**: Purge all tripartite processes and containers.
+*   **`make bootstrap-local`**: Synchronize DAR packages and allocate Parties on localhost.
+*   **`make test`**: Run all Go unit tests.
+*   **`make codegen`**: Authoritatively regenerate Go bindings from DAR files.

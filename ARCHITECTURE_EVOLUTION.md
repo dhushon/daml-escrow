@@ -4,53 +4,53 @@ This document elaborates on the detailed roles and state transitions within the 
 
 ## 1. Role-Based Workflow Matrix
 
-The following diagram illustrates the granular interactions between Buyer, Seller, and Mediator roles across the contract lifecycle.
+The following diagram illustrates the granular interactions between Depositor, Beneficiary, and Mediator roles across the contract lifecycle.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant BC as Buyer (Preparer/Legal)
-    participant BA as Buyer (Approver/Payer)
+    participant DC as Depositor (Preparer/Legal)
+    participant DA as Depositor (Approver/Payer)
     participant L as Daml Ledger
-    participant SA as Seller (Approver/Legal)
-    participant SR as Seller (Refunder)
+    participant BA as Beneficiary (Approver/Legal)
+    participant BR as Beneficiary (Refunder)
     participant ML as Mediator (Process Lead)
     participant MS as Mediator (Settler/Bank)
 
-    Note over BC, BA: Phase 1: Drafting & Internal Review
-    BC->>L: Create Escrow Draft (Proposal/Invite)
-    L-->>BA: Notify for Internal Approval
-    BA->>L: Approve for External Dispatch
+    Note over DC, DA: Phase 1: Drafting & Internal Review
+    DC->>L: Create Escrow Draft (Proposal/Invite)
+    L-->>DA: Notify for Internal Approval
+    DA->>L: Approve for External Dispatch
     
-    Note over L, SA: Phase 2: Counterparty Acceptance
-    L-->>SA: Notify (External Offer)
+    Note over L, BA: Phase 2: Counterparty Acceptance
+    L-->>BA: Notify (External Offer)
     alt Positive Path: Acceptance
-        SA->>L: Accept Terms (Choice: Accept)
+        BA->>L: Accept Terms (Choice: Accept)
         L->>L: Transition to ACTIVE Escrow
     else Negative Path: Rejection
-        SA->>L: Reject Terms
+        BA->>L: Reject Terms
         L->>L: Archive Proposal (OFFER_REJECTED)
     end
 
-    Note over BA, SA: Phase 3: Execution & Milestone Approval
-    SA->>L: Submit Evidence / Milestone Work
-    L-->>BA: Notify for Review
+    Note over DA, BA: Phase 3: Execution & Milestone Approval
+    BA->>L: Submit Evidence / Milestone Work
+    L-->>DA: Notify for Review
     alt Positive Path: Approval
-        BA->>L: Approve Milestone (Choice: ApproveMilestone)
+        DA->>L: Approve Milestone (Choice: ApproveMilestone)
         L->>MS: Trigger Settlement Request
         MS->>L: Execute Payment (Choice: Settle)
-        L-->>SA: Funds Received
+        L-->>BA: Funds Received
     else Negative Path: Dispute
-        BA->>L: Reject Milestone / Raise Dispute
+        DA->>L: Reject Milestone / Raise Dispute
         L->>ML: Assign Mediator Process Lead
         ML->>L: Investigate & Resolve (Choice: ResolveDispute)
         L->>MS: Settled based on Resolution
     end
 
-    Note over SA, SR: Phase 4: Termination & Refunds
-    alt Seller Initiated Refund
-        SR->>L: Return Funds (Choice: SellerRefund)
-        L-->>BA: Funds Returned to Payer
+    Note over BA, BR: Phase 4: Termination & Refunds
+    alt Beneficiary Initiated Refund
+        BR->>L: Return Funds (Choice: BeneficiaryRefund)
+        L-->>DA: Funds Returned to Payer
     end
 ```
 
@@ -59,7 +59,7 @@ sequenceDiagram
 To achieve maximum security and regulatory isolation, the platform has transitioned to a **Distributed Service Topology**.
 
 ### A. Architectural Goals
-*   **Zero-Trust Isolation:** Each participant (Bank, Buyer, Seller) operates their own Canton node. 
+*   **Zero-Trust Isolation:** Each participant (Bank, Depositor, Beneficiary) operates their own Canton node. 
 *   **Node Specialization:** Parties are "pinned" to their respective nodes. Command submission is only possible through the node hosting the party.
 *   **Multi-Node Routing:** The `MultiLedgerClient` intelligently routes commands to the correct node based on the user's role and identity.
 *   **Cross-Node Visibility:** Topology is synchronized across the cluster using the Synchronizer Topology Store, enabling observers on one node to see contracts created on another.
@@ -69,10 +69,10 @@ To achieve maximum security and regulatory isolation, the platform has transitio
 graph TD
     FE[Astro Frontend] --> GW[MultiLedgerClient Go]
     GW -- "@bank.com" --> BN[Bank Canton Node: 7575]
-    GW -- "@buyer.com" --> UN[Buyer Canton Node: 7576]
-    GW -- "@seller.com" --> SN[Seller Canton Node: 7577]
+    GW -- "@depositor.com" --> DN[Depositor Canton Node: 7576]
+    GW -- "@beneficiary.com" --> UN[Beneficiary Canton Node: 7577]
 
-    BN & UN & SN --- SY[Canton Synchronizer / Domain]
+    BN & DN & UN --- SY[Canton Synchronizer / Domain]
 ```
 
 ### C. Key Technical Breakthroughs (Phase 6)
@@ -87,7 +87,7 @@ graph TD
 
 ### A. The Preparer-Approver Loop (Internal Governance)
 
-By separating the **Contract Preparer** from the **Buyer Approver**, we enforce a "four-eyes" principle. A preparer (typically a procurement officer) can define terms, but only an authorized officer (Payer) can commit funds to the ledger.
+By separating the **Contract Preparer** from the **Depositor Approver**, we enforce a "four-eyes" principle. A preparer (typically a procurement officer) can define terms, but only an authorized officer (Payer) can commit funds to the ledger.
 
 ### B. Business Email Logic (Onboarding)
 
@@ -99,29 +99,29 @@ When an invitation is issued to `user@datacloud.com`, the platform:
 
 ### C. Negative Outcomes & Resolution
 
-- **Term Deadlock:** If Seller Legal (`SA`) finds terms non-compliant, the proposal is archived.
-- **Milestone Gridlock:** If Buyer Approver (`BA`) rejects work, the **Mediator Process Lead** (`ML`) adjudicates the dispute using on-ledger evidence.
+- **Term Deadlock:** If Beneficiary Legal (`BA`) finds terms non-compliant, the proposal is archived.
+- **Milestone Gridlock:** If Depositor Approver (`DA`) rejects work, the **Mediator Process Lead** (`ML`) adjudicates the dispute using on-ledger evidence.
 
 ## Phase 5: High-Assurance Identity & Adjudication (Completed)
 
 ### Architectural Shift: The Adjudicator Model
 
-Moved from a simple "Buyer releases funds" model to a mediated "State Actor" model. Stakeholders (Buyer, Seller, Issuer) sign the agreement, while an independent Adjudicator (Mediator) authoritatively backs the evidence of completion.
+Moved from a simple "Depositor releases funds" model to a mediated "State Actor" model. Stakeholders (Depositor, Beneficiary, Issuer) sign the agreement, while an independent Adjudicator (Mediator) authoritatively backs the evidence of completion.
 
 ```mermaid
 sequenceDiagram
-    participant B as Buyer
-    participant S as Seller
+    participant D as Depositor
+    participant B as Beneficiary
     participant M as Mediator (Adjudicator)
     participant L as Ledger
     participant CB as Central Bank (Issuer)
 
-    Note over B,M: 1. Authoritative Appointment
-    B->>L: Invite Seller (Signatories: B, M, CB)
-    S->>L: Claim Invite (Verified by OIDC Email)
+    Note over D,M: 1. Authoritative Appointment
+    D->>L: Invite Beneficiary (Signatories: D, M, CB)
+    B->>L: Claim Invite (Verified by OIDC Email)
     L->>L: Create Proposal (Signatories: M, CB)
-    S->>L: Accept Proposal
-    L->>L: Create Active Escrow (Signatories: B, S, CB)
+    B->>L: Accept Proposal
+    L->>L: Create Active Escrow (Signatories: D, B, CB)
 
     Note over M,L: 2. Mediated Completion
     M->>L: Approve Milestone (Evidence of Completion)
@@ -129,7 +129,7 @@ sequenceDiagram
 
     Note over CB,L: 3. Final Settlement
     CB->>L: Settle Payment
-    L->>L: Funds Transferred to Seller
+    L->>L: Funds Transferred to Beneficiary
 ```
 
 ## Phase 9: High-Assurance Identity & Deep Health (Active)
@@ -153,27 +153,27 @@ Transitioned the ledger data model from simple numeric balances to authoritative
 1.  **CIP-0056 Standard:** Adopted standardized Daml interfaces (`Holding`, `Lockable`, `Transferable`) to ensure that all token movements are ledger-verified and provider-agnostic.
 2.  **Institutional Vault Model:** Refactored the stablecoin abstraction to use **Vaults** (mapping to BitGo Enterprise Wallets) rather than logical internal wallets.
 3.  **Authoritative Locking:** Implemented a high-assurance state machine where escrowed assets are cryptographically locked during the `ACTIVE` phase, preventing double-spending and ensuring sole ledger authority over disbursement.
-4.  **Multi-Actor Co-signing:** Aligned the Go and Daml layers to support multi-party authorizations (`actAs []string`), requiring both the **Issuer (Bank)** and **Buyer (Owner)** to authorize critical state transitions on institutional holdings.
+4.  **Multi-Actor Co-signing:** Aligned the Go and Daml layers to support multi-party authorizations (`actAs []string`), requiring both the **Issuer (Bank)** and **Depositor (Owner)** to authorize critical state transitions on institutional holdings.
 5.  **BitGo Integration:** Implemented the `BitGoStablecoinProvider` using the BitGo v2 REST API and BitGo Express local proxy for secure transaction signing.
 
 ### Authoritative Lock & Disburse Flow:
 ```mermaid
 sequenceDiagram
     autonumber
-    participant B as Buyer (Owner)
+    participant D as Depositor (Owner)
     participant L as Canton Ledger
     participant G as Go API
     participant BG as BitGo Express
     participant CB as Central Bank (Issuer)
 
-    Note over B,CB: Step 1: Authoritative Locking
-    B->>G: Request Activation
-    G->>L: Exercise Activate (actAs: [CB, B])
+    Note over D,CB: Step 1: Authoritative Locking
+    D->>G: Request Activation
+    G->>L: Exercise Activate (actAs: [CB, D])
     L->>L: Exercise Lock choice on CIP-0056 Holding
     L-->>G: Locked Holding ContractCreated
     
-    Note over B,CB: Step 2: High-Assurance Disbursement
-    CB->>G: Execute Disburse (actAs: [CB, B])
+    Note over D,CB: Step 2: High-Assurance Disbursement
+    CB->>G: Execute Disburse (actAs: [CB, D])
     G->>BG: signTransaction (Local Proxy)
     BG->>G: Signed Tx
     G->>L: Exercise Disburse choice
@@ -205,27 +205,27 @@ sequenceDiagram
     autonumber
     participant I as Initiator (e.g. Jimmy)
     participant DB as Postgres (Draft Tunnel)
-    participant C as Counterparty (e.g. Joey)
+    participant B as Beneficiary (e.g. Joey)
     participant L as Canton Ledger
 
     Note over I,DB: Step 1: Speculative Draft
-    I->>DB: SaveDraft (with invitee_email)
+    I->>DB: SaveDraft (with beneficiary_email)
     DB-->>I: Invitation Code: XYZ
     
-    Note over C,DB: Step 2: Onboarding & Claim
-    C->>C: Login (JIT Provisioning)
-    C->>DB: ClaimDraft (XYZ + damlPartyId)
+    Note over B,DB: Step 2: Onboarding & Claim
+    B->>B: Login (JIT Provisioning)
+    B->>DB: ClaimDraft (XYZ + damlPartyId)
     DB->>DB: Associate Identity
     
-    Note over I,C: Step 3: Off-Chain Negotiation
+    Note over I,B: Step 3: Off-Chain Negotiation
     I->>DB: Propose Change
-    C->>DB: Review & Edit
+    B->>DB: Review & Edit
     
     Note over I,L: Step 4: Ledger Promotion
     I->>DB: Ratify Agreement
-    C->>DB: Ratify Agreement
+    B->>DB: Ratify Agreement
     DB->>L: Promote (Submit Create EscrowProposal)
-    L-->>I & C: On-Chain Settlement Finality
+    L-->>I & B: On-Chain Settlement Finality
 ```
 
 *   **Outcome:** A cost-efficient, high-performance institutional platform that balances human-scale negotiation with cryptographic ledger finality.

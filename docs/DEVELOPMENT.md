@@ -10,8 +10,8 @@ The platform authoritatively mirrors the tripartite GKE topology in the local en
 | :--- | :--- | :--- | :--- |
 | **Unified Gateway** | `escrow-gateway-dev` | Ingress Simulator | `8080` |
 | **Bank API** | `bank-api-dev` | Bank Sovereign Node | `8081` (internal) |
-| **Buyer API** | `buyer-api-dev` | Buyer Sovereign Node | `8081` (internal) |
-| **Seller API** | `seller-api-dev` | Seller Sovereign Node | `8081` (internal) |
+| **Depositor API** | `depositor-api-dev` | Depositor Sovereign Node | `8081` (internal) |
+| **Beneficiary API** | `beneficiary-api-dev` | Beneficiary Sovereign Node | `8081` (internal) |
 | **Canton Ledger** | `escrow-ledger-dev` | Distributed Ledger | `7575-7577` |
 | **Postgres DB** | `escrow-postgres-dev` | Shared Multi-DB | `5432` |
 
@@ -20,42 +20,45 @@ The platform authoritatively mirrors the tripartite GKE topology in the local en
 Developers MUST authoritatively route all tripartite traffic through the **Unified Gateway (8080)** to maintain environment parity.
 
 *   **Bank Services**: `http://localhost:8080/bank/api/v1/*`
-*   **Buyer Services**: `http://localhost:8080/buyer/api/v1/*`
-*   **Seller Services**: `http://localhost:8080/seller/api/v1/*`
+*   **Depositor Services**: `http://localhost:8080/depositor/api/v1/*`
+*   **Beneficiary Services**: `http://localhost:8080/beneficiary/api/v1/*`
 *   **Global Health**: `http://localhost:8080/health` (Gateway check)
 
 ## 3. High-Assurance Observability
 
 | Tool | URL | Role |
 | :--- | :--- | :--- |
-| **Jaeger** | `http://localhost:16686` | Tripartite distributed tracing. |
+| **Jaeger** | `http://localhost:16686` | Distributed tracing. |
 | **Grafana** | `http://localhost:3000` | Real-time performance dashboards. |
 | **Prometheus** | `http://localhost:9090` | Metrics time-series engine. |
 
 ## 4. Local Development Workflow
 
-### A. Initialize the Distributed Ledger
+The platform supports three development tiers via the root `Makefile`.
+
+### A. Standalone (Single-Node)
+Best for core UX and API development.
 ```bash
-docker-compose -f docker-compose.distributed.yml up -d
-make sync
+make standalone-up
 ```
 
-### B. Launch the Observability Stack
+### B. Tripartite (Distributed)
+Required for testing cross-node privacy and distributed synchronization.
 ```bash
-docker-compose -f docker-compose.otel.yml up -d
+make tri-up
 ```
 
-### C. Execute Tripartite Verification
+### C. GCP Proxy (Hybrid)
+Points local services to a GKE-hosted ledger environment.
 ```bash
-# Verify Bank API via Gateway
-curl http://localhost:8080/bank/api/v1/health
+make pilot-local
 ```
 
 ## 5. Identity & Authorization Simulation
 
 To simulate institutional roles without real OIDC tokens:
-1.  Run the API with the `--bypass` flag.
-2.  Pass the **`X-Dev-User`** header with an email from the `config/identity_providers.yaml` (e.g., `joey@buyer.com`).
+1.  Run the API with the `--bypass` flag (enabled by default in `make *-up` targets).
+2.  Pass the **`X-Dev-User`** header with an email from the `config/identity_providers.yaml` (e.g., `joey@depositor.com`).
 
 ---
 **High-Assurance Standard**: All local development MUST authoritatively synchronize with this guide to ensure GKE production readiness.

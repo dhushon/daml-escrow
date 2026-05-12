@@ -75,7 +75,7 @@ To ensure consistent testing and demonstration environments, the identity stack 
 The repository includes Terraform definitions to provision:
 - **Okta OIDC Application:** Configured with correct redirect URIs and scopes.
 - **Authorization Server:** Defines the `origin_domain` custom claim.
-- **Groups:** Functional groups for `EscrowBuyers`, `EscrowSellers`, `EscrowMediators`, and `EscrowBank`.
+- **Groups:** Functional groups for `EscrowDepositors`, `EscrowBeneficiaries`, `EscrowMediators`, and `EscrowBank`.
 - **Test Users:** Pre-provisions consistent personas with fixed credentials.
 
 ### B. Standard Test Personas
@@ -83,8 +83,8 @@ The following identities are automatically provisioned for Phase 9 testing:
 
 | Persona | Role | Email |
 | :--- | :--- | :--- |
-| **Joey Buyer** | Payer | `joey@buyer.com` |
-| **Jimmy Seller** | Payee | `jimmy@seller.com` |
+| **Joey Depositor** | Payer | `joey@depositor.com` |
+| **Jimmy Beneficiary** | Payee | `jimmy@beneficiary.com` |
 | **Sally Mediator** | Adjudicator | `sally@mediator.com` |
 | **Bob Banker** | Issuer | `bob@banker.com` |
 
@@ -103,7 +103,7 @@ Run the following to apply the infrastructure and verify the persona catalog:
 To maintain high assurance across contract upgrades and environment resets, the platform avoids hardcoding cryptographic identifiers. Instead, it employs a **Discovery Phase** at startup.
 
 ### Strategy:
-1.  **Logical Mapping:** The backend maintains knowledge of "Logical Names" (e.g., package `stablecoin-escrow`, party `Buyer`).
+1.  **Logical Mapping:** The backend maintains knowledge of "Logical Names" (e.g., package `stablecoin-escrow`, party `Depositor`).
 2.  **Runtime Resolution:** Upon connection, the `ledgerClient.Discover(ctx)` method is executed.
 3.  **Package Sync:** The system queries the ledger's package registry to resolve the current content-hashes (Package IDs) for interfaces and implementations.
 4.  **Party Sync:** Cryptographic Party IDs are resolved via the User Management API and identifier hints, populating a high-speed local cache (`partyMap`).
