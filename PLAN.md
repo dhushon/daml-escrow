@@ -27,7 +27,7 @@ Goals: Align contract dynamics with formal escrow standards and establish a prod
 
 Goals: Move to multi-participant topology and real stablecoin integration.
 
-### Achievements
+### Phase 6 Achievements
 
 1. **Multi-Participant Infrastructure:** Created `contracts/DevNet/devnet.conf` and robust `devnet_init.canton` for distributed topology with deterministic propagation checks.
 2. **Local Distributed Environment:** Added `docker-compose.distributed.yml` to enable local testing of separate Bank, Depositor, and Beneficiary nodes.

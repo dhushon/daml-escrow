@@ -1,12 +1,12 @@
-// Phase 6: Multi-Participant DevNet Bootstrap (Canton 3.4.x)
+// Phase 6 & 11: Institutional DevNet Bootstrap (Canton 3.4.x)
 import com.digitalasset.canton.topology.transaction.ParticipantPermission
 import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
 
 // 1. Identify Nodes
 val bank = participants.all.find(_.name == "bank").get
-val buyer = participants.all.find(_.name == "buyer").get
-val seller = participants.all.find(_.name == "seller").get
-val seqNode = sequencers.all.find(_.name == "escrow-sequencer").get
+val depositor = participants.all.find(_.name == "depositor").get
+val beneficiary = participants.all.find(_.name == "beneficiary").get
+val seqNode = sequencers.all.find(_.name == "escrow_sequencer").get
 
 def ignore[T](f: => T): Unit = try { f; () } catch { case _: Throwable => () }
 
@@ -23,8 +23,8 @@ def waitReady(label: String, check: => Unit): Unit = {
   }
 }
 waitReady("bank", bank.health.status)
-waitReady("buyer", buyer.health.status)
-waitReady("seller", seller.health.status)
+waitReady("depositor", depositor.health.status)
+waitReady("beneficiary", beneficiary.health.status)
 waitReady("sequencer", seqNode.health.status)
 
 // 3. Bootstrap the synchronizer
@@ -34,20 +34,20 @@ Thread.sleep(10000)
 
 // 4. Connect Participants
 println("Connecting participants...")
-Seq(bank, buyer, seller).foreach { p =>
+Seq(bank, depositor, beneficiary).foreach { p =>
   ignore(p.synchronizers.connect_local(seqNode, "escrow-domain"))
 }
 
 Thread.sleep(5000)
 val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
 
-// 5. Upload DARs (Authoritative: No ignore here)
+// 5. Upload DARs
 println("Uploading authoritative DARs...")
 val interfaceDar = "/etc/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
 val escrowDar    = "/etc/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
 val testDar      = "/etc/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
 
-Seq(bank, buyer, seller).foreach { p =>
+Seq(bank, depositor, beneficiary).foreach { p =>
   println(s"Provisioning ${p.name} with templates...")
   p.dars.upload(interfaceDar)
   p.dars.upload(escrowDar)
@@ -55,24 +55,24 @@ Seq(bank, buyer, seller).foreach { p =>
 }
 
 // 6. Allocate Parties
-println("Allocating parties...")
-val cbId = bank.parties.enable("CentralBank")
+println("Allocating institutional parties...")
+val cbId  = bank.parties.enable("CentralBank")
 val medId = bank.parties.enable("EscrowMediator")
-val buyId = buyer.parties.enable("Buyer")
-val selId = seller.parties.enable("Seller")
+val depId = depositor.parties.enable("Depositor")
+val benId = beneficiary.parties.enable("Beneficiary")
 
 // 7. Authorize tripartite topology
 println("Authorizing tripartite topology...")
 val allMappings = Seq(
   (cbId, bank),
   (medId, bank),
-  (buyId, buyer),
-  (selId, seller)
+  (depId, depositor),
+  (benId, beneficiary)
 )
 
 allMappings.foreach { case (partyId, host) =>
   println(s"Authorizing $partyId on ${host.name}...")
-  Seq(bank, buyer, seller).foreach { target =>
+  Seq(bank, depositor, beneficiary).foreach { target =>
     ignore(target.topology.party_to_participant_mappings.propose(
       party = partyId,
       newParticipants = Seq((host.id, ParticipantPermission.Submission)),
@@ -84,8 +84,8 @@ allMappings.foreach { case (partyId, host) =>
 
 // 8. Wait for topology to settle
 println("Verifying topology propagation...")
-val expected = Set(cbId, medId, buyId, selId)
-Seq(bank, buyer, seller).foreach { p =>
+val expected = Set(cbId, medId, depId, benId)
+Seq(bank, depositor, beneficiary).foreach { p =>
   var ok = false
   for (i <- 1 to 30 if !ok) {
     val current = p.topology.party_to_participant_mappings.list(TopologyStoreId.Synchronizer(syncId)).map(_.item.partyId).toSet
@@ -99,14 +99,14 @@ Seq(bank, buyer, seller).foreach { p =>
   }
 }
 
-// 9. Create Users (Authoritative: ensuring V3 compliance)
+// 9. Create Users (Authoritative V3)
 println("Creating users...")
 bank.ledger_api.users.create(id = "CentralBank",    primaryParty = Some(cbId))
 bank.ledger_api.users.create(id = "EscrowMediator", primaryParty = Some(medId))
-buyer.ledger_api.users.create(id = "Buyer",          primaryParty = Some(buyId))
-seller.ledger_api.users.create(id = "Seller",         primaryParty = Some(selId))
+depositor.ledger_api.users.create(id = "Depositor",    primaryParty = Some(depId))
+beneficiary.ledger_api.users.create(id = "Beneficiary", primaryParty = Some(benId))
 
-bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, buyId, selId))
-buyer.ledger_api.users.rights.grant(id = "Buyer",          actAs = Set(buyId, cbId))
+bank.ledger_api.users.rights.grant(id = "EscrowMediator", actAs = Set(medId, depId, benId))
+depositor.ledger_api.users.rights.grant(id = "Depositor", actAs = Set(depId, cbId))
 
-println("Bootstrap Complete.")
+println("Institutional Bootstrap Complete.")

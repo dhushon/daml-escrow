@@ -32,7 +32,12 @@ services:
       escrow-postgres:
         condition: service_healthy
     command: >
-      sh -c "psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true"
+      sh -c "psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_bank;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_depositor;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_beneficiary;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_sequencer;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_mediator;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true"
     networks:
       - escrow-net
 
@@ -48,7 +53,9 @@ services:
       - ./contracts/DevNet/domain.conf:/etc/canton/domain.conf
       - ./contracts/DevNet/devnet_init.canton:/etc/canton/init.canton
       - ./contracts:/etc/canton/contracts:ro
+    entrypoint: ["/app/bin/canton"]
     command: >
+      daemon
       -c /etc/canton/participant.conf 
       -c /etc/canton/domain.conf 
       --bootstrap /etc/canton/init.canton

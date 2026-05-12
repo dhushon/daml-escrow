@@ -49,7 +49,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		email := fmt.Sprintf("tester-%d@datacloud.com", uniqueID)
 
 		// 1. Provision User
-		identity, err := client.ProvisionUser(ctx, oktaSub, email, []string{})
+		identity, err := client.ProvisionUser(ctx, oktaSub, email, "Depositor", []string{})
 
 		require.NoError(t, err)
 		require.NotNil(t, identity)

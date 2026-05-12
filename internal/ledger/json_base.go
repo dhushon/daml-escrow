@@ -121,38 +121,22 @@ func (c *JsonLedgerClient) Discover(ctx context.Context, wait bool) error {
 	// 2. Fallback to active discovery if file missing or invalid
 	c.logger.Info("performing active package discovery...")
 
-	var pids []string
-	var found bool
-	// Try discovery once
-	respBody, err := c.doRawRequest(ctx, "GET", "/v2/packages", nil)
+	pid, err := c.SearchPackageID(ctx, "stablecoin-escrow")
+	if err != nil {
+		return fmt.Errorf("failed to discover stablecoin-escrow package: %w", err)
+	}
+	c.PackageID = pid
+
+	ipid, err := c.SearchPackageID(ctx, "stablecoin-escrow-interfaces")
 	if err == nil {
-		var listResponse struct {
-			PackageIds []string `json:"packageIds"`
-		}
-		if err := json.Unmarshal(respBody, &listResponse); err == nil && len(listResponse.PackageIds) > 0 {
-			pids = listResponse.PackageIds
-			found = true
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("failed to discover any packages on ledger")
-	}
-
-	// Heuristic: The newest package is often at the end. 
-	if len(pids) > 0 {
-		c.PackageID = pids[len(pids)-1]
-		c.logger.Info("discovered stablecoin-escrow package", 
-			zap.String("packageId", c.PackageID),
-			zap.Int("totalPackages", len(pids)))
-	}
-
-	// Interface is usually the first one uploaded in our bootstrap scripts
-	if len(pids) > 1 {
-		c.InterfacePackageID = pids[0]
+		c.InterfacePackageID = ipid
 	} else {
 		c.InterfacePackageID = c.PackageID
 	}
+
+	c.logger.Info("discovered institutional packages", 
+		zap.String("implementation", c.PackageID),
+		zap.String("interfaces", c.InterfacePackageID))
 
 	// 3. Resolve Party IDs
 	if err := c.refreshPartyMap(ctx); err != nil {
@@ -166,24 +150,29 @@ func (c *JsonLedgerClient) Discover(ctx context.Context, wait bool) error {
 	}
 
 	// The package listing might return the ID before the node is ready to accept commands for it.
-	// We'll perform a dry-run query for the EscrowProposal template.
-	c.logger.Info("waiting for template readiness on ledger node...")
-	templateID := fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal")
-	query := map[string]interface{}{
-		"templateIds": []string{templateID},
-	}
-
-	for i := 0; i < 10; i++ {
-		_, err := c.doRawRequest(ctx, "POST", "/v2/query", query)
+	// We'll perform a dry-run fetch for any Active Contracts as a health check for the indexer.
+	c.logger.Info("waiting for indexer readiness on ledger node...")
+	
+	for i := 0; i < 15; i++ {
+		// V2 compliant ACS query as a readiness probe
+		body := map[string]interface{}{
+			"activeAtOffset": "0", // Mandatory in V2 for state queries
+			"filter": map[string]interface{}{
+				"filtersByParty": map[string]interface{}{
+					c.GetParty(CentralBankUser): map[string]interface{}{},
+				},
+			},
+		}
+		_, err := c.doRawRequest(ctx, "POST", "/v2/state/active-contracts", body)
 		if err == nil {
-			c.logger.Info("template is ready", zap.String("template", templateID))
+			c.logger.Info("indexer is ready and responding to tripartite queries")
 			return nil
 		}
-		c.logger.Debug("template not ready, retrying...", zap.Int("retry", i))
+		c.logger.Debug("indexer not ready, retrying...", zap.Int("retry", i), zap.Error(err))
 		time.Sleep(5 * time.Second)
 	}
 
-	return fmt.Errorf("template %s failed to become ready after retries", templateID)
+	return fmt.Errorf("ledger indexer failed to become ready after retries")
 }
 
 func (c *JsonLedgerClient) SearchPackageID(ctx context.Context, name string) (string, error) {

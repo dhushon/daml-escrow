@@ -1,4 +1,4 @@
-# Project Context: DAML based contract for Escrow Contract issuance, administration, management and settlement.
+# Project Context: DAML based contract for Escrow Contract issuance, administration, management and settlement
 
 ## Gemini Added Memories
 

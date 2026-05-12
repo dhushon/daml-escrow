@@ -57,6 +57,23 @@ pilot-local: ## Authoritatively launch local services pointing to GKE (api.vdata
 pilot-down: ## Tier 2: authoritatively DESTROY GKE cluster and node pools (Cost Protection)
 	@./scripts/gke-pilot.sh down
 
+.PHONY: build-contracts
+build-contracts: ## Build authoritative DAML DAR packages
+	@cd contracts/stablecoin-escrow-interfaces && daml build
+	@cd contracts/stablecoin-escrow && daml build
+	@cd contracts/stablecoin-escrow-tests && daml build
+
+.PHONY: codegen
+codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR files
+	@echo "Building godaml tool..."
+	@cd third_party/go-daml && make build
+	@echo "Generating institutional bindings..."
+	@./third_party/go-daml/bin/godaml \
+		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar \
+		--output ./internal/ledger/generated \
+		--go_package generated
+	@echo "Codegen Complete: Go bindings synchronized with institutional vocabulary."
+
 .PHONY: pilot-release
 pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
 	@echo "Releasing GKE Pilot API (Arch: $(ARCH))..."
