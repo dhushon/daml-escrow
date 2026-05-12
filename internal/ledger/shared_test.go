@@ -100,18 +100,18 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.NotNil(t, proposal)
 		t.Logf("Proposed escrow ID: %s", proposal.ID)
 
-		// 1.5 Seller Accepts Proposal (ID updates)
+		// 1.5 Beneficiary Accepts Proposal (ID updates)
 		t.Log("Step 1.5: BeneficiaryAccept...")
 		acceptedID, err := client.BeneficiaryAccept(ctx, proposal.ID, BeneficiaryUser)
 		require.NoError(t, err)
 		require.NotEmpty(t, acceptedID)
 		proposal.ID = acceptedID
 
-		// 2. Create a Mock Holding for the Buyer (Find test package ID dynamically)
+		// 2. Create a Mock Holding for the Depositor (Find test package ID dynamically)
 		testPkgID, err := client.SearchPackageID(ctx, "stablecoin-escrow-tests")
 		require.NoError(t, err)
 		
-		// Note: Institutional MockHolding now requires Buyer, Issuer, and Seller as signatories
+		// Note: Institutional MockHolding now requires Depositor, Issuer, and Beneficiary as signatories
 		holdingCid, err := client.CreateContract(ctx, DepositorUser, fmt.Sprintf("%s:%s:%s", testPkgID, "Test.StablecoinEscrowTest", "MockHolding"), map[string]interface{}{
 			"owner":   client.GetParty(DepositorUser),
 			"amount":  fmt.Sprintf("%.10f", req.Asset.Amount),
@@ -136,7 +136,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		// 3. Activate (FUNDED -> ACTIVE)
 		t.Log("Step 3: Activate...")
 		// Institutional activation authoritatively LOCKS the asset.
-		// Requires co-signing from both Issuer and Buyer (owner of holding).
+		// Requires co-signing from both Issuer and Depositor (owner of holding).
 		activeID, err := client.Activate(ctx, escrow.ID, []string{CentralBankUser, DepositorUser})
 		require.NoError(t, err)
 		require.NotEmpty(t, activeID)
@@ -159,7 +159,7 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 
 		// 6. Disburse (SETTLED -> Terminal/Archived)
 		t.Log("Step 6: Disburse...")
-		// Institutional disbursement requires authoritative co-signing from Issuer and Buyer.
+		// Institutional disbursement requires authoritative co-signing from Issuer and Depositor.
 		err = client.Disburse(ctx, escrow.ID, []string{CentralBankUser, DepositorUser})
 		require.NoError(t, err)
 
@@ -236,10 +236,10 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.NotNil(t, escrow, "Failed to reach PROPOSED state")
 		require.Equal(t, "PROPOSED", escrow.State)
 
-		// 4. Ratify Settlement (Buyer)
-		t.Log("Step 3: RatifySettlement (Buyer)...")
+		// 4. Ratify Settlement (Depositor)
+		t.Log("Step 3: RatifySettlement (Depositor)...")
 		ratifiedID, err := client.RatifySettlement(ctx, escrow.ID, DepositorUser)
-		require.NoError(t, err, "RatifySettlement (Buyer) failed")
+		require.NoError(t, err, "RatifySettlement (Depositor) failed")
 		require.NotEmpty(t, ratifiedID)
 		escrow.ID = ratifiedID
 
@@ -251,10 +251,10 @@ func runFullEscrowLifecycle(t *testing.T, ctx context.Context, client Client) {
 		require.True(t, escrow.DepositorAccepted)
 		require.False(t, escrow.BeneficiaryAccepted)
 
-		// 5. Ratify Settlement (Seller)
-		t.Log("Step 4: RatifySettlement (Seller)...")
+		// 5. Ratify Settlement (Beneficiary)
+		t.Log("Step 4: RatifySettlement (Beneficiary)...")
 		ratifiedID2, err := client.RatifySettlement(ctx, escrow.ID, BeneficiaryUser)
-		require.NoError(t, err, "RatifySettlement (Seller) failed")
+		require.NoError(t, err, "RatifySettlement (Beneficiary) failed")
 		require.NotEmpty(t, ratifiedID2)
 		escrow.ID = ratifiedID2
 

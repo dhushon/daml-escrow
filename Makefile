@@ -58,26 +58,26 @@ pilot-down: ## Tier 2: authoritatively DESTROY GKE cluster and node pools (Cost 
 	@./scripts/gke-pilot.sh down
 
 .PHONY: pilot-release
-pilot-release: ## Authoritatively build and push AMD64 image to GCP Artifact Registry
-	@echo "Releasing GKE Pilot API (Arch: amd64)..."
-	@docker build --build-arg TARGETARCH=amd64 -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
+pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
+	@echo "Releasing GKE Pilot API (Arch: $(ARCH))..."
+	@docker build --build-arg TARGETARCH=$(ARCH) -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
 	@docker push us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest
 	@kubectl rollout restart deployment bank-api -n bank
-	@kubectl rollout restart deployment buyer-api -n buyer
-	@kubectl rollout restart deployment seller-api -n seller
+	@kubectl rollout restart deployment depositor-api -n depositor
+	@kubectl rollout restart deployment beneficiary-api -n beneficiary
 
 ## -- Ledger & State Synchronization --
 
 .PHONY: bootstrap-local
 bootstrap-local: ## Synchronize DAR packages and allocate Parties on localhost
-	@./bin/ledger-sync -host localhost -port 7575 \
+	@GOARCH=$(ARCH) ./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
 		-out ledger-state.json
 
 .PHONY: bootstrap-gke
 bootstrap-gke: ## Authoritatively synchronize all tripartite nodes in GKE
-	@for ns in bank buyer seller; do \
+	@for ns in bank depositor beneficiary; do \
 		echo "Bootstrapping GKE Namespace: $$ns"; \
 		kubectl port-forward pod/$$ns-ledger-0 7575:7575 -n $$ns > /dev/null 2>&1 & \
 		PID=$$!; sleep 15; \

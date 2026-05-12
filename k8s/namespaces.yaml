@@ -9,15 +9,15 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: buyer
+  name: depositor
   labels:
     env: dev
-    participant: buyer
+    participant: depositor
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: seller
+  name: beneficiary
   labels:
     env: dev
-    participant: seller
+    participant: beneficiary

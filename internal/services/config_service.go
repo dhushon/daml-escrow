@@ -51,6 +51,9 @@ func (s *ConfigService) GetConfig(userID, key string) (json.RawMessage, error) {
 	query := "SELECT config_value FROM configs WHERE user_id = $1 AND config_key = $2"
 	err := s.db.QueryRow(query, userID, key).Scan(&val)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return val, nil
@@ -119,35 +122,28 @@ func (s *ConfigService) CreateDraft(initiatorID, initiatorRole, beneficiaryEmail
 func (s *ConfigService) ProposeAmendment(rootID, proposerID, summary string, amount float64, currency string, terms, metadata json.RawMessage) (*DraftEscrow, error) {
 	// 1. Get current version number
 	var currentVersion int
-	var initiatorID, initiatorRole, beneficiaryEmail, beneficiaryID, mediatorID, depositorID string
+	var initiatorID, initiatorRole, beneficiaryEmail string
 	
-	lookup := `SELECT version, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1`
-	var bID, mID, dID sql.NullString
-	err := s.db.QueryRow(lookup, rootID).Scan(&currentVersion, &initiatorID, &initiatorRole, &dID, &beneficiaryEmail, &bID, &mID)
+	lookup := `SELECT version, initiator_id, initiator_role, beneficiary_email FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1`
+	err := s.db.QueryRow(lookup, rootID).Scan(&currentVersion, &initiatorID, &initiatorRole, &beneficiaryEmail)
 	if err != nil {
 		return nil, fmt.Errorf("failed to locate root negotiation: %w", err)
 	}
-	depositorID = dID.String
-	beneficiaryID = bID.String
-	mediatorID = mID.String
 
 	// 2. Insert new version
 	var draft DraftEscrow
 	query := `
-		INSERT INTO draft_escrows (root_id, version, proposer_id, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'NEGOTIATION')
-		RETURNING id, root_id, version, proposer_id, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, status, created_at
+		INSERT INTO draft_escrows (root_id, version, proposer_id, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'NEGOTIATION')
+		RETURNING id, root_id, version, proposer_id, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status, created_at
 	`
 	var cs sql.NullString
-	err = s.db.QueryRow(query, rootID, currentVersion+1, proposerID, initiatorID, initiatorRole, dID, beneficiaryEmail, bID, mID, amount, currency, terms, metadata, summary).Scan(
-		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.InitiatorID, &draft.InitiatorRole, &dID, &draft.BeneficiaryEmail, &beneficiaryID, &medID, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &cs, &draft.Status, &draft.CreatedAt,
+	err = s.db.QueryRow(query, rootID, currentVersion+1, proposerID, initiatorID, initiatorRole, beneficiaryEmail, amount, currency, terms, metadata, summary).Scan(
+		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.InitiatorID, &draft.InitiatorRole, &draft.BeneficiaryEmail, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &cs, &draft.Status, &draft.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to propose amendment: %w", err)
 	}
-	draft.DepositorID = dID.String
-	draft.BeneficiaryID = beneficiaryID.String
-	draft.MediatorID = mID.String
 	draft.ChangeSummary = cs.String
 	draft.Approvals = []string{}
 	return &draft, nil
@@ -247,4 +243,8 @@ func (s *ConfigService) UpdateDraftStatus(id, status string) error {
 	query := "UPDATE draft_escrows SET status = $1 WHERE id = $2"
 	_, err := s.db.Exec(query, status, id)
 	return err
+}
+
+func NewMockConfigService(db *sql.DB) *ConfigService {
+	return &ConfigService{db: db}
 }

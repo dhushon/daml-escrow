@@ -24,7 +24,7 @@ template EscrowProposal
 
     -- High-Assurance Role Exclusivity
     ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
-    ensure terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
+        && terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
 
     interface instance Escrow for EscrowProposal where
       view = View with
@@ -110,7 +110,7 @@ template EscrowContract
 
     -- Role Exclusivity
     ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
-    ensure asset.amount > 0.0
+        && asset.amount > 0.0
 
     interface instance Escrow for EscrowContract where
       view = View with

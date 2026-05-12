@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: seller-api
-  namespace: seller
+  name: beneficiary-api
+  namespace: beneficiary
   labels:
-    app: seller-api
+    app: beneficiary-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: seller-api
+      app: beneficiary-api
   template:
     metadata:
       labels:
-        app: seller-api
+        app: beneficiary-api
     spec:
       containers:
       - name: api
@@ -24,13 +24,13 @@ spec:
         - name: SERVER_PORT
           value: "8080"
         - name: LEDGER_HOST
-          value: "seller-ledger.seller.svc.cluster.local"
-        - name: LEDGER_NODES_SELLER_HOST
-          value: "seller-ledger.seller.svc.cluster.local"
+          value: "beneficiary-ledger.beneficiary.svc.cluster.local"
+        - name: LEDGER_NODES_BENEFICIARY_HOST
+          value: "beneficiary-ledger.beneficiary.svc.cluster.local"
         - name: LEDGER_PORT
           value: "7575"
         - name: PARTICIPANT_ID
-          value: "seller"
+          value: "beneficiary"
         - name: GCP_PROJECT_ID
           value: "vdcai-daml"
         - name: ENVIRONMENT
@@ -46,18 +46,18 @@ spec:
       volumes:
       - name: certs
         secret:
-          secretName: seller-api-mtls-secret
+          secretName: beneficiary-api-mtls-secret
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: seller-api
-  namespace: seller
+  name: beneficiary-api
+  namespace: beneficiary
 spec:
   ports:
   - port: 443
     targetPort: 8080
     name: https
   selector:
-    app: seller-api
+    app: beneficiary-api
   type: ClusterIP

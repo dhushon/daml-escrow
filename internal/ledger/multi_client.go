@@ -147,8 +147,8 @@ func (m *MultiLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowR
 	return m.clients["bank"].ProposeEscrow(ctx, req)
 }
 
-func (m *MultiLedgerClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
-	return m.getClientForUser(userID).SellerAccept(ctx, id, userID)
+func (m *MultiLedgerClient) BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error) {
+	return m.getClientForUser(userID).BeneficiaryAccept(ctx, id, userID)
 }
 
 func (m *MultiLedgerClient) Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error {
@@ -312,11 +312,11 @@ func (m *MultiLedgerClient) ReleaseFunds(ctx context.Context, id string, userID 
 func (m *MultiLedgerClient) ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error {
 	return m.getClientForUser(userID).ResolveDispute(ctx, id, b, s, userID)
 }
-func (m *MultiLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	return m.clients["bank"].RefundBuyer(ctx, id)
+func (m *MultiLedgerClient) RefundDepositor(ctx context.Context, id string) error {
+	return m.clients["bank"].RefundDepositor(ctx, id)
 }
-func (m *MultiLedgerClient) RefundBySeller(ctx context.Context, id string) error {
-	return m.clients["bank"].RefundBySeller(ctx, id)
+func (m *MultiLedgerClient) RefundByBeneficiary(ctx context.Context, id string) error {
+	return m.clients["bank"].RefundByBeneficiary(ctx, id)
 }
 
 var _ Client = (*MultiLedgerClient)(nil)

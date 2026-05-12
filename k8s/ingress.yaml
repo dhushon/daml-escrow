@@ -32,18 +32,18 @@ spec:
             name: bank-api
             port:
               number: 443
-      - path: /buyer/(.*)
+      - path: /depositor/(.*)
         pathType: ImplementationSpecific
         backend:
           service:
-            name: buyer-api-cross
+            name: depositor-api-cross
             port:
               number: 443
-      - path: /seller/(.*)
+      - path: /beneficiary/(.*)
         pathType: ImplementationSpecific
         backend:
           service:
-            name: seller-api-cross
+            name: beneficiary-api-cross
             port:
               number: 443
 ---
@@ -51,21 +51,21 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: buyer-api-cross
+  name: depositor-api-cross
   namespace: bank
 spec:
   type: ExternalName
-  externalName: buyer-api.buyer.svc.cluster.local
+  externalName: depositor-api.depositor.svc.cluster.local
   ports:
   - port: 443
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: seller-api-cross
+  name: beneficiary-api-cross
   namespace: bank
 spec:
   type: ExternalName
-  externalName: seller-api.seller.svc.cluster.local
+  externalName: beneficiary-api.beneficiary.svc.cluster.local
   ports:
   - port: 443

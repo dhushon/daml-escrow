@@ -1,6 +1,6 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../lib/api';
+import Layout from '../../layouts/Layout.astro';
+import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../../lib/api';
 
 const { draftID } = Astro.params;
 ---
@@ -114,7 +114,7 @@ const { draftID } = Astro.params;
 </Layout>
 
 <script>
-	import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../lib/api';
+	import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../../lib/api';
 
 	const pathParts = window.location.pathname.split('/');
 	const draftID = pathParts[pathParts.length - 1];

@@ -233,8 +233,8 @@ type Client interface {
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
 	ReleaseFunds(ctx context.Context, id string, userID string) error
 	ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error
-	RefundBuyer(ctx context.Context, id string) error
-	RefundBySeller(ctx context.Context, id string) error
+	RefundDepositor(ctx context.Context, id string) error
+	RefundByBeneficiary(ctx context.Context, id string) error
 }
 
 // StablecoinProvider defines the interface for interacting with tokenized reserves.

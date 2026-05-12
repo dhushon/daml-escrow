@@ -59,7 +59,7 @@ function down() {
   
   # [1/2] Purge K8s resources to ensure clean load balancer detachment
   kubectl delete -f k8s/ingress.yaml --ignore-not-found || true
-  kubectl delete namespaces bank buyer seller --ignore-not-found || true
+  kubectl delete namespaces bank depositor beneficiary --ignore-not-found || true
   
   # [2/2] Authoritative Terraform destruction
   cd terraform/workload
@@ -82,4 +82,6 @@ case "$1" in
   down) down ;;
   status) status ;;
   *) echo "Usage: $0 {up|down|status}" ;;
+esac
+|status}" ;;
 esac

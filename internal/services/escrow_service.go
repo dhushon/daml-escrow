@@ -151,7 +151,7 @@ func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, us
 	// 1. Authoritatively determine if beneficiary is registered
 	if draft.BeneficiaryID == "" {
 		// No beneficiary ID yet, we must create an Invitation
-		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.CounterpartyEmail, "Beneficiary", "Business", ledger.Asset{
+		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.BeneficiaryEmail, "Beneficiary", "Business", ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
 		}, ledger.EscrowTerms{

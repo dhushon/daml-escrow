@@ -242,12 +242,12 @@ func (m *MockLedgerClient) ResolveDispute(ctx context.Context, id string, b, s f
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) RefundBuyer(ctx context.Context, id string) error {
+func (m *MockLedgerClient) RefundDepositor(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) RefundBySeller(ctx context.Context, id string) error {
+func (m *MockLedgerClient) RefundByBeneficiary(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
