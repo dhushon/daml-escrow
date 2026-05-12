@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-05-12T12:00:05.689086-04:00",
+  "packageId": "3cde94fe9be5c700fc1d9a8ad2277e2c1214609f8c52a5b4db77e466875b8cb7",
+  "interfacePackageId": "de2cc2f90eb523414ff54e899951dadd8789a4c07e0f71f6d6c9eaf57d412a54",
+  "parties": {
+    "bank": "bank::122060cfb997b758fd4c1b2ea8301dba57338c748214d9ae8d624181493b811d9c79",
+    "beneficiary": "beneficiary::12204135b89e626e5352774fc76406dd78d2fd2498a590421a39711c2ee92c5f77c7",
+    "depositor": "depositor::1220c3577bf590bcb31487d02a6142850aa5ae14637f947c77f3088a8ac4ca9c37fd"
+  }
+}

@@ -13,10 +13,10 @@ import (
 // refreshPartyMap authoritatively synchronizes the local party cache with the Canton ledger.
 func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	var resp struct {
-		Result []struct {
+		PartyDetails []struct {
 			Party       string `json:"party"`
 			DisplayName string `json:"displayName"`
-		} `json:"result"`
+		} `json:"partyDetails"`
 	}
 
 	body, err := c.DoRawRequest(ctx, "GET", "/v2/parties", nil)
@@ -30,8 +30,13 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, p := range resp.Result {
-		c.partyMap[p.DisplayName] = p.Party
+	for _, p := range resp.PartyDetails {
+		// High-Assurance: In V3, displayName might be empty, fallback to party handle
+		name := p.DisplayName
+		if name == "" {
+			name = strings.Split(p.Party, "::")[0]
+		}
+		c.partyMap[name] = p.Party
 	}
 
 	return nil
@@ -49,13 +54,13 @@ func (c *JsonLedgerClient) GetParty(user string) string {
 
 func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
 	var resp struct {
-		Result []struct {
+		Users []struct {
 			ID           string `json:"id"`
 			PrimaryParty string `json:"primaryParty"`
 			Metadata     struct {
 				Annotations map[string]string `json:"annotations"`
 			} `json:"metadata"`
-		} `json:"result"`
+		} `json:"users"`
 	}
 
 	body, err := c.DoRawRequest(ctx, "GET", "/v2/users", nil)
@@ -64,8 +69,8 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 	}
 	_ = json.Unmarshal(body, &resp)
 
-	identities := make([]*UserIdentity, 0, len(resp.Result))
-	for _, u := range resp.Result {
+	identities := make([]*UserIdentity, 0, len(resp.Users))
+	for _, u := range resp.Users {
 		if u.ID == "participant_admin" {
 			continue
 		}
@@ -73,7 +78,7 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 		email := u.Metadata.Annotations["email"]
 		role := u.Metadata.Annotations["role"]
 		if email == "" { email = u.ID + "@devlocal" }
-		if role == "" { role = "Buyer" }
+		if role == "" { role = "Depositor" }
 
 		identities = append(identities, &UserIdentity{
 			DamlUserID:  u.ID,
@@ -99,22 +104,22 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	}
 
 	var resp struct {
-		Result struct {
+		User struct {
 			ID           string `json:"id"`
 			PrimaryParty string `json:"primaryParty"`
 			Metadata     struct {
 				Annotations map[string]string `json:"annotations"`
 			} `json:"metadata"`
-		} `json:"result"`
+		} `json:"user"`
 	}
 	_ = json.Unmarshal(body, &resp)
 
 	return &UserIdentity{
 		OktaSub:     oktaSub,
 		DamlUserID:  damlUserID,
-		DamlPartyID: resp.Result.PrimaryParty,
-		Email:       resp.Result.Metadata.Annotations["email"],
-		Role:        resp.Result.Metadata.Annotations["role"],
+		DamlPartyID: resp.User.PrimaryParty,
+		Email:       resp.User.Metadata.Annotations["email"],
+		Role:        resp.User.Metadata.Annotations["role"],
 	}, nil
 }
 

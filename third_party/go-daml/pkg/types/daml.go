@@ -29,6 +29,13 @@ type (
 		First  interface{}
 		Second interface{}
 	}
+	Tuple2 = TUPLE2
+	TUPLE3      struct {
+		First  interface{}
+		Second interface{}
+		Third  interface{}
+	}
+	Tuple3 = TUPLE3
 )
 
 func NewNumericFromDecimal(d decimal.Decimal) NUMERIC {

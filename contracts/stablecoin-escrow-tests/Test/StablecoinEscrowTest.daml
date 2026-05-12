@@ -99,7 +99,7 @@ testFullLifecycle = do
 
   -- 1. Create Proposal (DRAFT)
   proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
+    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
 
   -- 1.5 Beneficiary Accepts (DRAFT -> BeneficiaryAcceptedProposal)
   acceptedCid <- submit (actAs [beneficiary]) do
@@ -146,7 +146,7 @@ testDisputeLifecycle = do
 
   -- 1. Create Proposal
   proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
+    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
 
   -- 1.5 Beneficiary Accept
   acceptedCid <- submit (actAs [beneficiary]) do

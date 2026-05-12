@@ -260,7 +260,7 @@ type EscrowTerms struct {
 	ExpiryDate           types.TIMESTAMP `json:"expiryDate"`
 	GracePeriodDays      types.INT64     `json:"gracePeriodDays"`
 	DisputeWindowDays    types.INT64     `json:"disputeWindowDays"`
-	PartialSchedule      []Tuple2        `json:"partialSchedule"`
+	PartialSchedule      []types.Tuple2  `json:"partialSchedule"`
 }
 
 // ToMap converts EscrowTerms to a map for DAML arguments
@@ -535,6 +535,7 @@ func (t *Unlock) UnmarshalJSON(data []byte) error {
 // View is a Record type
 type View struct {
 	Issuer      types.PARTY `json:"issuer"`
+	Initiator   types.PARTY `json:"initiator"`
 	Depositor   types.PARTY `json:"depositor"`
 	Beneficiary types.PARTY `json:"beneficiary"`
 	Mediator    types.PARTY `json:"mediator"`
@@ -549,6 +550,8 @@ func (t View) ToMap() map[string]any {
 	m := make(map[string]any)
 
 	m["issuer"] = t.Issuer.ToMap()
+
+	m["initiator"] = t.Initiator.ToMap()
 
 	m["depositor"] = t.Depositor.ToMap()
 

@@ -52,6 +52,7 @@ data SettlementTerms = SettlementTerms with
 -- Unified View for visibility
 data View = View with
   issuer      : Party
+  initiator   : Party -- Tracks the deal's originator
   depositor   : Party
   beneficiary : Party
   mediator    : Party

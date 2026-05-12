@@ -12,6 +12,7 @@ import DA.Optional (fromSome)
 template EscrowProposal
   with
     issuer      : Party
+    initiator   : Party -- Tracks the party who authoritatively proposed the deal
     depositor   : Party
     beneficiary : Party
     mediator    : Party
@@ -25,10 +26,19 @@ template EscrowProposal
     -- High-Assurance Role Exclusivity
     ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
         && terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
+        && (initiator == depositor || initiator == beneficiary)
 
     interface instance Escrow for EscrowProposal where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state = DRAFT, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = DRAFT
+        metadata = metadata
       
       activateEscrow = do
         error "Cannot activate a DRAFT proposal. Must be FUNDED first."
@@ -58,6 +68,7 @@ template EscrowProposal
 template BeneficiaryAcceptedProposal
   with
     issuer      : Party
+    initiator   : Party
     depositor   : Party
     beneficiary : Party
     mediator    : Party
@@ -73,7 +84,15 @@ template BeneficiaryAcceptedProposal
 
     interface instance Escrow for BeneficiaryAcceptedProposal where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state = DRAFT, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = DRAFT
+        metadata = metadata
       
       activateEscrow = do
         error "Cannot activate a proposal. Must be FUNDED first."
@@ -85,11 +104,17 @@ template BeneficiaryAcceptedProposal
       controller depositor
       do
         create EscrowContract with
-          issuer, depositor, beneficiary, mediator
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
           asset = asset with 
             custodyRef = Some custodyRef
             holdingCid = Some holdingCid
-          terms, metadata, state = FUNDED
+          terms = terms
+          metadata = metadata
+          state = FUNDED
 
 -- ---------------------------------------------------------------------------
 -- FUNDED / ACTIVE States (EscrowContract)
@@ -97,6 +122,7 @@ template BeneficiaryAcceptedProposal
 template EscrowContract
   with
     issuer      : Party
+    initiator   : Party
     depositor   : Party
     beneficiary : Party
     mediator    : Party
@@ -114,7 +140,15 @@ template EscrowContract
 
     interface instance Escrow for EscrowContract where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = state
+        metadata = metadata
       
       activateEscrow = do
         assertMsg "Escrow must be in FUNDED state to activate" (state == FUNDED)
@@ -146,7 +180,14 @@ template EscrowContract
       do
         assertMsg "Mediator can only confirm in ACTIVE state" (state == ACTIVE)
         create DisbursementOrder with
-          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata
           settlement = SettlementTerms with
             settlementType = "FullRelease"
             depositorReturn = 0.0
@@ -158,7 +199,14 @@ template EscrowContract
       do
         assertMsg "Can only dispute FUNDED or ACTIVE escrow" (state == ACTIVE || state == FUNDED)
         create DisputeRecord with
-          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata
           raisingParty = depositor
 
 -- ---------------------------------------------------------------------------
@@ -167,6 +215,7 @@ template EscrowContract
 template DisputeRecord
   with
     issuer       : Party
+    initiator    : Party
     depositor    : Party
     beneficiary  : Party
     mediator     : Party
@@ -183,7 +232,15 @@ template DisputeRecord
 
     interface instance Escrow for DisputeRecord where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state = DISPUTED, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = DISPUTED
+        metadata = metadata
       
       activateEscrow = do error "Already in dispute."
 
@@ -193,7 +250,14 @@ template DisputeRecord
       do
         assert (proposal.depositorReturn + proposal.beneficiaryPayment + proposal.mediatorFee == asset.amount)
         create SettlementRecord with
-          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata
           settlement = proposal
           depositorAccepted = False
           beneficiaryAccepted = False
@@ -204,6 +268,7 @@ template DisputeRecord
 template SettlementRecord
   with
     issuer              : Party
+    initiator           : Party
     depositor           : Party
     beneficiary         : Party
     mediator            : Party
@@ -221,7 +286,15 @@ template SettlementRecord
 
     interface instance Escrow for SettlementRecord where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state = PROPOSED, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = PROPOSED
+        metadata = metadata
       
       activateEscrow = do error "Settlement proposed."
 
@@ -239,13 +312,28 @@ template SettlementRecord
       do
         assert (depositorAccepted && beneficiaryAccepted)
         create DisbursementOrder with
-          issuer, depositor, beneficiary, mediator, asset, terms, metadata, settlement
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata
+          settlement = settlement
 
     choice RejectSettlement : ContractId DisputeRecord
       controller depositor
       do
         create DisputeRecord with
-          issuer, depositor, beneficiary, mediator, asset, terms, metadata
+          issuer = issuer
+          initiator = initiator
+          depositor = depositor
+          beneficiary = beneficiary
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata
           raisingParty = depositor
 
 -- ---------------------------------------------------------------------------
@@ -254,6 +342,7 @@ template SettlementRecord
 template DisbursementOrder
   with
     issuer     : Party
+    initiator  : Party
     depositor  : Party
     beneficiary: Party
     mediator   : Party
@@ -269,7 +358,15 @@ template DisbursementOrder
 
     interface instance Escrow for DisbursementOrder where
       view = View with
-        issuer, depositor, beneficiary, mediator, asset, terms, state = SETTLED, metadata
+        issuer = issuer
+        initiator = initiator
+        depositor = depositor
+        beneficiary = beneficiary
+        mediator = mediator
+        asset = asset
+        terms = terms
+        state = SETTLED
+        metadata = metadata
       
       activateEscrow = do error "Already settled."
 
@@ -332,7 +429,11 @@ template EscrowInvitation
 
         let isInviteeDepositor = inviteeRole == "Depositor"
         create EscrowProposal with
-          issuer
+          issuer = issuer
+          initiator = inviter
           depositor = if isInviteeDepositor then claimingParty else inviter
           beneficiary = if isInviteeDepositor then inviter else claimingParty
-          mediator, asset, terms, metadata
+          mediator = mediator
+          asset = asset
+          terms = terms
+          metadata = metadata

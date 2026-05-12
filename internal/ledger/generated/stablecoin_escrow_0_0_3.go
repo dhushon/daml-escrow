@@ -23,7 +23,7 @@ var (
 
 const (
 	PackageName = "stablecoin-escrow"
-	PackageID   = "fb21a209e710fec1896f6409935c829c061620391560c04b6c9ed58885593adb"
+	PackageID   = "06611d2ffb0043539001cf4bd00cc6ee9154be179cbcae330ff664cc61e44fe2"
 	SDKVersion  = "3.4.11"
 )
 
@@ -74,6 +74,7 @@ func (t *BeneficiaryAccept) UnmarshalJSON(data []byte) error {
 // BeneficiaryAcceptedProposal is a Template type
 type BeneficiaryAcceptedProposal struct {
 	Issuer      types.PARTY `json:"issuer"`
+	Initiator   types.PARTY `json:"initiator"`
 	Depositor   types.PARTY `json:"depositor"`
 	Beneficiary types.PARTY `json:"beneficiary"`
 	Mediator    types.PARTY `json:"mediator"`
@@ -98,6 +99,9 @@ func (t BeneficiaryAcceptedProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -141,6 +145,9 @@ func (t BeneficiaryAcceptedProposal) CreateCommandWithPackageID(packageID string
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -368,6 +375,7 @@ func (t *Disburse) UnmarshalJSON(data []byte) error {
 // DisbursementOrder is a Template type
 type DisbursementOrder struct {
 	Issuer      types.PARTY     `json:"issuer"`
+	Initiator   types.PARTY     `json:"initiator"`
 	Depositor   types.PARTY     `json:"depositor"`
 	Beneficiary types.PARTY     `json:"beneficiary"`
 	Mediator    types.PARTY     `json:"mediator"`
@@ -393,6 +401,9 @@ func (t DisbursementOrder) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -445,6 +456,9 @@ func (t DisbursementOrder) CreateCommandWithPackageID(packageID string) *model.C
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -594,6 +608,7 @@ var _ IEscrow = (*DisbursementOrder)(nil)
 // DisputeRecord is a Template type
 type DisputeRecord struct {
 	Issuer       types.PARTY `json:"issuer"`
+	Initiator    types.PARTY `json:"initiator"`
 	Depositor    types.PARTY `json:"depositor"`
 	Beneficiary  types.PARTY `json:"beneficiary"`
 	Mediator     types.PARTY `json:"mediator"`
@@ -619,6 +634,9 @@ func (t DisputeRecord) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -665,6 +683,9 @@ func (t DisputeRecord) CreateCommandWithPackageID(packageID string) *model.Creat
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -808,6 +829,7 @@ var _ IEscrow = (*DisputeRecord)(nil)
 // EscrowContract is a Template type
 type EscrowContract struct {
 	Issuer      types.PARTY `json:"issuer"`
+	Initiator   types.PARTY `json:"initiator"`
 	Depositor   types.PARTY `json:"depositor"`
 	Beneficiary types.PARTY `json:"beneficiary"`
 	Mediator    types.PARTY `json:"mediator"`
@@ -833,6 +855,9 @@ func (t EscrowContract) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -885,6 +910,9 @@ func (t EscrowContract) CreateCommandWithPackageID(packageID string) *model.Crea
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -1237,6 +1265,7 @@ func (t EscrowInvitation) ClaimInvitationWithPackageID(contractID string, packag
 // EscrowProposal is a Template type
 type EscrowProposal struct {
 	Issuer      types.PARTY `json:"issuer"`
+	Initiator   types.PARTY `json:"initiator"`
 	Depositor   types.PARTY `json:"depositor"`
 	Beneficiary types.PARTY `json:"beneficiary"`
 	Mediator    types.PARTY `json:"mediator"`
@@ -1261,6 +1290,9 @@ func (t EscrowProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -1304,6 +1336,9 @@ func (t EscrowProposal) CreateCommandWithPackageID(packageID string) *model.Crea
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -1666,6 +1701,7 @@ func (t *RequestChanges) UnmarshalJSON(data []byte) error {
 // SettlementRecord is a Template type
 type SettlementRecord struct {
 	Issuer              types.PARTY     `json:"issuer"`
+	Initiator           types.PARTY     `json:"initiator"`
 	Depositor           types.PARTY     `json:"depositor"`
 	Beneficiary         types.PARTY     `json:"beneficiary"`
 	Mediator            types.PARTY     `json:"mediator"`
@@ -1693,6 +1729,9 @@ func (t SettlementRecord) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()
@@ -1751,6 +1790,9 @@ func (t SettlementRecord) CreateCommandWithPackageID(packageID string) *model.Cr
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["depositor"] = t.Depositor.ToMap()

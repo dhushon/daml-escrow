@@ -47,7 +47,7 @@ func (m *MultiLedgerClient) Discover(ctx context.Context, wait bool) error {
 	coreParties := []string{CentralBankUser, DepositorUser, BeneficiaryUser, EscrowMediatorUser}
 	
 	var lastErr error
-	for retry := 0; retry < 1; retry++ {
+	for retry := 0; retry < 5; retry++ {
 		newMap := make(map[string]string)
 		discoveredClients := make(map[Client]bool)
 
