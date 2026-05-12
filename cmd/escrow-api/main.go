@@ -35,6 +35,7 @@ var (
 	certFile    string
 	keyFile     string
 	caCertFile  string
+	port        int
 )
 
 func main() {
@@ -63,8 +64,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&environment, "env", "", "environment (dev, production)")
 	rootCmd.PersistentFlags().BoolVar(&authBypass, "bypass", false, "bypass JWT authentication (dev only)")
-	
+	rootCmd.PersistentFlags().IntVar(&port, "port", 0, "port to listen on (overrides config)")
+
 	// High-Assurance TLS Flags (Secure by Default)
+
 	rootCmd.PersistentFlags().BoolVar(&tlsDisabled, "notls", false, "disable mTLS enforcement (dev only)")
 	rootCmd.PersistentFlags().StringVar(&certFile, "tls-cert", "/etc/escrow/certs/tls.crt", "path to server certificate")
 	rootCmd.PersistentFlags().StringVar(&keyFile, "tls-key", "/etc/escrow/certs/tls.key", "path to server private key")
@@ -91,6 +94,11 @@ func runServer() {
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
+	}
+
+	// Flag Overrides
+	if port != 0 {
+		cfg.Server.Port = port
 	}
 
 	if err := config.ResolveSecrets(ctx, cfg); err != nil {
@@ -129,26 +137,36 @@ func runServer() {
 		node, ok := cfg.Ledger.Nodes[cfg.Ledger.ParticipantID]
 		// High-Assurance: Authoritatively fallback to cfg.Ledger.Host if node map is stale or missing
 		host := cfg.Ledger.Host
-		if ok && node.Host != "" && node.Host != "canton" {
+		if envHost := os.Getenv("LEDGER_HOST"); envHost != "" {
+			host = envHost
+		} else if ok && node.Host != "" && node.Host != "canton" {
 			host = node.Host
 		}
-		
-		logger.Info("starting in isolated participant mode", 
-			zap.String("name", cfg.Ledger.ParticipantID), 
-			zap.String("host", host), 
+
+		logger.Info("starting in isolated participant mode",
+			zap.String("name", cfg.Ledger.ParticipantID),
+			zap.String("host", host),
 			zap.Int("port", cfg.Ledger.Port))
-		
+
 		ledgerClient = ledger.NewJsonLedgerClient(logger, host, cfg.Ledger.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	} else if len(cfg.Ledger.Nodes) > 0 {
 		clients := make(map[string]ledger.Client)
+		envHost := os.Getenv("LEDGER_HOST")
 		for name, node := range cfg.Ledger.Nodes {
-			clients[name] = ledger.NewJsonLedgerClient(logger, node.Host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+			host := node.Host
+			if envHost != "" {
+				host = envHost
+			}
+			clients[name] = ledger.NewJsonLedgerClient(logger, host, node.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 		}
 		ledgerClient = ledger.NewMultiLedgerClient(logger, clients)
 	} else {
-		ledgerClient = ledger.NewJsonLedgerClient(logger, cfg.Ledger.Host, cfg.Ledger.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
+		host := cfg.Ledger.Host
+		if envHost := os.Getenv("LEDGER_HOST"); envHost != "" {
+			host = envHost
+		}
+		ledgerClient = ledger.NewJsonLedgerClient(logger, host, cfg.Ledger.Port, cfg.Ledger.Packages.Implementation, cfg.Ledger.Packages.Interfaces)
 	}
-
 	if err := ledgerClient.Discover(ctx, true); err != nil {
 		logger.Error("ledger discovery failed", zap.Error(err))
 	}

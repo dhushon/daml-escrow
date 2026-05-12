@@ -9,15 +9,16 @@ ARCH ?= $(LOCAL_ARCH)
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-## -- Local Development (Standalone) --
+## -- Local Development (Standalone - Single Node) --
 
 .PHONY: standalone-up
 standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081, UX: 4321)
-	@echo "Launching accelerated standalone stack..."
+	@echo "Launching Standalone (Single-Node) stack..."
+	@mkdir -p log
 	@docker compose up -d
 	@echo "Awaiting ledger (60s)..." && sleep 60
 	@make bootstrap-local
-	@nohup go run ./cmd/escrow-api serve --notls --bypass --port 8081 > log/standalone-api.log 2>&1 &
+	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-standalone.yaml --port 8081 > log/standalone-api.log 2>&1 &
 	@cd frontend && npm run dev -- --port 4321 > ../log/standalone-frontend.log 2>&1 &
 	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321"
 
@@ -27,6 +28,27 @@ standalone-down: ## Purge all local standalone processes and containers
 	@pkill -f "astro" || true
 	@docker compose down -v
 	@echo "Standalone environment purged."
+
+## -- Local Development (Tripartite - Multi Node) --
+
+.PHONY: tri-up
+tri-up: ## Authoritatively launch distributed tripartite stack
+	@echo "Launching Standalone-Tri (Multi-Node) stack..."
+	@mkdir -p log
+	@docker compose -f docker-compose.distributed.yml up -d
+	@echo "Awaiting distributed ledger (60s)..." && sleep 60
+	@./scripts/setup_users.sh localhost 7575
+	@make bootstrap-local
+	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-tri.yaml --port 8081 > log/tri-api.log 2>&1 &
+	@cd frontend && npm run dev -- --port 4321 > ../log/tri-frontend.log 2>&1 &
+	@echo "SUCCESS: Tripartite Distributed LIVE on http://localhost:4321"
+
+.PHONY: tri-down
+tri-down: ## Purge all tripartite processes and containers
+	@pkill -f "escrow-api" || true
+	@pkill -f "astro" || true
+	@docker compose -f docker-compose.distributed.yml down -v
+	@echo "Tripartite environment purged."
 
 ## -- GKE Pilot Orchestration (3-Tier Governance) --
 
