@@ -23,6 +23,7 @@ Security rules for high-assurance escrow and financial contract systems.
   - `escrow:accept`: Execute legal acceptance or fund release.
   - `system:admin`: Perform settlements, resolution, or system config.
 - **JIT Integrity:** Automated provisioning MUST follow strict sanitization rules for User IDs (lowercase, `u-` prefix).
+- **Identity Layering (T1-T3):** All services MUST maintain the deterministic mapping: Registration (OIDC) → Ledger User (ID) → Network Identity (Party). Never use raw Network Identities in UX or raw OIDC Subjects in ledger commands.
 
 ## 3. Smart Contract Rules
 

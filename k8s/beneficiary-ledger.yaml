@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: seller-ledger
-  namespace: seller
+  name: beneficiary-ledger
+  namespace: beneficiary
 spec:
-  serviceName: "seller-ledger"
+  serviceName: "beneficiary-ledger"
   replicas: 1
   selector:
     matchLabels:
-      app: seller-ledger
+      app: beneficiary-ledger
   template:
     metadata:
       labels:
-        app: seller-ledger
+        app: beneficiary-ledger
     spec:
       containers:
       - name: canton
@@ -28,7 +28,7 @@ spec:
         - name: POSTGRES_HOST
           value: "escrow-postgres-dist.default.svc.cluster.local"
         - name: POSTGRES_DB
-          value: "canton_seller"
+          value: "canton_beneficiary"
         - name: POSTGRES_USER
           value: "escrow"
         - name: POSTGRES_PASSWORD
@@ -47,24 +47,24 @@ spec:
         args:
         - "daemon"
         - "--config"
-        - "/canton/config/seller.conf"
+        - "/canton/config/beneficiary.conf"
         volumeMounts:
         - name: config-volume
           mountPath: /canton/config
       volumes:
       - name: config-volume
         configMap:
-          name: seller-config
+          name: beneficiary-config
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: seller-ledger
-  namespace: seller
+  name: beneficiary-ledger
+  namespace: beneficiary
 spec:
   ports:
   - port: 7575
     name: http-api
   selector:
-    app: seller-ledger
+    app: beneficiary-ledger
   type: ClusterIP

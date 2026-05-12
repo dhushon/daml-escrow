@@ -17,12 +17,12 @@ graph TD
     User((User / Admin)) <-->|Port 4321| Astro[Astro Frontend]
     Astro <-->|Port 8080| Gateway[Unified API Gateway]
     Gateway <-->|/bank| BankAPI[Bank API]
-    Gateway <-->|/buyer| BuyerAPI[Buyer API]
-    Gateway <-->|/seller| SellerAPI[Seller API]
+    Gateway <-->|/depositor| DepositorAPI[Depositor API]
+    Gateway <-->|/beneficiary| BeneficiaryAPI[Beneficiary API]
     
     BankAPI <-->|OTLP| OTEL[OTEL Collector]
-    BuyerAPI <-->|OTLP| OTEL
-    SellerAPI <-->|OTLP| OTEL
+    DepositorAPI <-->|OTLP| OTEL
+    BeneficiaryAPI <-->|OTLP| OTEL
     
     OTEL --> Jaeger[Jaeger Tracing]
     OTEL --> Prometheus[Prometheus Metrics]
@@ -56,14 +56,14 @@ Refined per `ESCROW-PROCESS.md` to ensure bilateral consent and tripartite autho
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: ProposeEscrow (B+S+I)
-    DRAFT --> FUNDED: Fund (Buyer)
+    [*] --> DRAFT: ProposeEscrow (D+B+I)
+    DRAFT --> FUNDED: Fund (Depositor)
     FUNDED --> ACTIVE: Activate (Issuer)
     ACTIVE --> SETTLED: ConfirmConditions (Mediator)
-    ACTIVE --> DISPUTED: RaiseDispute (Buyer/Seller)
+    ACTIVE --> DISPUTED: RaiseDispute (Depositor/Beneficiary)
     DISPUTED --> PROPOSED: ProposeSettlement (Mediator)
-    PROPOSED --> DISPUTED: Reject (Buyer/Seller)
-    PROPOSED --> SETTLED: Ratify + Finalize (Buyer+Seller)
+    PROPOSED --> DISPUTED: Reject (Depositor/Beneficiary)
+    PROPOSED --> SETTLED: Ratify + Finalize (Depositor+Beneficiary)
     SETTLED --> [*]: Disburse (Issuer)
 ```
 
@@ -85,7 +85,7 @@ Strict transition guards ensure funds cannot be released until conditions are me
 
 The platform has transitioned from a single-node sandbox to a **tripartite distributed topology**, enforcing strict data sovereignty and authority:
 
-*   **Tripartite Authority Model:** Every escrow requires co-signature from **Buyer**, **Seller**, and **Issuer (Bank)**. This prevents unauthorized state transitions and ensures institutional compliance.
+*   **Tripartite Authority Model:** Every escrow requires co-signature from **Depositor**, **Beneficiary**, and **Issuer (Bank)**. This prevents unauthorized state transitions and ensures institutional compliance.
 *   **Multi-Node Isolation:** Each participant operates their own **Canton Node**, ensuring that private contract data (e.g., specific terms or evidence) only resides on the participants' infrastructure.
 *   **Intelligent Routing:** The Go backend utilizes a `MultiLedgerClient` to intelligently route commands to the specific node hosting the primary submitter, maintaining zero-trust isolation.
 
@@ -108,7 +108,7 @@ The frontend dashboard provides a live cockpit for monitoring these states with 
 Evolved the bipartite handshake to support cost-optimized institutional negotiation before ledger commitment:
 *   **Draft Tunnel:** Propose terms, milestones, and mediators in a high-speed Postgres intermediate layer with zero transaction fees.
 *   **Invitation Codes:** Bridge novel email identities to real ledger principals using cryptographically secure registration codes.
-*   **Postgres-to-Canton Promotion:** authoritatively commit to the ledger only when all three parties (Buyer + Seller + Mediator) have definitively ratified the terms.
+*   **Postgres-to-Canton Promotion:** authoritatively commit to the ledger only when all three parties (Depositor + Beneficiary + Mediator) have definitively ratified the terms.
 
 ### 7. 3-Tier Terraform Governance (Phase 12)
 

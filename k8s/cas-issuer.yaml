@@ -28,14 +28,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: buyer-api-internal-cert
-  namespace: buyer
+  name: depositor-api-internal-cert
+  namespace: depositor
 spec:
-  secretName: buyer-api-mtls-secret
+  secretName: depositor-api-mtls-secret
   duration: 24h
   renewBefore: 8h
   dnsNames:
-    - buyer-api.buyer.svc.cluster.local
+    - depositor-api.depositor.svc.cluster.local
   issuerRef:
     group: cas-issuer.jetstack.io
     kind: GoogleCASClusterIssuer
@@ -44,14 +44,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: seller-api-internal-cert
-  namespace: seller
+  name: beneficiary-api-internal-cert
+  namespace: beneficiary
 spec:
-  secretName: seller-api-mtls-secret
+  secretName: beneficiary-api-mtls-secret
   duration: 24h
   renewBefore: 8h
   dnsNames:
-    - seller-api.seller.svc.cluster.local
+    - beneficiary-api.beneficiary.svc.cluster.local
   issuerRef:
     group: cas-issuer.jetstack.io
     kind: GoogleCASClusterIssuer

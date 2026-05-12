@@ -23,7 +23,7 @@ func (m *MockLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRe
 	return args.Get(0).(*EscrowProposal), args.Error(1)
 }
 
-func (m *MockLedgerClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
+func (m *MockLedgerClient) BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error) {
 	args := m.Called(ctx, id, userID)
 	return args.String(0), args.Error(1)
 }
@@ -242,12 +242,12 @@ func (m *MockLedgerClient) ResolveDispute(ctx context.Context, id string, b, s f
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) RefundBuyer(ctx context.Context, id string) error {
+func (m *MockLedgerClient) RefundDepositor(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockLedgerClient) RefundBySeller(ctx context.Context, id string) error {
+func (m *MockLedgerClient) RefundByBeneficiary(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }

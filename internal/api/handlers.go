@@ -125,11 +125,11 @@ func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		CounterpartyEmail string          `json:"counterpartyEmail"`
-		Amount            float64         `json:"amount"`
-		Currency          string          `json:"currency"`
-		Terms             json.RawMessage `json:"terms"`
-		Metadata          json.RawMessage `json:"metadata"`
+		BeneficiaryEmail string          `json:"beneficiaryEmail"`
+		Amount           float64         `json:"amount"`
+		Currency         string          `json:"currency"`
+		Terms            json.RawMessage `json:"terms"`
+		Metadata         json.RawMessage `json:"metadata"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -137,7 +137,16 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	draft, err := h.configService.CreateDraft(userID, body.CounterpartyEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
+	// High-Assurance: Resolve initiator role from context/identity
+	email, _ := r.Context().Value(EmailKey).(string)
+	identity, _ := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
+	
+	role := "Depositor"
+	if identity != nil && identity.Role != "" {
+		role = identity.Role
+	}
+
+	draft, err := h.configService.CreateDraft(userID, role, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
 	if err != nil {
 		h.logger.Error("failed to create draft", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
@@ -164,23 +173,89 @@ func (h *Handler) ListDrafts(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(drafts)
 }
 
-func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetDraft(w http.ResponseWriter, r *http.Request) {
 	draftID := chi.URLParam(r, "draftID")
-	_, err := h.configService.GetDraft(draftID)
+	draft, err := h.configService.GetLatestDraft(draftID) // Assuming draftID here is root_id for simplicity or we fetch by ID
 	if err != nil {
 		http.Error(w, "draft not found", http.StatusNotFound)
 		return
 	}
 
-	// High-Assurance: Authoritatively verify counterparty is registered on ledger
-	// In the final release, this promotion logic translates DraftEscrow -> ledger.CreateEscrowRequest
-	// and authoritatively executes the Daml proposal transaction.
-	
-	if err := h.configService.UpdateDraftStatus(draftID, "RATIFIED"); err != nil {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(draft)
+}
+
+func (h *Handler) AmendDraft(w http.ResponseWriter, r *http.Request) {
+	rootID := chi.URLParam(r, "draftID")
+	var body AmendDraftRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+	draft, err := h.configService.ProposeAmendment(rootID, userID, body.Summary, body.Amount, body.Currency, body.Terms, body.Metadata)
+	if err != nil {
+		h.logger.Error("failed to amend draft", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(draft)
+}
+
+func (h *Handler) ApproveDraft(w http.ResponseWriter, r *http.Request) {
+	rootID := chi.URLParam(r, "draftID")
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	if err := h.configService.AddApproval(rootID, userID); err != nil {
+		h.logger.Error("failed to approve draft", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Check if both parties have approved to auto-ratify
+	draft, err := h.configService.GetLatestDraft(rootID)
+	if err == nil && len(draft.Approvals) >= 2 {
+		_ = h.configService.UpdateDraftStatus(draft.ID, "RATIFIED")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
+	draftID := chi.URLParam(r, "draftID")
+	draft, err := h.configService.GetLatestDraft(draftID)
+	if err != nil {
+		http.Error(w, "draft not found", http.StatusNotFound)
+		return
+	}
+
+	// High-Assurance: Only promoter or initiator can trigger promotion
+	userID, _ := r.Context().Value(AuthSubKey).(string)
+
+	ledgerID, err := h.escrowService.PromoteDraft(r.Context(), draft, userID)
+	if err != nil {
+		h.logger.Error("failed to promote draft", zap.Error(err))
+		http.Error(w, "Failed to promote draft: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.configService.UpdateDraftStatus(draft.ID, "PROMOTED"); err != nil {
 		h.logger.Error("failed to update draft status", zap.Error(err))
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":   "PROMOTED",
+		"ledgerId": ledgerID,
+	})
 }
 
 func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +291,14 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := r.Context().Value(AuthSubKey).(string)
+	// High-Assurance: Resolve initiator role from context/identity
+	email, _ := r.Context().Value(EmailKey).(string)
+	identity, _ := h.identityService.GetOrCreateIdentity(r.Context(), userID, email, h.escrowService.GetLedgerClient())
+	
+	role := "Depositor"
+	if identity != nil && identity.Role != "" {
+		role = identity.Role
+	}
 	
 	// High-Assurance: Authoritatively use the off-chain draft tunnel for zero-latency invitations
 	terms, _ := json.Marshal(map[string]interface{}{
@@ -223,7 +306,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		"expiryDate":           req.ExpiryDate,
 	})
 	
-	draft, err := h.configService.CreateDraft(userID, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
+	draft, err := h.configService.CreateDraft(userID, role, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
 	if err != nil {
 		h.logger.Error("failed to create institutional invitation draft", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -279,11 +362,11 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	ledgerReq := req.ToLedgerRequest()
 
 	// High-Assurance Sanitization: Ensure all tripartite identities are Daml-compliant
-	sanitizedCounterparty, err := ledger.SanitizeID(req.Counterparty)
+	sanitizedBeneficiary, err := ledger.SanitizeID(req.Beneficiary)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Counterparty error: " + err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Beneficiary error: " + err.Error()})
 		return
 	}
 	
@@ -299,17 +382,17 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Bilateral Logic: Map initiator to correct role
-	if identity.Role == "Seller" {
-		ledgerReq.Seller = identity.DamlUserID
-		ledgerReq.Buyer = sanitizedCounterparty
+	if identity.Role == "Beneficiary" {
+		ledgerReq.Beneficiary = identity.DamlUserID
+		ledgerReq.Depositor = sanitizedBeneficiary
 	} else {
-		ledgerReq.Buyer = identity.DamlUserID
-		ledgerReq.Seller = sanitizedCounterparty
+		ledgerReq.Depositor = identity.DamlUserID
+		ledgerReq.Beneficiary = sanitizedBeneficiary
 	}
 	ledgerReq.Mediator = sanitizedMediator
 
 	// High-Assurance: Authoritatively enforce role exclusivity and mandatory parties
-	if err := ledger.ValidateTripartiteRoles(ledgerReq.Buyer, ledgerReq.Seller, ledgerReq.Mediator); err != nil {
+	if err := ledger.ValidateTripartiteRoles(ledgerReq.Depositor, ledgerReq.Beneficiary, ledgerReq.Mediator); err != nil {
 		h.logger.Error("institutional mandate violation", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -384,7 +467,7 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.BuyerReturn)
+	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.DepositorReturn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

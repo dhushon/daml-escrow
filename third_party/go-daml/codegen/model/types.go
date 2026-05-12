@@ -230,6 +230,22 @@ func (t RelTime) GoType() string {
 	return "types.RELTIME"
 }
 
+type Tuple2 struct {
+	noImport
+}
+
+func (t Tuple2) GoType() string {
+	return "types.Tuple2"
+}
+
+type Tuple3 struct {
+	noImport
+}
+
+func (t Tuple3) GoType() string {
+	return "types.Tuple3"
+}
+
 type Set struct {
 	noImport
 }

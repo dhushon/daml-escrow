@@ -732,6 +732,10 @@ func (c *codeGenAst) handleConType(pkg *daml.Package, conType *daml.Type_Con) mo
 		switch name {
 		case "RelTime":
 			return model.RelTime{}
+		case "Tuple2":
+			return model.Tuple2{}
+		case "Tuple3":
+			return model.Tuple3{}
 		default:
 			return model.Unknown{String: name}
 		}

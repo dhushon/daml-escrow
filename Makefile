@@ -9,15 +9,16 @@ ARCH ?= $(LOCAL_ARCH)
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-## -- Local Development (Standalone) --
+## -- Local Development (Standalone - Single Node) --
 
 .PHONY: standalone-up
 standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081, UX: 4321)
-	@echo "Launching accelerated standalone stack..."
+	@echo "Launching Standalone (Single-Node) stack..."
+	@mkdir -p log
 	@docker compose up -d
 	@echo "Awaiting ledger (60s)..." && sleep 60
 	@make bootstrap-local
-	@nohup go run ./cmd/escrow-api serve --notls --bypass --port 8081 > log/standalone-api.log 2>&1 &
+	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-standalone.yaml --port 8081 > log/standalone-api.log 2>&1 &
 	@cd frontend && npm run dev -- --port 4321 > ../log/standalone-frontend.log 2>&1 &
 	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321"
 
@@ -27,6 +28,27 @@ standalone-down: ## Purge all local standalone processes and containers
 	@pkill -f "astro" || true
 	@docker compose down -v
 	@echo "Standalone environment purged."
+
+## -- Local Development (Tripartite - Multi Node) --
+
+.PHONY: tri-up
+tri-up: ## Authoritatively launch distributed tripartite stack
+	@echo "Launching Standalone-Tri (Multi-Node) stack..."
+	@mkdir -p log
+	@docker compose -f docker-compose.distributed.yml up -d
+	@echo "Awaiting distributed ledger (60s)..." && sleep 60
+	@./scripts/setup_users.sh localhost 7575
+	@make bootstrap-local
+	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-tri.yaml --port 8081 > log/tri-api.log 2>&1 &
+	@cd frontend && npm run dev -- --port 4321 > ../log/tri-frontend.log 2>&1 &
+	@echo "SUCCESS: Tripartite Distributed LIVE on http://localhost:4321"
+
+.PHONY: tri-down
+tri-down: ## Purge all tripartite processes and containers
+	@pkill -f "escrow-api" || true
+	@pkill -f "astro" || true
+	@docker compose -f docker-compose.distributed.yml down -v
+	@echo "Tripartite environment purged."
 
 ## -- GKE Pilot Orchestration (3-Tier Governance) --
 
@@ -57,27 +79,44 @@ pilot-local: ## Authoritatively launch local services pointing to GKE (api.vdata
 pilot-down: ## Tier 2: authoritatively DESTROY GKE cluster and node pools (Cost Protection)
 	@./scripts/gke-pilot.sh down
 
+.PHONY: build-contracts
+build-contracts: ## Build authoritative DAML DAR packages
+	@cd contracts/stablecoin-escrow-interfaces && daml build
+	@cd contracts/stablecoin-escrow && daml build
+	@cd contracts/stablecoin-escrow-tests && daml build
+
+.PHONY: codegen
+codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR files
+	@echo "Building godaml tool..."
+	@cd third_party/go-daml && make build
+	@echo "Generating institutional bindings..."
+	@./third_party/go-daml/bin/godaml \
+		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar \
+		--output ./internal/ledger/generated \
+		--go_package generated
+	@echo "Codegen Complete: Go bindings synchronized with institutional vocabulary."
+
 .PHONY: pilot-release
-pilot-release: ## Authoritatively build and push AMD64 image to GCP Artifact Registry
-	@echo "Releasing GKE Pilot API (Arch: amd64)..."
-	@docker build --build-arg TARGETARCH=amd64 -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
+pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
+	@echo "Releasing GKE Pilot API (Arch: $(ARCH))..."
+	@docker build --build-arg TARGETARCH=$(ARCH) -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
 	@docker push us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest
 	@kubectl rollout restart deployment bank-api -n bank
-	@kubectl rollout restart deployment buyer-api -n buyer
-	@kubectl rollout restart deployment seller-api -n seller
+	@kubectl rollout restart deployment depositor-api -n depositor
+	@kubectl rollout restart deployment beneficiary-api -n beneficiary
 
 ## -- Ledger & State Synchronization --
 
 .PHONY: bootstrap-local
 bootstrap-local: ## Synchronize DAR packages and allocate Parties on localhost
-	@./bin/ledger-sync -host localhost -port 7575 \
+	@GOARCH=$(ARCH) ./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
 		-out ledger-state.json
 
 .PHONY: bootstrap-gke
 bootstrap-gke: ## Authoritatively synchronize all tripartite nodes in GKE
-	@for ns in bank buyer seller; do \
+	@for ns in bank depositor beneficiary; do \
 		echo "Bootstrapping GKE Namespace: $$ns"; \
 		kubectl port-forward pod/$$ns-ledger-0 7575:7575 -n $$ns > /dev/null 2>&1 & \
 		PID=$$!; sleep 15; \

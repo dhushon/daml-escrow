@@ -141,6 +141,9 @@ func ResolveSecrets(ctx context.Context, cfg *Config) error {
 	if secret, err := resolver.GetSecret(ctx, "circle-api-key-"+cfg.Auth.Environment); err == nil {
 		cfg.Stablecoin.Circle.APIKey = secret
 	}
+	if secret, err := resolver.GetSecret(ctx, "user-config-dsn-"+cfg.Auth.Environment); err == nil {
+		cfg.UserConfig.DSN = secret
+	}
 
 	return nil
 }

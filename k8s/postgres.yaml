@@ -77,11 +77,11 @@ spec:
         - |
           until psql -h escrow-postgres-dist -U escrow -d postgres -c "select 1"; do sleep 5; done;
           psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_bank;" || true;
-          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_buyer;" || true;
-          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_seller;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_depositor;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE canton_beneficiary;" || true;
           psql -h escrow-postgres-dist -U escrow -d postgres -c "CREATE DATABASE user_config;" || true;
           psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_bank TO escrow;" || true;
-          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_buyer TO escrow;" || true;
-          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_seller TO escrow;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_depositor TO escrow;" || true;
+          psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE canton_beneficiary TO escrow;" || true;
           psql -h escrow-postgres-dist -U escrow -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE user_config TO escrow;" || true;
       restartPolicy: OnFailure

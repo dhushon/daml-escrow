@@ -22,7 +22,7 @@ func (c *DamlClient) ProposeEscrow(ctx context.Context, req CreateEscrowRequest)
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 
-func (c *DamlClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
+func (c *DamlClient) BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error) {
 	return "", fmt.Errorf("gRPC not implemented")
 }
 
@@ -160,7 +160,7 @@ func (c *DamlClient) ReleaseFunds(ctx context.Context, id string, userID string)
 func (c *DamlClient) ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error {
 	return nil
 }
-func (c *DamlClient) RefundBuyer(ctx context.Context, id string) error   { return nil }
-func (c *DamlClient) RefundBySeller(ctx context.Context, id string) error { return nil }
+func (c *DamlClient) RefundDepositor(ctx context.Context, id string) error   { return nil }
+func (c *DamlClient) RefundByBeneficiary(ctx context.Context, id string) error { return nil }
 
 var _ Client = (*DamlClient)(nil)

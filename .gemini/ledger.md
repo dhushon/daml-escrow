@@ -67,3 +67,26 @@
 - **Distributed Identity:** In a 3-node cluster, `GetIdentity` must probe ALL nodes. A user might be provisioned on the Buyer node but the query hits the Bank node.
 - **Connection Resiliency:** The `MultiLedgerClient` should implement a "Node Routing" strategy: route to the participant hosting the `primaryParty` of the user.
 
+## 9. Phase 11: Draft Negotiation & Promotion Engine
+
+- **Bilateral Negotiation:** Drafts support multi-versioned state in Postgres/Cloud SQL.
+- **Ratification Rule:** A draft is only `RATIFIED` when `len(approvals) >= 2` (explicit co-sign from both Buyer and Seller).
+- **Promotion Mechanics:** 
+    - Translates `DraftEscrow` -> `EscrowProposal` (if counterparty has a known `damlPartyId`).
+    - Translates `DraftEscrow` -> `EscrowInvitation` (if counterparty is only known by email).
+- **Atomicity:** Promotion must update the off-chain status to `PROMOTED` only after the ledger transaction is confirmed.
+
+## 10. Triple-Tier Identity Alignment
+
+The platform authoritatively enforces a 3-tier identity model to ensure privacy, sovereignty, and interoperability:
+
+1.  **Registration Identity (T1):** External OIDC Subject (Okta `sub`) and Email. This is the "Human" layer stored in Postgres.
+2.  **Ledger User ID (T2):** A namespaced account on a specific Participant Node (e.g., `u-dan-hushon`). This layer manages permissions (`actAs`, `readAs`).
+3.  **Canton Network Identity (T3):** Cryptographic `damlPartyId`. This is the "Sovereign" layer used for on-chain signatures and data visibility.
+
+**Vocabulary Mapping:**
+- **Depositor:** Initiates the escrow, authoritatively pledges/deposits stablecoins (T3 owner), and ratifies settlement.
+- **Beneficiary:** The counterparty who authoritatively receives disbursement (T3 newOwner).
+
+**Rule:** Every API response involving participants MUST "Decorate" T3 identifiers with T1 metadata fetched from the Postgres layer to ensure a high-fidelity user experience without leaking PII on the ledger.
+

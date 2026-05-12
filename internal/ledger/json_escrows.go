@@ -16,95 +16,95 @@ import (
 // ---------------------------------------------------------------------------
 
 func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error) {
-	buyerParty := c.GetParty(BuyerUser)
-	cbParty := c.GetParty(CentralBankUser)
-	sellerParty := c.GetParty(req.Seller)
-	mediatorParty := c.GetParty(EscrowMediatorUser)
+        depositorParty := c.GetParty(DepositorUser)
+        cbParty := c.GetParty(CentralBankUser)
+        beneficiaryParty := c.GetParty(req.Beneficiary)
+        mediatorParty := c.GetParty(EscrowMediatorUser)
 
-	payload := map[string]interface{}{
-		"issuer":   cbParty,
-		"buyer":    buyerParty,
-		"seller":   sellerParty,
-		"mediator": mediatorParty,
-		"asset":    toDamlAsset(req.Asset),
-		"terms":    toDamlTerms(req.Terms),
-		"metadata": toMetadataJSON(req.Metadata),
-	}
+        payload := map[string]interface{}{
+                "issuer":      cbParty,
+                "depositor":   depositorParty,
+                "beneficiary": beneficiaryParty,
+                "mediator":    mediatorParty,
+                "asset":       toDamlAsset(req.Asset),
+                "terms":       toDamlTerms(req.Terms),
+                "metadata":    toMetadataJSON(req.Metadata),
+        }
 
-	body := map[string]interface{}{
-		"commands": map[string]interface{}{
-			"commandId": fmt.Sprintf("propose-%d", time.Now().UnixNano()),
-			"actAs":     []string{cbParty},
-			"userId":    CentralBankUser,
-			"commands": []interface{}{
-				map[string]interface{}{
-					"CreateCommand": map[string]interface{}{
-						"templateId":      fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
-						"createArguments": payload,
-					},
-				},
-			},
-		},
-	}
+        body := map[string]interface{}{
+                "commands": map[string]interface{}{
+                        "commandId": fmt.Sprintf("propose-%d", time.Now().UnixNano()),
+                        "actAs":     []string{cbParty},
+                        "userId":    CentralBankUser,
+                        "commands": []interface{}{
+                                map[string]interface{}{
+                                        "CreateCommand": map[string]interface{}{
+                                                "templateId":      fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
+                                                "createArguments": payload,
+                                        },
+                                },
+                        },
+                },
+        }
 
-	respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
-	if err != nil {
-		return nil, err
-	}
+        respBody, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+        if err != nil {
+                return nil, err
+        }
 
-	return c.parseProposalResponse(respBody)
+        return c.parseProposalResponse(respBody)
 }
 
-func (c *JsonLedgerClient) SellerAccept(ctx context.Context, id string, userID string) (string, error) {
-	party := c.GetParty(userID)
-	body := map[string]interface{}{
-		"commands": map[string]interface{}{
-			"commandId": fmt.Sprintf("seller-accept-%d", time.Now().UnixNano()),
-			"actAs":     []string{party},
-			"userId":    userID,
-			"commands": []interface{}{
-				map[string]interface{}{
-					"ExerciseCommand": map[string]interface{}{
-						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
-						"contractId":     id,
-						"choice":         "SellerAccept",
-						"choiceArgument": map[string]interface{}{},
-					},
-				},
-			},
-		},
-	}
+func (c *JsonLedgerClient) BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error) {
+        party := c.GetParty(userID)
+        body := map[string]interface{}{
+                "commands": map[string]interface{}{
+                        "commandId": fmt.Sprintf("beneficiary-accept-%d", time.Now().UnixNano()),
+                        "actAs":     []string{party},
+                        "userId":    userID,
+                        "commands": []interface{}{
+                                map[string]interface{}{
+                                        "ExerciseCommand": map[string]interface{}{
+                                                "templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
+                                                "contractId":     id,
+                                                "choice":         "BeneficiaryAccept",
+                                                "choiceArgument": map[string]interface{}{},
+                                        },
+                                },
+                        },
+                },
+        }
 
-	resp, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
-	if err != nil {
-		return "", err
-	}
-	return c.extractNewContractID(resp)
+        resp, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+        if err != nil {
+                return "", err
+        }
+        return c.extractNewContractID(resp)
 }
 
 func (c *JsonLedgerClient) Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error {
-	party := c.GetParty(userID)
-	body := map[string]interface{}{
-		"commands": map[string]interface{}{
-			"commandId": fmt.Sprintf("fund-%d", time.Now().UnixNano()),
-			"actAs":     []string{party},
-			"userId":    userID,
-			"commands": []interface{}{
-				map[string]interface{}{
-					"ExerciseCommand": map[string]interface{}{
-						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "SellerAcceptedProposal"),
-						"contractId":     id,
-						"choice":         "Fund",
-						"choiceArgument": map[string]interface{}{
-							"custodyRef": custodyRef,
-							"holdingCid": holdingCid,
-						},
-					},
+        party := c.GetParty(userID)
+        body := map[string]interface{}{
+                "commands": map[string]interface{}{
+                        "commandId": fmt.Sprintf("fund-%d", time.Now().UnixNano()),
+                        "actAs":     []string{party},
+                        "userId":    userID,
+                        "commands": []interface{}{
+                                map[string]interface{}{
+                                        "ExerciseCommand": map[string]interface{}{
+                                                "templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "BeneficiaryAcceptedProposal"),
+                                                "contractId":     id,
+                                                "choice":         "Fund",
+                                                "choiceArgument": map[string]interface{}{
+                                                        "custodyRef": custodyRef,
+                                                        "holdingCid": holdingCid,
+                                                },
+                                        },
+                                },
+                        },
+                },
+        }
 
-				},
-			},
-		},
-	}
 
 	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
 	return err
@@ -238,10 +238,10 @@ func (c *JsonLedgerClient) ProposeSettlement(ctx context.Context, id string, pro
 						"choice":     "ProposeSettlement",
 						"choiceArgument": map[string]interface{}{
 							"proposal": map[string]interface{}{
-								"settlementType":  proposal.SettlementType,
-								"buyerReturn":     fmt.Sprintf("%.10f", proposal.BuyerReturn),
-								"sellerPayment":    fmt.Sprintf("%.10f", proposal.SellerPayment),
-								"mediatorFee":     fmt.Sprintf("%.10f", proposal.MediatorFee),
+								"settlementType":     proposal.SettlementType,
+								"depositorReturn":    fmt.Sprintf("%.10f", proposal.DepositorReturn),
+								"beneficiaryPayment": fmt.Sprintf("%.10f", proposal.BeneficiaryPayment),
+								"mediatorFee":        fmt.Sprintf("%.10f", proposal.MediatorFee),
 							},
 						},
 					},
@@ -485,13 +485,13 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 			}
 
 			// Capture acceptance flags if present (for SettlementRecord)
-			buyerAccepted, _ := args["buyerAccepted"].(bool)
-			sellerAccepted, _ := args["sellerAccepted"].(bool)
+			depositorAccepted, _ := args["depositorAccepted"].(bool)
+			beneficiaryAccepted, _ := args["beneficiaryAccepted"].(bool)
 
 			escrows = append(escrows, &EscrowContract{
-				ID:     created["contractId"].(string),
-				Buyer:  fmt.Sprintf("%v", args["buyer"]),
-				Seller: fmt.Sprintf("%v", args["seller"]),
+				ID:          created["contractId"].(string),
+				Depositor:   fmt.Sprintf("%v", args["depositor"]),
+				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
 				Asset: Asset{
 					AssetType:  fmt.Sprintf("%v", assetData["assetType"]),
 					AssetID:    fmt.Sprintf("%v", assetData["assetId"]),
@@ -500,9 +500,9 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 					CustodyRef: fmt.Sprintf("%v", assetData["custodyRef"]),
 					HoldingCid: fmt.Sprintf("%v", assetData["holdingCid"]),
 				},
-				State:          state,
-				BuyerAccepted:  buyerAccepted,
-				SellerAccepted: sellerAccepted,
+				State:               state,
+				DepositorAccepted:   depositorAccepted,
+				BeneficiaryAccepted: beneficiaryAccepted,
 			})
 		}
 	}
@@ -843,9 +843,9 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 			}
 			asset := args["asset"].(map[string]interface{})
 			proposals = append(proposals, &EscrowProposal{
-				ID:     created["contractId"].(string),
-				Buyer:  fmt.Sprintf("%v", args["buyer"]),
-				Seller: fmt.Sprintf("%v", args["seller"]),
+				ID:          created["contractId"].(string),
+				Depositor:   fmt.Sprintf("%v", args["depositor"]),
+				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
 				Asset: Asset{
 					Amount:   c.parseFloat(asset["amount"]),
 					Currency: fmt.Sprintf("%v", asset["currency"]),
@@ -919,9 +919,9 @@ func (c *JsonLedgerClient) parseProposalResponse(body []byte) (*EscrowProposal, 
 			args := created["createArgument"].(map[string]interface{})
 			asset := args["asset"].(map[string]interface{})
 			return &EscrowProposal{
-				ID:     created["contractId"].(string),
-				Buyer:  fmt.Sprintf("%v", args["buyer"]),
-				Seller: fmt.Sprintf("%v", args["seller"]),
+				ID:          created["contractId"].(string),
+				Depositor:   fmt.Sprintf("%v", args["depositor"]),
+				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
 				Asset: Asset{
 					Amount:   c.parseFloat(asset["amount"]),
 					Currency: fmt.Sprintf("%v", asset["currency"]),
@@ -996,12 +996,12 @@ func (c *JsonLedgerClient) ReleaseFunds(ctx context.Context, id string, userID s
 	return c.ConfirmConditions(ctx, id, userID)
 }
 func (c *JsonLedgerClient) ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error {
-	_, err := c.ProposeSettlement(ctx, id, SettlementTerms{BuyerReturn: b, SellerPayment: s}, userID)
+	_, err := c.ProposeSettlement(ctx, id, SettlementTerms{DepositorReturn: b, BeneficiaryPayment: s}, userID)
 	return err
 }
-func (c *JsonLedgerClient) RefundBuyer(ctx context.Context, id string) error {
-	return fmt.Errorf("legacy RefundBuyer removed; use ExpireEscrow")
+func (c *JsonLedgerClient) RefundDepositor(ctx context.Context, id string) error {
+	return fmt.Errorf("legacy RefundDepositor removed; use ExpireEscrow")
 }
-func (c *JsonLedgerClient) RefundBySeller(ctx context.Context, id string) error {
-	return fmt.Errorf("legacy RefundBySeller removed")
+func (c *JsonLedgerClient) RefundByBeneficiary(ctx context.Context, id string) error {
+	return fmt.Errorf("legacy RefundByBeneficiary removed")
 }

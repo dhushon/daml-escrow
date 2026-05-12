@@ -32,20 +32,20 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: buyer-config
-  namespace: buyer
+  name: depositor-config
+  namespace: depositor
 data:
-  buyer.conf: |
+  depositor.conf: |
     canton {
       participants {
-        buyer {
+        depositor {
           storage.type = postgres
           storage.config {
             dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
             properties {
               serverName = "escrow-postgres-dist.default.svc.cluster.local"
               portNumber = 5432
-              databaseName = "canton_buyer"
+              databaseName = "canton_depositor"
               user = "escrow"
               password = "escrow"
             }
@@ -63,20 +63,20 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: seller-config
-  namespace: seller
+  name: beneficiary-config
+  namespace: beneficiary
 data:
-  seller.conf: |
+  beneficiary.conf: |
     canton {
       participants {
-        seller {
+        beneficiary {
           storage.type = postgres
           storage.config {
             dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
             properties {
               serverName = "escrow-postgres-dist.default.svc.cluster.local"
               portNumber = 5432
-              databaseName = "canton_seller"
+              databaseName = "canton_beneficiary"
               user = "escrow"
               password = "escrow"
             }

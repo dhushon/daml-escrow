@@ -34,3 +34,23 @@
 
 - **Host:** Prefer `127.0.0.1` over `localhost`.
 - **JSON API V2:** Target the `/v2/commands/submit-and-wait-for-transaction` and `/v2/state/active-contracts` endpoints.
+
+## 3. Go Codegen (Materialization)
+
+The platform utilizes a custom Go codegen tool (`godaml`) to authoritatively map DAML templates to Go structures.
+
+### Materialization Instructions
+
+To ensure the Go backend stays in sync with the smart contracts (especially after a vocabulary refactor), follow these steps:
+
+1.  **Build Contracts:** Compile the DAML code into DAR packages.
+    ```bash
+    make build-contracts
+    ```
+
+2.  **Execute Codegen:** Run the authoritative codegen target. This builds the `godaml` tool and regenerates the versioned Go files in `internal/ledger/generated/`.
+    ```bash
+    make codegen
+    ```
+
+3.  **Cleanup Stale Bindings:** If the DAML version or template names change, manually remove old `.go` files in `internal/ledger/generated/` to prevent type collisions. Authoritative Go bindings MUST be committed to the repository along with the corresponding DAML changes to ensure CI/CD consistency.

@@ -8,8 +8,8 @@ import (
 // User IDs mapped in init.canton
 const (
 	CentralBankUser    = "CentralBank"
-	BuyerUser          = "Buyer"
-	SellerUser         = "Seller"
+	DepositorUser      = "Depositor"
+	BeneficiaryUser    = "Beneficiary"
 	EscrowMediatorUser = "EscrowMediator"
 )
 
@@ -38,45 +38,45 @@ type EscrowMetadata struct {
 }
 
 type SettlementTerms struct {
-	SettlementType string  `json:"settlementType"`
-	BuyerReturn    float64 `json:"buyerReturn,string"`
-	SellerPayment  float64 `json:"sellerPayment,string"`
-	MediatorFee    float64 `json:"mediatorFee,string"`
+	SettlementType     string  `json:"settlementType"`
+	DepositorReturn    float64 `json:"depositorReturn,string"`
+	BeneficiaryPayment float64 `json:"beneficiaryPayment,string"`
+	MediatorFee        float64 `json:"mediatorFee,string"`
 }
 
 type CreateEscrowRequest struct {
-	Buyer    string      `json:"buyer"`
-	Seller   string      `json:"seller"`
-	Mediator string      `json:"mediator"`
-	Asset    Asset       `json:"asset"`
-	Terms    EscrowTerms `json:"terms"`
-	Metadata string      `json:"metadata"`
+	Depositor   string      `json:"depositor"`
+	Beneficiary string      `json:"beneficiary"`
+	Mediator    string      `json:"mediator"`
+	Asset       Asset       `json:"asset"`
+	Terms       EscrowTerms `json:"terms"`
+	Metadata    string      `json:"metadata"`
 }
 
 type EscrowProposal struct {
-	ID       string      `json:"id"`
-	Issuer   string      `json:"issuer"`
-	Buyer    string      `json:"buyer"`
-	Seller   string      `json:"seller"`
-	Mediator string      `json:"mediator"`
-	Asset    Asset       `json:"asset"`
-	Terms    EscrowTerms `json:"terms"`
-	Metadata string      `json:"metadata"`
+	ID          string      `json:"id"`
+	Issuer      string      `json:"issuer"`
+	Depositor   string      `json:"depositor"`
+	Beneficiary string      `json:"beneficiary"`
+	Mediator    string      `json:"mediator"`
+	Asset       Asset       `json:"asset"`
+	Terms       EscrowTerms `json:"terms"`
+	Metadata    string      `json:"metadata"`
 }
 
 type EscrowContract struct {
 	ID                    string      `json:"id"`
 	Issuer                string      `json:"issuer"`
-	Buyer                 string      `json:"buyer"`
-	Seller                string      `json:"seller"`
+	Depositor             string      `json:"depositor"`
+	Beneficiary           string      `json:"beneficiary"`
 	Mediator              string      `json:"mediator"`
 	Asset                 Asset       `json:"asset"`
 	Terms                 EscrowTerms `json:"terms"`
 	Metadata              string      `json:"metadata"`
 	State                 string      `json:"state"`
 	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
-	BuyerAccepted         bool        `json:"buyerAccepted"`
-	SellerAccepted        bool        `json:"sellerAccepted"`
+	DepositorAccepted     bool        `json:"depositorAccepted"`
+	BeneficiaryAccepted   bool        `json:"beneficiaryAccepted"`
 }
 
 type EscrowInvitation struct {
@@ -85,7 +85,7 @@ type EscrowInvitation struct {
 	Mediator     string      `json:"mediator"`
 	Issuer       string      `json:"issuer"`
 	InviteeEmail string      `json:"inviteeEmail"`
-	InviteeRole  string      `json:"inviteeRole"`
+	InviteeRole  string      `json:"inviteeRole"` // Depositor or Beneficiary
 	TokenHash    string      `json:"tokenHash"`
 	Asset        Asset       `json:"asset"`
 	Terms        EscrowTerms `json:"terms"`
@@ -154,7 +154,7 @@ type UserIdentity struct {
 	DamlPartyID string `json:"damlPartyId"`
 	Email       string `json:"email"`
 	DisplayName string `json:"displayName"`
-	Role        string `json:"role"` // Buyer, Seller, Mediator
+	Role        string `json:"role"` // Depositor, Beneficiary, Mediator
 }
 
 type OracleWebhookRequest struct {
@@ -187,7 +187,7 @@ type Client interface {
 
 	// Lifecycle (Directive 05)
 	ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error)
-	SellerAccept(ctx context.Context, id string, userID string) (string, error)
+	BeneficiaryAccept(ctx context.Context, id string, userID string) (string, error)
 	Fund(ctx context.Context, id string, custodyRef string, holdingCid string, userID string) error
 	Activate(ctx context.Context, id string, actAs []string) (string, error)
 	ConfirmConditions(ctx context.Context, id string, userID string) error
@@ -233,8 +233,8 @@ type Client interface {
 	CreateEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowContract, error)
 	ReleaseFunds(ctx context.Context, id string, userID string) error
 	ResolveDispute(ctx context.Context, id string, b, s float64, userID string) error
-	RefundBuyer(ctx context.Context, id string) error
-	RefundBySeller(ctx context.Context, id string) error
+	RefundDepositor(ctx context.Context, id string) error
+	RefundByBeneficiary(ctx context.Context, id string) error
 }
 
 // StablecoinProvider defines the interface for interacting with tokenized reserves.

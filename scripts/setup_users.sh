@@ -7,14 +7,14 @@ echo "Fetching parties..."
 PARTIES=$(curl -s $JSON_API/v2/parties | jq -r '.partyDetails[] | .party')
 
 CB_ID=$(echo "$PARTIES" | grep "^CentralBank::")
-BUYER_ID=$(echo "$PARTIES" | grep "^Buyer::")
-SELLER_ID=$(echo "$PARTIES" | grep "^Seller::")
+BUYER_ID=$(echo "$PARTIES" | grep "^Depositor::")
+SELLER_ID=$(echo "$PARTIES" | grep "^Beneficiary::")
 MEDIATOR_ID=$(echo "$PARTIES" | grep "^EscrowMediator::")
 
 echo "Mapping:"
 echo "CB: $CB_ID"
-echo "Buyer: $BUYER_ID"
-echo "Seller: $SELLER_ID"
+echo "Depositor: $BUYER_ID"
+echo "Beneficiary: $SELLER_ID"
 echo "Mediator: $MEDIATOR_ID"
 
 create_user() {
@@ -48,14 +48,14 @@ grant_rights() {
 }
 
 create_user "CentralBank" "$CB_ID"
-create_user "Buyer" "$BUYER_ID"
-create_user "Seller" "$SELLER_ID"
+create_user "Depositor" "$BUYER_ID"
+create_user "Beneficiary" "$SELLER_ID"
 create_user "EscrowMediator" "$MEDIATOR_ID"
 
 grant_rights "CentralBank" "$CB_ID"
-grant_rights "Buyer" "$BUYER_ID"
-grant_rights "Buyer" "$CB_ID" # Buyer acts as CB for payment simulation
-grant_rights "Seller" "$SELLER_ID"
+grant_rights "Depositor" "$BUYER_ID"
+grant_rights "Depositor" "$CB_ID" # Depositor acts as CB for payment simulation
+grant_rights "Beneficiary" "$SELLER_ID"
 grant_rights "EscrowMediator" "$MEDIATOR_ID"
 
 echo "User setup complete."

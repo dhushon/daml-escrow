@@ -32,7 +32,12 @@ services:
       escrow-postgres:
         condition: service_healthy
     command: >
-      sh -c "psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true"
+      sh -c "psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_bank;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_depositor;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_beneficiary;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_sequencer;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_mediator;' || true;
+             psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true"
     networks:
       - escrow-net
 
@@ -48,7 +53,9 @@ services:
       - ./contracts/DevNet/domain.conf:/etc/canton/domain.conf
       - ./contracts/DevNet/devnet_init.canton:/etc/canton/init.canton
       - ./contracts:/etc/canton/contracts:ro
+    entrypoint: ["/app/bin/canton"]
     command: >
+      daemon
       -c /etc/canton/participant.conf 
       -c /etc/canton/domain.conf 
       --bootstrap /etc/canton/init.canton
@@ -59,6 +66,19 @@ services:
       - escrow-net
 
   # --- Sovereign Tripartite APIs ---
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: escrow-frontend-dev
+    ports:
+      - "4321:4321"
+    environment:
+      - PUBLIC_API_URL=http://localhost:8080
+    networks:
+      - escrow-net
+    depends_on:
+      - escrow-gateway
 
   bank-api:
     build:
@@ -84,19 +104,19 @@ services:
     links:
       - escrow-ledger:canton
 
-  buyer-api:
+  depositor-api:
     build:
       context: .
       args:
         TARGETARCH: ${TARGETARCH:-arm64}
-    container_name: buyer-api-dev
+    container_name: depositor-api-dev
     command: ["serve", "--notls"]
     environment:
       - ENVIRONMENT=dev
       - AUTH_BYPASS=true
-      - LEDGER_NODES_BUYER_HOST=canton
-      - LEDGER_NODES_BUYER_PORT=7576
-      - PARTICIPANT_ID=buyer
+      - LEDGER_NODES_DEPOSITOR_HOST=canton
+      - LEDGER_NODES_DEPOSITOR_PORT=7576
+      - PARTICIPANT_ID=depositor
       - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
     ports:
@@ -108,19 +128,19 @@ services:
     links:
       - escrow-ledger:canton
 
-  seller-api:
+  beneficiary-api:
     build:
       context: .
       args:
         TARGETARCH: ${TARGETARCH:-arm64}
-    container_name: seller-api-dev
+    container_name: beneficiary-api-dev
     command: ["serve", "--notls"]
     environment:
       - ENVIRONMENT=dev
       - AUTH_BYPASS=true
-      - LEDGER_NODES_SELLER_HOST=canton
-      - LEDGER_NODES_SELLER_PORT=7577
-      - PARTICIPANT_ID=seller
+      - LEDGER_NODES_BENEFICIARY_HOST=canton
+      - LEDGER_NODES_BENEFICIARY_PORT=7577
+      - PARTICIPANT_ID=beneficiary
       - USER_CONFIG_DSN=postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector-dev:4318
     ports:
@@ -143,7 +163,7 @@ services:
       - ./config/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - bank-api
-      - buyer-api
-      - seller-api
+      - depositor-api
+      - beneficiary-api
     networks:
       - escrow-net

@@ -5,6 +5,7 @@ import (
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -41,7 +42,7 @@ func NewEscrowService(
 // ---------------------------------------------------------------------------
 
 func (s *EscrowService) ProposeEscrow(ctx context.Context, req ledger.CreateEscrowRequest) (*ledger.EscrowProposal, error) {
-	s.logger.Info("proposing new escrow", zap.String("buyer", req.Buyer), zap.String("seller", req.Seller))
+	s.logger.Info("proposing new escrow", zap.String("depositor", req.Depositor), zap.String("beneficiary", req.Beneficiary))
 	return s.ledger.ProposeEscrow(ctx, req)
 }
 
@@ -69,10 +70,10 @@ func (s *EscrowService) RaiseDispute(ctx context.Context, id string, userID stri
 func (s *EscrowService) ProposeSettlement(ctx context.Context, id string, userID string, amount float64) (string, error) {
 	s.logger.Info("proposing settlement", zap.String("id", id), zap.Float64("amount", amount))
 	proposal := ledger.SettlementTerms{
-		SettlementType: "PARTIAL",
-		BuyerReturn:    amount,
-		SellerPayment:  0.0, // Simplified for this call
-		MediatorFee:    0.0,
+		SettlementType:     "PARTIAL",
+		DepositorReturn:    amount,
+		BeneficiaryPayment: 0.0, // Simplified for this call
+		MediatorFee:        0.0,
 	}
 	return s.ledger.ProposeSettlement(ctx, id, proposal, userID)
 }
@@ -142,4 +143,45 @@ func (s *EscrowService) OracleMilestoneTrigger(ctx context.Context, escrowID str
 
 func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.LedgerMetrics, error) {
 	return s.ledger.GetMetrics(ctx, userID)
+}
+
+func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, userID string) (string, error) {
+	s.logger.Info("promoting draft to ledger", zap.String("rootId", draft.RootID), zap.String("userID", userID))
+
+	// 1. Authoritatively determine if beneficiary is registered
+	if draft.BeneficiaryID == "" {
+		// No beneficiary ID yet, we must create an Invitation
+		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.BeneficiaryEmail, "Beneficiary", "Business", ledger.Asset{
+			Amount:   draft.Amount,
+			Currency: draft.Currency,
+		}, ledger.EscrowTerms{
+			ExpiryDate: time.Now().AddDate(0, 0, 30), // Default
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to create escrow invitation: %w", err)
+		}
+		return inv.ID, nil
+	}
+
+	// 2. Beneficiary is registered, create a Proposal
+	req := ledger.CreateEscrowRequest{
+		Depositor:   draft.InitiatorID,
+		Beneficiary: draft.BeneficiaryID,
+		Mediator:    "EscrowMediator", // Default for now
+		Asset: ledger.Asset{
+			Amount:   draft.Amount,
+			Currency: draft.Currency,
+		},
+		Terms: ledger.EscrowTerms{
+			ExpiryDate: time.Now().AddDate(0, 0, 30),
+		},
+		Metadata: string(draft.Metadata),
+	}
+
+	proposal, err := s.ledger.ProposeEscrow(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to propose escrow: %w", err)
+	}
+
+	return proposal.ID, nil
 }

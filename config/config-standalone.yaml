@@ -2,18 +2,8 @@ server:
   port: 8081
 
 ledger:
-  host: "canton"
+  host: "localhost"
   port: 7575
-  nodes:
-    bank:
-      host: "canton"
-      port: 7575
-    depositor:
-      host: "canton"
-      port: 7576
-    beneficiary:
-      host: "canton"
-      port: 7577
   packages:
     implementation: "stablecoin-escrow"
     interfaces: "stablecoin-escrow-interfaces"
@@ -24,7 +14,7 @@ ledger:
     mediator: "EscrowMediator"
 
 userConfig:
-  dsn: "postgres://escrow:escrow@escrow-postgres-dev:5432/user_config?sslmode=disable"
+  dsn: "postgres://escrow:escrow@localhost:5432/user_config?sslmode=disable"
 
 auth:
   issuer: "https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698"

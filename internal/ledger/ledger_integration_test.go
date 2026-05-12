@@ -13,8 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestLedgerIntegration_Sandbox(t *testing.T) {
-	// Sandbox typically runs on port 7575
+func TestLedgerIntegration_Distributed(t *testing.T) {
 	ledgerHost := os.Getenv("LEDGER_HOST")
 	if ledgerHost == "" {
 		ledgerHost = "127.0.0.1"
@@ -22,25 +21,24 @@ func TestLedgerIntegration_Sandbox(t *testing.T) {
 
 	logger, _ := zap.NewDevelopment()
 	
-	// In Sandbox (single node), all logical participants are hosted on the same node.
-	sandboxClient := NewJsonLedgerClient(logger, ledgerHost, 7575, "stablecoin-escrow", "stablecoin-escrow-interfaces")
-	sandboxClient.Verbose = false
-	
-	// We use MultiLedgerClient even for Sandbox to maintain interface consistency,
-	// but all node keys point to the same physical sandbox node.
+	// Create specific clients for each institutional node
+	bankClient := NewJsonLedgerClient(logger, ledgerHost, 7575, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	depClient  := NewJsonLedgerClient(logger, ledgerHost, 7576, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+	benClient  := NewJsonLedgerClient(logger, ledgerHost, 7577, "stablecoin-escrow", "stablecoin-escrow-interfaces")
+
 	client := NewMultiLedgerClient(logger, map[string]Client{
-		"bank":   sandboxClient,
-		"buyer":  sandboxClient,
-		"seller": sandboxClient,
+		"bank":        bankClient,
+		"depositor":   depClient,
+		"beneficiary": benClient,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Perform discovery
+	// Perform discovery across all nodes
 	err := client.Discover(ctx, true)
 	require.NoError(t, err)
 
-	// Run shared lifecycle logic
+	// Run shared lifecycle logic (updated for institutional vocabulary)
 	runFullEscrowLifecycle(t, ctx, client)
 }

@@ -43,22 +43,23 @@ data EscrowTerms = EscrowTerms with
 
 -- Directive 06
 data SettlementTerms = SettlementTerms with
-  settlementType : Text -- FullRelease | FullReturn | PartialSplit
-  buyerReturn    : Decimal
-  sellerPayment  : Decimal
-  mediatorFee    : Decimal
+  settlementType     : Text -- FullRelease | FullReturn | PartialSplit
+  depositorReturn    : Decimal
+  beneficiaryPayment : Decimal
+  mediatorFee        : Decimal
     deriving (Eq, Show)
 
 -- Unified View for visibility
 data View = View with
-  issuer   : Party
-  buyer    : Party
-  seller   : Party
-  mediator : Party
-  asset    : Asset
-  terms    : EscrowTerms
-  state    : EscrowState
-  metadata : Text
+  issuer      : Party
+  initiator   : Party -- Tracks the deal's originator
+  depositor   : Party
+  beneficiary : Party
+  mediator    : Party
+  asset       : Asset
+  terms       : EscrowTerms
+  state       : EscrowState
+  metadata    : Text
     deriving (Eq, Show)
 
 -- ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ interface Escrow where
   -- Choice definitions per Directive 05
   
   choice GetStatus : View
-    controller (view this).issuer, (view this).buyer, (view this).seller, (view this).mediator
+    controller (view this).issuer, (view this).depositor, (view this).beneficiary, (view this).mediator
     do return (view this)
 
   -- Move to ACTIVE state once funds are locked

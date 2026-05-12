@@ -12,7 +12,7 @@ The distributed ledger is the **single source of truth**. Applications must trea
 
 ## 3. Privacy by Default
 
-Escrow contracts must restrict visibility to: **Buyer, Seller, Mediator, Issuer**. No escrow information should leak to unrelated parties.
+Escrow contracts must restrict visibility to: **Depositor, Beneficiary, Mediator, Issuer**. No escrow information should leak to unrelated parties.
 
 ## 4. Identity Bridge & JIT Provisioning (Phase 5+)
 
@@ -57,7 +57,10 @@ Module-specific configuration variables MUST be prefixed with the module name (e
 
 ## 12. Tripartite Governance & Bilateral Consensus
 
-- **Role Exclusivity:** A single sovereign identity (`damlPartyId`) MUST NOT occupy more than one role (Buyer, Seller, or Mediator) within a single contract instance. This must be authoritatively enforced at the DAML template and API DTO levels.
+- **Role Exclusivity:** A single sovereign identity (`damlPartyId`) MUST NOT occupy more than one role (Depositor, Beneficiary, or Mediator) within a single contract instance. This must be authoritatively enforced at the DAML template and API DTO levels.
 - **Bilateral Consensus:** Any tripartite party can propose changes to agreement terms while in the DRAFT/PROPOSAL state.
 - **Agreement Reset:** Any modification to terms MUST authoritatively reset all existing co-signatures, requiring all three parties to re-ratify the specific state of the agreement.
-- **Authoritative Transition:** Advancement to the ACTIVE state is only permitted once the Buyer, Seller, and Mediator have authoritatively agreed to the identical set of terms without outstanding changes.
+- **Authoritative Transition:** Advancement to the ACTIVE state is only permitted once the Depositor, Beneficiary, and Mediator have authoritatively agreed to the identical set of terms without outstanding changes.
+- **Offchain Drafts** until Contract Ratification, then all activites take place on-chain
+- **Cloud-Native Persistence:** All off-chain state (Drafts, User Config, Metrics) must reside in GCP Cloud SQL using secret-managed DSNs. No local storage for production-bound data.
+- **Negotiation Integrity:** Every version of an off-chain draft must include a `change_summary` to maintain an audit trail of the negotiation.
