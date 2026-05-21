@@ -31,15 +31,15 @@ const { draftID } = Astro.params;
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 					<div class="space-y-4">
-						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Buyer-Pledger (Funds Source)</label>
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Depositor (Funds Source)</label>
 						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-							<div id="display-buyer" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
+							<div id="display-depositor" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
 						</div>
 					</div>
 					<div class="space-y-4">
-						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Seller-Pledgee (Funds Target)</label>
+						<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Beneficiary (Funds Target)</label>
 						<div class="flex items-center space-x-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-							<div id="display-seller" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
+							<div id="display-beneficiary" class="text-sm font-bold text-slate-900 dark:text-white truncate">Fetching...</div>
 						</div>
 					</div>
 				</div>
@@ -136,8 +136,8 @@ const { draftID } = Astro.params;
 		document.getElementById('draft-container').classList.remove('hidden');
 
 		document.getElementById('draft-meta').innerText = `Root ID: ${currentDraft.rootId}`;
-		document.getElementById('display-buyer').innerText = currentDraft.depositorId || 'Pending...';
-		document.getElementById('display-seller').innerText = currentDraft.beneficiaryEmail;
+		document.getElementById('display-depositor').innerText = currentDraft.depositorId || 'Pending...';
+		document.getElementById('display-beneficiary').innerText = currentDraft.beneficiaryEmail;
 		document.getElementById('initiator-info').innerText = `Initiated by ${currentDraft.initiatorRole}: ${currentDraft.initiatorId}`;
 		document.getElementById('display-amount').innerText = currentDraft.amount.toLocaleString();
 		document.getElementById('display-currency').innerText = currentDraft.currency;

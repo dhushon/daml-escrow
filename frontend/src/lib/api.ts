@@ -43,8 +43,8 @@ function resolveApiPath(path: string): string {
     const email = session.identity.email?.toLowerCase() || '';
     let rolePath = 'bank'; // Default fallback
 
-    if (email.includes('buyer')) rolePath = 'buyer';
-    if (email.includes('seller')) rolePath = 'seller';
+    if (email.includes('depositor')) rolePath = 'depositor';
+    if (email.includes('beneficiary')) rolePath = 'beneficiary';
     if (email.includes('bank')) rolePath = 'bank';
 
     return `${API_URL}/${rolePath}/api/v1${path}`;
@@ -58,8 +58,8 @@ export interface Milestone {
 
 export interface EscrowResponse {
     id: string;
-    buyer: string;
-    seller: string;
+    depositor: string;
+    beneficiary: string;
     issuer: string;
     mediator: string;
     amount: number;

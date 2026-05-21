@@ -52,8 +52,8 @@ participant.dars.upload("/canton/contracts/stablecoin-escrow-tests/.daml/dist/st
 // 5. Allocate Parties
 println("Allocating parties...")
 val cbId       = participant.parties.enable("CentralBank")
-val buyerId    = participant.parties.enable("Buyer")
-val sellerId   = participant.parties.enable("Seller")
+val depositorId = participant.parties.enable("Depositor")
+val beneficiaryId = participant.parties.enable("Beneficiary")
 val mediatorId = participant.parties.enable("EscrowMediator")
 Thread.sleep(3000)
 
@@ -62,7 +62,7 @@ import com.digitalasset.canton.topology.transaction.ParticipantPermission
 import com.digitalasset.canton.topology.admin.grpc.TopologyStoreId
 
 println("Authorizing parties...")
-Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
+Seq(cbId, depositorId, beneficiaryId, mediatorId).foreach { pid =>
   ignore(participant.topology.party_to_participant_mappings.propose(
     party              = pid,
     newParticipants    = Seq((participant.id, ParticipantPermission.Submission)),
@@ -74,15 +74,15 @@ Seq(cbId, buyerId, sellerId, mediatorId).foreach { pid =>
 // 7. Create Users (Authoritative: no ignore)
 println("Creating users...")
 participant.ledger_api.users.create("CentralBank",    primaryParty = Some(cbId))
-participant.ledger_api.users.create("Buyer",          primaryParty = Some(buyerId))
-participant.ledger_api.users.create("Seller",         primaryParty = Some(sellerId))
+participant.ledger_api.users.create("Depositor",      primaryParty = Some(depositorId))
+participant.ledger_api.users.create("Beneficiary",    primaryParty = Some(beneficiaryId))
 participant.ledger_api.users.create("EscrowMediator", primaryParty = Some(mediatorId))
 
 // 8. Grant Rights
 println("Granting rights...")
-participant.ledger_api.users.rights.grant("Buyer",          actAs = Set(buyerId, cbId))
-participant.ledger_api.users.rights.grant("Seller",         actAs = Set(sellerId))
-participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId, buyerId, sellerId))
+participant.ledger_api.users.rights.grant("Depositor",       actAs = Set(depositorId, cbId))
+participant.ledger_api.users.rights.grant("Beneficiary",     actAs = Set(beneficiaryId))
+participant.ledger_api.users.rights.grant("EscrowMediator", actAs = Set(mediatorId, depositorId, beneficiaryId))
 participant.ledger_api.users.rights.grant("CentralBank",    actAs = Set(cbId))
 
 println("Setup complete.")

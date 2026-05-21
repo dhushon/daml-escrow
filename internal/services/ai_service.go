@@ -35,7 +35,7 @@ func NewAIService(ctx context.Context) (*AIService, error) {
 	}, nil
 }
 
-func (s *AIService) ClassifyContract(ctx context.Context, pdfData []byte) (string, error) {
+func (s *AIService) ClassifyContract(ctx context.Context, fileData []byte, mimeType string) (string, error) {
 	prompt := `
 		Analyze the following escrow agreement and classify it into exactly one of these types:
 		ImportExport, RealEstate, Grants, Corporate.
@@ -45,7 +45,7 @@ func (s *AIService) ClassifyContract(ctx context.Context, pdfData []byte) (strin
 	
 	resp, err := s.model.GenerateContent(ctx, 
 		genai.Text(prompt),
-		genai.Blob{MIMEType: "application/pdf", Data: pdfData},
+		genai.Blob{MIMEType: mimeType, Data: fileData},
 	)
 	if err != nil {
 		return "", fmt.Errorf("classification failed: %w", err)
@@ -63,9 +63,9 @@ func (s *AIService) ClassifyContract(ctx context.Context, pdfData []byte) (strin
 	return "Corporate", nil
 }
 
-func (s *AIService) ExtractTerms(ctx context.Context, pdfData []byte, contractType string, schema interface{}) (string, error) {
+func (s *AIService) ExtractTerms(ctx context.Context, fileData []byte, mimeType string, contractType string, schema interface{}) (string, error) {
 	prompt := fmt.Sprintf(`
-		Extract the escrow terms from the attached PDF agreement.
+		Extract the escrow terms from the attached agreement.
 		The extracted data MUST conform to the following JSON Schema:
 		%v
 
@@ -74,7 +74,7 @@ func (s *AIService) ExtractTerms(ctx context.Context, pdfData []byte, contractTy
 
 	resp, err := s.model.GenerateContent(ctx,
 		genai.Text(prompt),
-		genai.Blob{MIMEType: "application/pdf", Data: pdfData},
+		genai.Blob{MIMEType: mimeType, Data: fileData},
 	)
 	if err != nil {
 		return "", fmt.Errorf("extraction failed: %w", err)

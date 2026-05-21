@@ -136,9 +136,9 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 	}
 	
 	var partyResp struct {
-		Result struct {
+		PartyDetails struct {
 			Party string `json:"party"`
-		} `json:"result"`
+		} `json:"partyDetails"`
 	}
 
 	var partyID string
@@ -152,7 +152,7 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		}
 	} else {
 		_ = json.Unmarshal(body, &partyResp)
-		partyID = partyResp.Result.Party
+		partyID = partyResp.PartyDetails.Party
 	}
 
 	// 2. Create the User and link to the Party

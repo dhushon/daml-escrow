@@ -76,8 +76,8 @@ export async function handleLoginDiscovery(email: string) {
 export async function loginAsRole(role: string) {
     // Map roles to specific emails with a unique dev-only domain
     const roleMap: Record<string, string> = {
-        'Buyer': 'joey@buyer.devlocal',
-        'Seller': 'jimmy@seller.devlocal',
+        'Depositor': 'joey@depositor.devlocal',
+        'Beneficiary': 'jimmy@beneficiary.devlocal',
         'EscrowMediator': 'sally@mediator.devlocal',
         'CentralBank': 'bob@banker.devlocal'
     };

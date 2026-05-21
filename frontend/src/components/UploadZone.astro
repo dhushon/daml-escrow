@@ -5,7 +5,7 @@ interface Props {
 	label?: string;
 }
 
-const { id, accept = ".pdf", label = "Drop agreement PDF here or click to upload" } = Astro.props;
+const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement (PDF, PNG, TIFF) here or click to upload" } = Astro.props;
 ---
 
 <div class="upload-zone relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center transition-all hover:border-blue-500 group cursor-pointer bg-white dark:bg-slate-900 shadow-sm">
@@ -20,7 +20,7 @@ const { id, accept = ".pdf", label = "Drop agreement PDF here or click to upload
 		
 		<div class="space-y-1">
 			<p class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">{label}</p>
-			<p class="text-xs text-slate-500 dark:text-slate-400">Institutional Escrow Agreement (SEC Form, Import/Export, etc.)</p>
+			<p class="text-xs text-slate-500 dark:text-slate-400">Institutional Escrow Agreement (PDF or Scanned Images)</p>
 		</div>
 		
 		<div id={`${id}-filename`} class="hidden text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full inline-block"></div>

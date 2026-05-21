@@ -19,7 +19,7 @@ standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081
 	@echo "Awaiting ledger (60s)..." && sleep 60
 	@make bootstrap-local
 	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-standalone.yaml --port 8081 > log/standalone-api.log 2>&1 &
-	@cd frontend && npm run dev -- --port 4321 > ../log/standalone-frontend.log 2>&1 &
+	@cd frontend && env PUBLIC_API_URL=http://localhost:8081 npm run dev -- --port 4321 > ../log/standalone-frontend.log 2>&1 &
 	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321"
 
 .PHONY: standalone-down
@@ -40,7 +40,7 @@ tri-up: ## Authoritatively launch distributed tripartite stack
 	@./scripts/setup_users.sh localhost 7575
 	@make bootstrap-local
 	@nohup env LEDGER_HOST=localhost go run ./cmd/escrow-api serve --notls --bypass --config config/config-tri.yaml --port 8081 > log/tri-api.log 2>&1 &
-	@cd frontend && npm run dev -- --port 4321 > ../log/tri-frontend.log 2>&1 &
+	@cd frontend && env PUBLIC_API_URL=http://localhost:8080 npm run dev -- --port 4321 > ../log/tri-frontend.log 2>&1 &
 	@echo "SUCCESS: Tripartite Distributed LIVE on http://localhost:4321"
 
 .PHONY: tri-down

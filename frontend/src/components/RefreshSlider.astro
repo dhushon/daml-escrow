@@ -3,7 +3,7 @@ import { fetchConfig } from '../lib/api';
 
 const adminCookie = Astro.cookies.get('admin-mode');
 const isAdmin = adminCookie?.value === 'true';
-const user = isAdmin ? 'CentralBank' : 'Buyer';
+const user = isAdmin ? 'CentralBank' : 'Depositor';
 
 // Default to value 3 (8 seconds) if no config found
 let currentVal = 3; 
@@ -62,7 +62,7 @@ const interval = Math.pow(2, currentVal);
 	slider?.addEventListener('change', async (e) => {
 		const val = parseInt((e.target as HTMLInputElement).value);
 		const isAdmin = getCookie('admin-mode') === 'true';
-		const user = isAdmin ? 'CentralBank' : 'Buyer';
+		const user = isAdmin ? 'CentralBank' : 'Depositor';
 
 		try {
 			await saveConfig(user, 'refreshIntervalExp', { value: val });

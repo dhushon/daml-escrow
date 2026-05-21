@@ -31,9 +31,9 @@ type IngestResult struct {
 	Warnings     []string        `json:"warnings"`
 }
 
-func (s *IngestService) IngestPDF(ctx context.Context, pdfData []byte) (*IngestResult, error) {
+func (s *IngestService) IngestContract(ctx context.Context, fileData []byte, mimeType string) (*IngestResult, error) {
 	// 1. Classify
-	contractType, err := s.ai.ClassifyContract(ctx, pdfData)
+	contractType, err := s.ai.ClassifyContract(ctx, fileData, mimeType)
 	if err != nil {
 		s.logger.Warn("AI classification failed, defaulting to Corporate", zap.Error(err))
 		contractType = "Corporate"
@@ -45,7 +45,7 @@ func (s *IngestService) IngestPDF(ctx context.Context, pdfData []byte) (*IngestR
 	schemaContent := "{}" // Default empty
 	// Note: SchemaService could be improved to return the raw JSON
 	
-	extractedJSON, err := s.ai.ExtractTerms(ctx, pdfData, contractType, schemaContent)
+	extractedJSON, err := s.ai.ExtractTerms(ctx, fileData, mimeType, contractType, schemaContent)
 	if err != nil {
 		return nil, fmt.Errorf("AI extraction failed: %w", err)
 	}
