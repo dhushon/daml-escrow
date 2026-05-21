@@ -79,19 +79,19 @@ const { title } = Astro.props;
 				authNav.innerHTML = `
 					<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
 					${canWrite ? `
-						<div class="relative group">
+						<div class="relative">
 							<button id="compose-btn" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all font-bold border-none cursor-pointer flex items-center space-x-1">
 								<span>Compose +</span>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
 							</button>
-							<div class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-[150] hidden group-hover:block overflow-hidden">
-								<a href="/compose" class="block px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 transition-colors">
-									<p class="mb-0.5 uppercase tracking-widest text-blue-600">Manual Entry</p>
-									<p class="text-[10px] text-slate-400 font-medium normal-case">Authoritatively define terms and milestones.</p>
+							<div id="compose-menu" class="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-[150] hidden overflow-hidden animate-slideIn">
+								<a href="/compose" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 transition-colors group">
+									<p class="mb-1 uppercase tracking-widest text-blue-600">Manual Entry</p>
+									<p class="text-[10px] text-slate-400 font-medium normal-case leading-relaxed">Authoritatively define terms and milestones from scratch.</p>
 								</a>
-								<a href="/ingest" class="block px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-									<p class="mb-0.5 uppercase tracking-widest text-purple-600">AI Ingest (PDF)</p>
-									<p class="text-[10px] text-slate-400 font-medium normal-case">Upload an agreement and extract with Gemini.</p>
+								<a href="/ingest" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
+									<p class="mb-1 uppercase tracking-widest text-purple-600">AI Ingest (PDF/IMG)</p>
+									<p class="text-[10px] text-slate-400 font-medium normal-case leading-relaxed">Upload an existing agreement and let Gemini extract the terms.</p>
 								</a>
 							</div>
 						</div>
@@ -164,6 +164,21 @@ const { title } = Astro.props;
 				document.getElementById('logout-btn')?.addEventListener('click', () => {
 					clearSession();
 					window.location.href = '/login';
+				});
+
+				// Compose Dropdown Logic
+				const composeBtn = document.getElementById('compose-btn');
+				const composeMenu = document.getElementById('compose-menu');
+
+				composeBtn?.addEventListener('click', (e) => {
+					e.stopPropagation();
+					composeMenu?.classList.toggle('hidden');
+				});
+
+				document.addEventListener('click', (e) => {
+					if (!composeBtn?.contains(e.target as Node)) {
+						composeMenu?.classList.add('hidden');
+					}
 				});
 			}
 		</script>
