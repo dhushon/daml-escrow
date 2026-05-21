@@ -37,26 +37,31 @@ type IngestResult struct {
 }
 
 func (s *IngestService) IngestContract(ctx context.Context, allFileData [][]byte, mimeType string) (*IngestResult, error) {
-	// 1. Authoritatively persist to Primary Bank Vault first
-	var combinedData []byte
-	for _, data := range allFileData {
-		combinedData = append(combinedData, data...)
-	}
-
-	key := fmt.Sprintf("ingest/%d-agreement.pdf", time.Now().UnixNano())
-	uri, hash, err := s.storage.UploadVaulted(ctx, s.storage.GetBankBucket(), key, combinedData, mimeType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to vault agreement: %w", err)
-	}
-
-	// 2. Classify
+	// 1. Classify Typology first to enable authoritative tagging
 	contractType, err := s.ai.ClassifyContract(ctx, allFileData, mimeType)
 	if err != nil {
 		s.logger.Warn("AI classification failed, defaulting to Corporate", zap.Error(err))
 		contractType = "Corporate"
 	}
 
-	// 2. Extract
+	// 2. Authoritatively persist to Primary Bank Vault
+	var combinedData []byte
+	for _, data := range allFileData {
+		combinedData = append(combinedData, data...)
+	}
+
+	tags := map[string]string{
+		"typology":    contractType,
+		"ingested-at": time.Now().Format(time.RFC3339),
+	}
+
+	key := fmt.Sprintf("ingest/%d-agreement.pdf", time.Now().UnixNano())
+	uri, hash, err := s.storage.UploadVaulted(ctx, s.storage.GetBankBucket(), key, combinedData, mimeType, tags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to vault agreement: %w", err)
+	}
+
+	// 3. Extract Terms using Schema
 	// We pass the schema to the AI to guide extraction
 	// For now, we use the raw schema if available
 	schemaContent := "{}" // Default empty

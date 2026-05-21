@@ -6,6 +6,7 @@ import (
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -18,6 +19,7 @@ type EscrowService struct {
 	compliance    ComplianceService
 	webhookSecret string
 	oracleSigner  crypto.HighAssuranceSigner
+	storage       *StorageService
 }
 
 func NewEscrowService(
@@ -27,6 +29,7 @@ func NewEscrowService(
 	compliance ComplianceService,
 	webhookSecret string,
 	oracleSigner crypto.HighAssuranceSigner,
+	storage *StorageService,
 ) *EscrowService {
 	return &EscrowService{
 		logger:        logger,
@@ -35,6 +38,7 @@ func NewEscrowService(
 		compliance:    compliance,
 		webhookSecret: webhookSecret,
 		oracleSigner:  oracleSigner,
+		storage:       storage,
 	}
 }
 
@@ -104,7 +108,6 @@ func (s *EscrowService) GetEscrow(ctx context.Context, id string, userID string)
 	}
 
 	// 1. Authoritatively resolve the storage perimeter for the user
-	// In production, this would be derived from the user's institutional ID
 	var bucket string
 	if strings.Contains(userID, "depositor") {
 		bucket = "escrow-depositor"
@@ -117,15 +120,21 @@ func (s *EscrowService) GetEscrow(ctx context.Context, id string, userID string)
 	// 2. Resolve Agreement URI and Metadata
 	var meta ledger.EscrowMetadata
 	if err := json.Unmarshal([]byte(escrow.Metadata), &meta); err == nil && meta.AgreementURI != "" {
-		// 3. Authoritatively execute Read-Through Mirror if needed
-		// This ensures the party has their own local copy
+		// 3. Authoritatively execute Read-Through Mirror with Tagging
 		key := strings.TrimPrefix(meta.AgreementURI, fmt.Sprintf("storage://%s/", s.storage.GetBankBucket()))
 		
-		if bucket != s.storage.GetBankBucket() {
-			_, _ = s.storage.ReadThroughMirror(ctx, bucket, key)
+		tags := map[string]string{
+			"contract-id": escrow.ID,
+			"depositor":   escrow.Depositor,
+			"beneficiary": escrow.Beneficiary,
+			"mirrored-at": time.Now().Format(time.RFC3339),
 		}
 
-		// 4. Generate backend-signed URL (Valid for 15 mins)
+		if bucket != s.storage.GetBankBucket() {
+			_, _ = s.storage.ReadThroughMirror(ctx, bucket, key, tags)
+		}
+
+		// 4. Dynamic Re-signing: Authoritatively generate a fresh URL for this fetch
 		signedURL, err := s.storage.GetPresignedURL(ctx, bucket, key, 15*time.Minute)
 		if err == nil {
 			escrow.AgreementURL = signedURL

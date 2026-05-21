@@ -203,7 +203,7 @@ func runServer() {
 		logger.Warn("storage service disabled (missing config)", zap.Error(err))
 	}
 	ingestService := services.NewIngestService(logger, aiService, schemaService, identityService, storageService)
-	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner)
+	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner, storageService)
 
 	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService, storageService)
 

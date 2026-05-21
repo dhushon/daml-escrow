@@ -39,12 +39,12 @@ func TestStorageService_MinIO_Integration(t *testing.T) {
 		contentType := "text/plain"
 
 		// Upload
-		uri, err := svc.Upload(ctx, key, content, contentType)
+		uri, _, err := svc.UploadVaulted(ctx, "integration-test-bucket", key, content, contentType, nil)
 		assert.NoError(t, err)
 		assert.Contains(t, uri, "integration-test-bucket/test-doc.txt")
 
 		// Download
-		downloaded, err := svc.Download(ctx, key)
+		downloaded, err := svc.DownloadFromBucket(ctx, "integration-test-bucket", key)
 		assert.NoError(t, err)
 		assert.Equal(t, content, downloaded)
 	})
@@ -53,11 +53,11 @@ func TestStorageService_MinIO_Integration(t *testing.T) {
 		key := "signed-doc.txt"
 		content := []byte("Private agreement content.")
 		
-		_, err := svc.Upload(ctx, key, content, "text/plain")
+		_, _, err := svc.UploadVaulted(ctx, "integration-test-bucket", key, content, "text/plain", nil)
 		require.NoError(t, err)
 
 		// Generate Presigned URL (Valid for 1 minute)
-		url, err := svc.GetPresignedURL(ctx, key, 1*time.Minute)
+		url, err := svc.GetPresignedURL(ctx, "integration-test-bucket", key, 1*time.Minute)
 		assert.NoError(t, err)
 		assert.Contains(t, url, "X-Amz-Signature") // Standard S3 signing param
 
@@ -69,6 +69,33 @@ func TestStorageService_MinIO_Integration(t *testing.T) {
 		defer resp.Body.Close()
 	})
 
+	t.Run("Authoritative Object Tagging", func(t *testing.T) {
+		key := "tagged-doc.txt"
+		content := []byte("Tagged content.")
+		tags := map[string]string{
+			"contract-id": "escrow-999",
+			"institutional-priority": "high",
+		}
+
+		_, _, err := svc.UploadVaulted(ctx, "integration-test-bucket", key, content, "text/plain", tags)
+		require.NoError(t, err)
+
+		// Verify tags via S3 API
+		output, err := svc.client.GetObjectTagging(ctx, &s3.GetObjectTaggingInput{
+			Bucket: aws.String("integration-test-bucket"),
+			Key:    aws.String(key),
+		})
+		assert.NoError(t, err)
+		
+		found := 0
+		for _, tag := range output.TagSet {
+			if val, ok := tags[*tag.Key]; ok && val == *tag.Value {
+				found++
+			}
+		}
+		assert.Equal(t, 2, found, "Expected all authoritative tags to be present on the blob")
+	})
+
 	t.Run("Security: Encryption at Rest Headers", func(t *testing.T) {
 		os.Setenv("STORAGE_KMS_KEY_ID", "mock-kms-key-id")
 		defer os.Unsetenv("STORAGE_KMS_KEY_ID")
@@ -76,7 +103,7 @@ func TestStorageService_MinIO_Integration(t *testing.T) {
 		key := "encrypted-doc.txt"
 		content := []byte("Encrypted institutional data.")
 		
-		_, err := svc.Upload(ctx, key, content, "text/plain")
+		_, _, err := svc.UploadVaulted(ctx, "integration-test-bucket", key, content, "text/plain", nil)
 		
 		// High-Assurance Verification: 
 		// If using local MinIO, we expect it to FAIL with "NotImplemented" if headers are present 

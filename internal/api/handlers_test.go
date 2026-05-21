@@ -26,7 +26,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
 	metrics := services.NewMetricsService()
 
 	db, _, _ := sqlmock.New()
@@ -57,7 +57,7 @@ func TestHandler_GetIdentity(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
 	
 	configContent := `
 providers:
@@ -142,7 +142,7 @@ func TestHandler_OracleMilestoneTrigger(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
 	h := NewHandler(logger, svc, nil, nil, nil, nil, nil, nil, nil)
 
 	t.Run("Valid HMAC Trigger", func(t *testing.T) {

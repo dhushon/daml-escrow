@@ -65,7 +65,7 @@ func NewStorageService(ctx context.Context, bankBucket string) (*StorageService,
 }
 
 // UploadVaulted stores a blob in a specific bucket and returns its SHA-256 hash.
-func (s *StorageService) UploadVaulted(ctx context.Context, bucket, key string, data []byte, contentType string) (string, string, error) {
+func (s *StorageService) UploadVaulted(ctx context.Context, bucket, key string, data []byte, contentType string, tags map[string]string) (string, string, error) {
 	kmsKeyID := os.Getenv("STORAGE_KMS_KEY_ID")
 	
 	// Authoritatively calculate SHA-256 hash for provenance
@@ -89,11 +89,34 @@ func (s *StorageService) UploadVaulted(ctx context.Context, bucket, key string, 
 		return "", "", fmt.Errorf("failed to upload to vault %s: %w", bucket, err)
 	}
 
+	// High-Assurance: Apply tags immediately after upload
+	if len(tags) > 0 {
+		_ = s.TagObject(ctx, bucket, key, tags)
+	}
+
 	return fmt.Sprintf("storage://%s/%s", bucket, key), contentHash, nil
 }
 
+// TagObject authoritatively applies contract identities and referential metadata to a blob.
+func (s *StorageService) TagObject(ctx context.Context, bucket, key string, tags map[string]string) error {
+	var s3Tags []types.Tag
+	for k, v := range tags {
+		s3Tags = append(s3Tags, types.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		})
+	}
+
+	_, err := s.client.PutObjectTagging(ctx, &s3.PutObjectTaggingInput{
+		Bucket:  aws.String(bucket),
+		Key:     aws.String(key),
+		Tagging: &types.Tagging{TagSet: s3Tags},
+	})
+	return err
+}
+
 // ReadThroughMirror authoritatively implements the pull-on-demand pattern.
-func (s *StorageService) ReadThroughMirror(ctx context.Context, targetBucket, key string) ([]byte, error) {
+func (s *StorageService) ReadThroughMirror(ctx context.Context, targetBucket, key string, tags map[string]string) ([]byte, error) {
 	// 1. Try to fetch from target bucket first
 	data, err := s.DownloadFromBucket(ctx, targetBucket, key)
 	if err == nil {
@@ -106,8 +129,8 @@ func (s *StorageService) ReadThroughMirror(ctx context.Context, targetBucket, ke
 		return nil, fmt.Errorf("failed to fetch from primary vault: %w", err)
 	}
 
-	// 3. Lazily mirror to target bucket
-	_, _, err = s.UploadVaulted(ctx, targetBucket, key, bankData, "application/pdf")
+	// 3. Lazily mirror to target bucket with tags
+	_, _, err = s.UploadVaulted(ctx, targetBucket, key, bankData, "application/pdf", tags)
 	if err != nil {
 		// Non-blocking warning: serving from bank copy even if local caching fails
 		fmt.Printf("warning: failed to mirror blob to %s: %v\n", targetBucket, err)

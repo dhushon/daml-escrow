@@ -20,7 +20,7 @@ func TestStorageService_Initialization(t *testing.T) {
 		svc, err := NewStorageService(ctx, "test-bucket")
 		assert.NoError(t, err)
 		assert.NotNil(t, svc)
-		assert.Equal(t, "test-bucket", svc.bucket)
+		assert.Equal(t, "test-bucket", svc.GetBankBucket())
 	})
 
 	t.Run("Production-Style Initialization", func(t *testing.T) {
@@ -29,6 +29,6 @@ func TestStorageService_Initialization(t *testing.T) {
 		svc, err := NewStorageService(ctx, "prod-bucket")
 		assert.NoError(t, err)
 		assert.NotNil(t, svc)
-		assert.Equal(t, "prod-bucket", svc.bucket)
+		assert.Equal(t, "prod-bucket", svc.GetBankBucket())
 	})
 }
