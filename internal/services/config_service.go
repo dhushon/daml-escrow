@@ -33,6 +33,10 @@ func (s *ConfigService) Close() error {
 	return s.db.Close()
 }
 
+func (s *ConfigService) GetDB() *sql.DB {
+	return s.db
+}
+
 // --- User Configuration CRUD ---
 
 func (s *ConfigService) SaveConfig(userID, key string, val json.RawMessage) error {
@@ -67,6 +71,7 @@ type DraftEscrow struct {
 	Version          int             `json:"version"`
 	ProposerID       string          `json:"proposerId"`
 	InvitationCode   string          `json:"invitationCode,omitempty"`
+	ContractType     string          `json:"contractType"` // ImportExport, RealEstate, Grants, Corporate
 	InitiatorID      string          `json:"initiatorId"`
 	InitiatorRole    string          `json:"initiatorRole"`
 	DepositorID      string          `json:"depositorId"`
@@ -90,7 +95,7 @@ func generateInvitationCode() string {
 }
 
 // CreateDraft initializes Version 1 of a negotiation.
-func (s *ConfigService) CreateDraft(initiatorID, initiatorRole, beneficiaryEmail string, amount float64, currency string, terms, metadata json.RawMessage) (*DraftEscrow, error) {
+func (s *ConfigService) CreateDraft(initiatorID, initiatorRole, contractType, beneficiaryEmail string, amount float64, currency string, terms, metadata json.RawMessage) (*DraftEscrow, error) {
 	var draft DraftEscrow
 	rootID := uuid.New().String()
 	code := generateInvitationCode()
@@ -101,13 +106,13 @@ func (s *ConfigService) CreateDraft(initiatorID, initiatorRole, beneficiaryEmail
 	}
 
 	query := `
-		INSERT INTO draft_escrows (root_id, proposer_id, invitation_code, initiator_id, initiator_role, depositor_id, beneficiary_email, amount, currency, terms, metadata, status)
-		VALUES ($1, $2, $3, $2, $4, $5, $6, $7, $8, $9, $10, 'DRAFT')
-		RETURNING id, root_id, version, proposer_id, invitation_code, initiator_id, initiator_role, depositor_id, beneficiary_email, amount, currency, terms, metadata, change_summary, status, created_at
+		INSERT INTO draft_escrows (root_id, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, amount, currency, terms, metadata, status)
+		VALUES ($1, $2, $3, $4, $2, $5, $6, $7, $8, $9, $10, $11, 'DRAFT')
+		RETURNING id, root_id, version, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, amount, currency, terms, metadata, change_summary, status, created_at
 	`
 	var changeSum, dID sql.NullString
-	err := s.db.QueryRow(query, rootID, initiatorID, code, initiatorRole, depositorID, beneficiaryEmail, amount, currency, terms, metadata).Scan(
-		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.InvitationCode, &draft.InitiatorID, &draft.InitiatorRole, &dID, &draft.BeneficiaryEmail, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &changeSum, &draft.Status, &draft.CreatedAt,
+	err := s.db.QueryRow(query, rootID, initiatorID, code, contractType, initiatorRole, depositorID, beneficiaryEmail, amount, currency, terms, metadata).Scan(
+		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.InvitationCode, &draft.ContractType, &draft.InitiatorID, &draft.InitiatorRole, &dID, &draft.BeneficiaryEmail, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &changeSum, &draft.Status, &draft.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create draft escrow: %w", err)
@@ -120,12 +125,12 @@ func (s *ConfigService) CreateDraft(initiatorID, initiatorRole, beneficiaryEmail
 
 // ProposeAmendment creates a new version linked to the same root_id.
 func (s *ConfigService) ProposeAmendment(rootID, proposerID, summary string, amount float64, currency string, terms, metadata json.RawMessage) (*DraftEscrow, error) {
-	// 1. Get current version number
+	// 1. Get current version info
 	var currentVersion int
-	var initiatorID, initiatorRole, beneficiaryEmail string
+	var initiatorID, initiatorRole, beneficiaryEmail, contractType string
 	
-	lookup := `SELECT version, initiator_id, initiator_role, beneficiary_email FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1`
-	err := s.db.QueryRow(lookup, rootID).Scan(&currentVersion, &initiatorID, &initiatorRole, &beneficiaryEmail)
+	lookup := `SELECT version, initiator_id, initiator_role, beneficiary_email, contract_type FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1`
+	err := s.db.QueryRow(lookup, rootID).Scan(&currentVersion, &initiatorID, &initiatorRole, &beneficiaryEmail, &contractType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to locate root negotiation: %w", err)
 	}
@@ -133,13 +138,13 @@ func (s *ConfigService) ProposeAmendment(rootID, proposerID, summary string, amo
 	// 2. Insert new version
 	var draft DraftEscrow
 	query := `
-		INSERT INTO draft_escrows (root_id, version, proposer_id, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'NEGOTIATION')
-		RETURNING id, root_id, version, proposer_id, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status, created_at
+		INSERT INTO draft_escrows (root_id, version, proposer_id, contract_type, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'NEGOTIATION')
+		RETURNING id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, beneficiary_email, amount, currency, terms, metadata, change_summary, status, created_at
 	`
 	var cs sql.NullString
-	err = s.db.QueryRow(query, rootID, currentVersion+1, proposerID, initiatorID, initiatorRole, beneficiaryEmail, amount, currency, terms, metadata, summary).Scan(
-		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.InitiatorID, &draft.InitiatorRole, &draft.BeneficiaryEmail, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &cs, &draft.Status, &draft.CreatedAt,
+	err = s.db.QueryRow(query, rootID, currentVersion+1, proposerID, contractType, initiatorID, initiatorRole, beneficiaryEmail, amount, currency, terms, metadata, summary).Scan(
+		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &draft.ContractType, &draft.InitiatorID, &draft.InitiatorRole, &draft.BeneficiaryEmail, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &cs, &draft.Status, &draft.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to propose amendment: %w", err)
@@ -172,12 +177,12 @@ func (s *ConfigService) AddApproval(rootID, approverID string) error {
 
 func (s *ConfigService) GetLatestDraft(rootID string) (*DraftEscrow, error) {
 	var draft DraftEscrow
-	query := "SELECT id, root_id, version, proposer_id, invitation_code, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, approvals, status, created_at FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1"
+	query := "SELECT id, root_id, version, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, approvals, status, created_at FROM draft_escrows WHERE root_id = $1 ORDER BY version DESC LIMIT 1"
 	
 	var medID, beneficiaryID, inviteCode, changeSum, dID sql.NullString
 	var approvalsJSON []byte
 	err := s.db.QueryRow(query, rootID).Scan(
-		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &inviteCode, &draft.InitiatorID, &draft.InitiatorRole, &dID, &draft.BeneficiaryEmail, &beneficiaryID, &medID, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &changeSum, &approvalsJSON, &draft.Status, &draft.CreatedAt,
+		&draft.ID, &draft.RootID, &draft.Version, &draft.ProposerID, &inviteCode, &draft.ContractType, &draft.InitiatorID, &draft.InitiatorRole, &dID, &draft.BeneficiaryEmail, &beneficiaryID, &medID, &draft.Amount, &draft.Currency, &draft.Terms, &draft.Metadata, &changeSum, &approvalsJSON, &draft.Status, &draft.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -213,7 +218,7 @@ func (s *ConfigService) ListDraftsForUser(userID, email string) ([]*DraftEscrow,
 	// Return latest version for each root_id where user is involved
 	query := `
 		SELECT DISTINCT ON (root_id) 
-			id, root_id, version, proposer_id, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
+			id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
 		FROM draft_escrows 
 		WHERE initiator_id = $1 OR beneficiary_email = $2 OR beneficiary_id = $1 OR mediator_id = $1 OR depositor_id = $1
 		ORDER BY root_id, version DESC
@@ -228,7 +233,7 @@ func (s *ConfigService) ListDraftsForUser(userID, email string) ([]*DraftEscrow,
 	for rows.Next() {
 		var d DraftEscrow
 		var medID, beneficiaryID, dID sql.NullString
-		if err := rows.Scan(&d.ID, &d.RootID, &d.Version, &d.ProposerID, &d.InitiatorID, &d.InitiatorRole, &dID, &d.BeneficiaryEmail, &beneficiaryID, &medID, &d.Amount, &d.Currency, &d.Terms, &d.Metadata, &d.Status, &d.CreatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.RootID, &d.Version, &d.ProposerID, &d.ContractType, &d.InitiatorID, &d.InitiatorRole, &dID, &d.BeneficiaryEmail, &beneficiaryID, &medID, &d.Amount, &d.Currency, &d.Terms, &d.Metadata, &d.Status, &d.CreatedAt); err != nil {
 			return nil, err
 		}
 		d.DepositorID = dID.String

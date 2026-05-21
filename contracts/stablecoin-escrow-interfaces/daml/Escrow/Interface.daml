@@ -33,12 +33,14 @@ data Asset = Asset with
 -- Directive 04
 data EscrowTerms = EscrowTerms with
   conditionDescription : Text
-  conditionType        : Text -- Binary | Partial | Milestone
+  conditionType        : Text -- Binary | Partial | Milestone | Threshold
   evidenceRequired     : Text
   expiryDate           : Time
   gracePeriodDays      : Int
   disputeWindowDays    : Int
   partialSchedule      : [(Decimal, Text)]
+  minAmount            : Optional Decimal -- Support for Threshold-based offerings
+  maxAmount            : Optional Decimal
     deriving (Eq, Show)
 
 -- Directive 06
@@ -51,15 +53,16 @@ data SettlementTerms = SettlementTerms with
 
 -- Unified View for visibility
 data View = View with
-  issuer      : Party
-  initiator   : Party -- Tracks the deal's originator
-  depositor   : Party
-  beneficiary : Party
-  mediator    : Party
-  asset       : Asset
-  terms       : EscrowTerms
-  state       : EscrowState
-  metadata    : Text
+  issuer       : Party
+  initiator    : Party -- Tracks the deal's originator
+  depositor    : Party
+  beneficiary  : Party
+  mediator     : Party
+  contractType : Text -- Corporate, ImportExport, RealEstate, etc.
+  asset        : Asset
+  terms        : EscrowTerms
+  state        : EscrowState
+  metadata     : Text
     deriving (Eq, Show)
 
 -- ---------------------------------------------------------------------------

@@ -43,8 +43,8 @@ function resolveApiPath(path: string): string {
     const email = session.identity.email?.toLowerCase() || '';
     let rolePath = 'bank'; // Default fallback
 
-    if (email.includes('buyer')) rolePath = 'buyer';
-    if (email.includes('seller')) rolePath = 'seller';
+    if (email.includes('depositor')) rolePath = 'depositor';
+    if (email.includes('beneficiary')) rolePath = 'beneficiary';
     if (email.includes('bank')) rolePath = 'bank';
 
     return `${API_URL}/${rolePath}/api/v1${path}`;
@@ -58,8 +58,8 @@ export interface Milestone {
 
 export interface EscrowResponse {
     id: string;
-    buyer: string;
-    seller: string;
+    depositor: string;
+    beneficiary: string;
     issuer: string;
     mediator: string;
     amount: number;
@@ -167,6 +167,28 @@ export async function promoteDraftToLedger(draftID: string) {
         headers: getAuthHeaders()
     });
     if (!response.ok) throw new Error('Failed to promote draft to ledger');
+}
+
+export async function ingestContract(files: File[]) {
+    const formData = new FormData();
+    files.forEach(file => {
+        formData.append('agreement', file);
+    });
+
+    const headers = getAuthHeaders();
+    // Remove Content-Type to let browser set boundary
+    delete headers['Content-Type'];
+
+    const response = await fetch(resolveApiPath('/ingest'), {
+        method: 'POST',
+        headers: headers,
+        body: formData
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to ingest contract');
+    }
+    return response.json();
 }
 
 export async function discoverAuth(email: string) {

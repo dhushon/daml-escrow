@@ -186,13 +186,27 @@ func runServer() {
 
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
-	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
+	schemaService, err := services.NewSchemaService("architecture/schemas")
+	if err != nil {
+		logger.Fatal("failed to initialize schema service", zap.Error(err))
+	}
+	aiService, err := services.NewAIService(ctx)
+	if err != nil {
+		logger.Warn("AI service disabled (missing API key or config)", zap.Error(err))
+	}
+	identityService, err := services.NewIdentityService("config/identity_providers.yaml", configService.GetDB())
 	if err != nil {
 		logger.Fatal("failed to identity service", zap.Error(err))
 	}
+	storageService, err := services.NewStorageService(ctx, os.Getenv("STORAGE_BUCKET"))
+	if err != nil {
+		logger.Warn("storage service disabled (missing config)", zap.Error(err))
+	}
+	ingestService := services.NewIngestService(logger, aiService, schemaService, identityService)
 	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner)
 
-	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService)
+	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService, storageService)
+
 	router := chi.NewRouter()
 
 	if telemetry != nil {
@@ -221,22 +235,48 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
+		r.Get("/auth/discover", handler.DiscoverAuth)
+		r.Get("/identities", handler.ListIdentities)
+		r.Get("/config", handler.GetConfig)
+		r.Post("/config", handler.SaveConfig)
 
-		// --- Phase 11: Draft & Negotiation ---
+		// --- Phase 11 & 13: Drafting & Ingest ---
+		r.Post("/ingest", handler.IngestContract)
 		r.Post("/drafts", handler.SaveDraft)
 		r.Get("/drafts", handler.ListDrafts)
 		r.Get("/drafts/{draftID}", handler.GetDraft)
 		r.Post("/drafts/{draftID}/amend", handler.AmendDraft)
 		r.Post("/drafts/{draftID}/approve", handler.ApproveDraft)
 		r.Post("/drafts/{draftID}/promote", handler.PromoteToLedger)
+
+		// --- Invitations ---
 		r.Post("/invites", handler.CreateInvitation)
 		r.Get("/invites", handler.ListInvitations)
+		r.Get("/invites/token/{token}", handler.GetInvitationByToken)
+		r.Post("/invites/token/{token}/claim", handler.ClaimInvitation)
 
+		// --- Escrow Lifecycle ---
+		r.Get("/escrows", handler.ListEscrows)
 		r.Post("/escrows", handler.ProposeEscrow)
+		r.Get("/escrows/{id}", handler.GetEscrow)
+		r.Get("/escrows/{id}/lifecycle", handler.GetEscrowLifecycle)
+		r.Post("/escrows/{id}/fund", handler.Fund)
+		r.Post("/escrows/{id}/activate", handler.Activate)
+		r.Post("/escrows/{id}/confirm", handler.ConfirmConditions)
+		r.Post("/escrows/{id}/dispute", handler.RaiseDispute)
+		r.Post("/escrows/{id}/ratify", handler.RatifySettlement)
+		r.Post("/escrows/{id}/finalize", handler.FinalizeSettlement)
+		r.Post("/escrows/{id}/disburse", handler.Disburse)
+
+		// --- Settlements & Wallets ---
+		r.Get("/settlements", handler.ListSettlements)
+		r.Post("/settlements/{settlementID}/settle", handler.SettlePayment)
+		r.Get("/wallets", handler.ListWallets)
+
+		// --- System ---
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
 		r.Get("/metrics", handler.GetMetrics)
 	})
-
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      router,

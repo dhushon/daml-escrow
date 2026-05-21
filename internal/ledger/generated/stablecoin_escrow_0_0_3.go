@@ -23,7 +23,7 @@ var (
 
 const (
 	PackageName = "stablecoin-escrow"
-	PackageID   = "06611d2ffb0043539001cf4bd00cc6ee9154be179cbcae330ff664cc61e44fe2"
+	PackageID   = "62e8a4a6a4155653f7a9de7a9a2a7b5291ce9a841f208848a0ca2126057c8511"
 	SDKVersion  = "3.4.11"
 )
 
@@ -73,14 +73,15 @@ func (t *BeneficiaryAccept) UnmarshalJSON(data []byte) error {
 
 // BeneficiaryAcceptedProposal is a Template type
 type BeneficiaryAcceptedProposal struct {
-	Issuer      types.PARTY `json:"issuer"`
-	Initiator   types.PARTY `json:"initiator"`
-	Depositor   types.PARTY `json:"depositor"`
-	Beneficiary types.PARTY `json:"beneficiary"`
-	Mediator    types.PARTY `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	Metadata    types.TEXT  `json:"metadata"`
+	Issuer       types.PARTY `json:"issuer"`
+	Initiator    types.PARTY `json:"initiator"`
+	Depositor    types.PARTY `json:"depositor"`
+	Beneficiary  types.PARTY `json:"beneficiary"`
+	Mediator     types.PARTY `json:"mediator"`
+	ContractType types.TEXT  `json:"contractType"`
+	Asset        Asset       `json:"asset"`
+	Terms        EscrowTerms `json:"terms"`
+	Metadata     types.TEXT  `json:"metadata"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -111,6 +112,9 @@ func (t BeneficiaryAcceptedProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -157,6 +161,9 @@ func (t BeneficiaryAcceptedProposal) CreateCommandWithPackageID(packageID string
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -374,15 +381,16 @@ func (t *Disburse) UnmarshalJSON(data []byte) error {
 
 // DisbursementOrder is a Template type
 type DisbursementOrder struct {
-	Issuer      types.PARTY     `json:"issuer"`
-	Initiator   types.PARTY     `json:"initiator"`
-	Depositor   types.PARTY     `json:"depositor"`
-	Beneficiary types.PARTY     `json:"beneficiary"`
-	Mediator    types.PARTY     `json:"mediator"`
-	Asset       Asset           `json:"asset"`
-	Terms       EscrowTerms     `json:"terms"`
-	Metadata    types.TEXT      `json:"metadata"`
-	Settlement  SettlementTerms `json:"settlement"`
+	Issuer       types.PARTY     `json:"issuer"`
+	Initiator    types.PARTY     `json:"initiator"`
+	Depositor    types.PARTY     `json:"depositor"`
+	Beneficiary  types.PARTY     `json:"beneficiary"`
+	Mediator     types.PARTY     `json:"mediator"`
+	ContractType types.TEXT      `json:"contractType"`
+	Asset        Asset           `json:"asset"`
+	Terms        EscrowTerms     `json:"terms"`
+	Metadata     types.TEXT      `json:"metadata"`
+	Settlement   SettlementTerms `json:"settlement"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -413,6 +421,9 @@ func (t DisbursementOrder) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -468,6 +479,9 @@ func (t DisbursementOrder) CreateCommandWithPackageID(packageID string) *model.C
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -612,6 +626,7 @@ type DisputeRecord struct {
 	Depositor    types.PARTY `json:"depositor"`
 	Beneficiary  types.PARTY `json:"beneficiary"`
 	Mediator     types.PARTY `json:"mediator"`
+	ContractType types.TEXT  `json:"contractType"`
 	Asset        Asset       `json:"asset"`
 	Terms        EscrowTerms `json:"terms"`
 	Metadata     types.TEXT  `json:"metadata"`
@@ -646,6 +661,9 @@ func (t DisputeRecord) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -695,6 +713,9 @@ func (t DisputeRecord) CreateCommandWithPackageID(packageID string) *model.Creat
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -828,15 +849,16 @@ var _ IEscrow = (*DisputeRecord)(nil)
 
 // EscrowContract is a Template type
 type EscrowContract struct {
-	Issuer      types.PARTY `json:"issuer"`
-	Initiator   types.PARTY `json:"initiator"`
-	Depositor   types.PARTY `json:"depositor"`
-	Beneficiary types.PARTY `json:"beneficiary"`
-	Mediator    types.PARTY `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	Metadata    types.TEXT  `json:"metadata"`
-	State       EscrowState `json:"state"`
+	Issuer       types.PARTY `json:"issuer"`
+	Initiator    types.PARTY `json:"initiator"`
+	Depositor    types.PARTY `json:"depositor"`
+	Beneficiary  types.PARTY `json:"beneficiary"`
+	Mediator     types.PARTY `json:"mediator"`
+	ContractType types.TEXT  `json:"contractType"`
+	Asset        Asset       `json:"asset"`
+	Terms        EscrowTerms `json:"terms"`
+	Metadata     types.TEXT  `json:"metadata"`
+	State        EscrowState `json:"state"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -867,6 +889,9 @@ func (t EscrowContract) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -922,6 +947,9 @@ func (t EscrowContract) CreateCommandWithPackageID(packageID string) *model.Crea
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -1087,6 +1115,7 @@ type EscrowInvitation struct {
 	InviteeEmail types.TEXT  `json:"inviteeEmail"`
 	InviteeRole  types.TEXT  `json:"inviteeRole"`
 	InviteeType  types.TEXT  `json:"inviteeType"`
+	ContractType types.TEXT  `json:"contractType"`
 	TokenHash    types.TEXT  `json:"tokenHash"`
 	Asset        Asset       `json:"asset"`
 	Terms        EscrowTerms `json:"terms"`
@@ -1122,6 +1151,9 @@ func (t EscrowInvitation) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["inviteeType"] = string(t.InviteeType)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["tokenHash"] = string(t.TokenHash)
@@ -1174,6 +1206,9 @@ func (t EscrowInvitation) CreateCommandWithPackageID(packageID string) *model.Cr
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["inviteeType"] = string(t.InviteeType)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["tokenHash"] = string(t.TokenHash)
@@ -1264,14 +1299,15 @@ func (t EscrowInvitation) ClaimInvitationWithPackageID(contractID string, packag
 
 // EscrowProposal is a Template type
 type EscrowProposal struct {
-	Issuer      types.PARTY `json:"issuer"`
-	Initiator   types.PARTY `json:"initiator"`
-	Depositor   types.PARTY `json:"depositor"`
-	Beneficiary types.PARTY `json:"beneficiary"`
-	Mediator    types.PARTY `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	Metadata    types.TEXT  `json:"metadata"`
+	Issuer       types.PARTY `json:"issuer"`
+	Initiator    types.PARTY `json:"initiator"`
+	Depositor    types.PARTY `json:"depositor"`
+	Beneficiary  types.PARTY `json:"beneficiary"`
+	Mediator     types.PARTY `json:"mediator"`
+	ContractType types.TEXT  `json:"contractType"`
+	Asset        Asset       `json:"asset"`
+	Terms        EscrowTerms `json:"terms"`
+	Metadata     types.TEXT  `json:"metadata"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -1302,6 +1338,9 @@ func (t EscrowProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -1348,6 +1387,9 @@ func (t EscrowProposal) CreateCommandWithPackageID(packageID string) *model.Crea
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -1705,6 +1747,7 @@ type SettlementRecord struct {
 	Depositor           types.PARTY     `json:"depositor"`
 	Beneficiary         types.PARTY     `json:"beneficiary"`
 	Mediator            types.PARTY     `json:"mediator"`
+	ContractType        types.TEXT      `json:"contractType"`
 	Asset               Asset           `json:"asset"`
 	Terms               EscrowTerms     `json:"terms"`
 	Metadata            types.TEXT      `json:"metadata"`
@@ -1741,6 +1784,9 @@ func (t SettlementRecord) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {
@@ -1802,6 +1848,9 @@ func (t SettlementRecord) CreateCommandWithPackageID(packageID string) *model.Cr
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["asset"] = func() any {

@@ -30,6 +30,8 @@ type EscrowTerms struct {
 	GracePeriodDays      int       `json:"gracePeriodDays,string"`
 	DisputeWindowDays    int       `json:"disputeWindowDays,string"`
 	PartialSchedule      []string  `json:"partialSchedule"` // Simplified for JSON
+	MinAmount            float64   `json:"minAmount,string,omitempty"`
+	MaxAmount            float64   `json:"maxAmount,string,omitempty"`
 }
 
 type EscrowMetadata struct {
@@ -45,12 +47,13 @@ type SettlementTerms struct {
 }
 
 type CreateEscrowRequest struct {
-	Depositor   string      `json:"depositor"`
-	Beneficiary string      `json:"beneficiary"`
-	Mediator    string      `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	Metadata    string      `json:"metadata"`
+	Depositor    string      `json:"depositor"`
+	Beneficiary  string      `json:"beneficiary"`
+	Mediator     string      `json:"mediator"`
+	ContractType string      `json:"contractType"`
+	Asset        Asset       `json:"asset"`
+	Terms        EscrowTerms `json:"terms"`
+	Metadata     string      `json:"metadata"`
 }
 
 type EscrowProposal struct {
@@ -86,6 +89,7 @@ type EscrowInvitation struct {
 	Issuer       string      `json:"issuer"`
 	InviteeEmail string      `json:"inviteeEmail"`
 	InviteeRole  string      `json:"inviteeRole"` // Depositor or Beneficiary
+	ContractType string      `json:"contractType"`
 	TokenHash    string      `json:"tokenHash"`
 	Asset        Asset       `json:"asset"`
 	Terms        EscrowTerms `json:"terms"`
@@ -149,12 +153,17 @@ type Wallet struct {
 }
 
 type UserIdentity struct {
-	OktaSub     string `json:"oktaSub"`
-	DamlUserID  string `json:"damlUserId"`
-	DamlPartyID string `json:"damlPartyId"`
-	Email       string `json:"email"`
-	DisplayName string `json:"displayName"`
-	Role        string `json:"role"` // Depositor, Beneficiary, Mediator
+	OktaSub         string `json:"oktaSub"`
+	DamlUserID      string `json:"damlUserId"`
+	DamlPartyID     string `json:"damlPartyId"`
+	Email           string `json:"email"`
+	DisplayName     string `json:"displayName"`
+	Role            string `json:"role"` // Depositor, Beneficiary, Mediator
+	Title           string `json:"title,omitempty"`
+	Affiliation     string `json:"affiliation,omitempty"`
+	Organization    string `json:"organization,omitempty"`
+	PhysicalAddress string `json:"physicalAddress,omitempty"`
+	KYCStatus       string `json:"kycStatus,omitempty"` // PENDING, VERIFIED, REJECTED
 }
 
 type OracleWebhookRequest struct {
@@ -207,7 +216,7 @@ type Client interface {
 	SetPartyMap(m map[string]string)
 
 	// Invitation (Phase 5)
-	CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error)
+	CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, contractType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error)
 	ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error)
 	ListInvitations(ctx context.Context, userID string) ([]*EscrowInvitation, error)
 	GetInvitationByToken(ctx context.Context, tokenHash string) (*EscrowInvitation, error)

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stablecoin-escrow.io/schemas/corporate.v1.json",
+  "title": "Corporate & Equity Escrow Metadata",
+  "type": "object",
+  "properties": {
+    "offeringName": { "type": "string" },
+    "underwriter": { "type": "string" },
+    "minAmount": { "type": "number" },
+    "maxAmount": { "type": "number" },
+    "pricePerShare": { "type": "number" },
+    "offeringTerminationDate": { "type": "string", "format": "date-time" },
+    "escrowAgentFee": { "type": "number" },
+    "jurisdiction": { "type": "string", "default": "Commonwealth of Virginia" }
+  },
+  "required": ["offeringName", "minAmount", "maxAmount"]
+}

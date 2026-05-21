@@ -95,11 +95,11 @@ testFullLifecycle = do
       assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
     terms = EscrowTerms with
       conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
-      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = []
+      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = [], minAmount = None, maxAmount = None
 
   -- 1. Create Proposal (DRAFT)
   proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
+    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, contractType = "Corporate", asset, terms, metadata = "{}"
 
   -- 1.5 Beneficiary Accepts (DRAFT -> BeneficiaryAcceptedProposal)
   acceptedCid <- submit (actAs [beneficiary]) do
@@ -142,11 +142,11 @@ testDisputeLifecycle = do
       assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
     terms = EscrowTerms with
       conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
-      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = []
+      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = [], minAmount = None, maxAmount = None
 
   -- 1. Create Proposal
   proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, asset, terms, metadata = "{}"
+    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, contractType = "Corporate", asset, terms, metadata = "{}"
 
   -- 1.5 Beneficiary Accept
   acceptedCid <- submit (actAs [beneficiary]) do

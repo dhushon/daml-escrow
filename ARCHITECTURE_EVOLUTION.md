@@ -229,3 +229,51 @@ sequenceDiagram
 ```
 
 *   **Outcome:** A cost-efficient, high-performance institutional platform that balances human-scale negotiation with cryptographic ledger finality.
+
+## Phase 13: Intelligent Ingest & High-Assurance Storage (Active)
+
+Transitioned the platform to authoritatively bridge legacy legal prose with DAML smart contracts and enforced production-grade document privacy.
+
+### Key Architectural Enhancements:
+1.  **AI Ingest Engine:** Integrated **Gemini-2.0-flash** to authoritatively classify and extract structured terms from multi-page agreements (PDF/PNG/TIFF).
+2.  **Contract Typology:** Implemented a **Schema-Driven Extensibility** model where domain-specific metadata (Import/Export, Real Estate, Grants) is validated against authoritative JSON schemas before ledger commitment.
+3.  **Valet Storage Pattern:** implemented a high-assurance object storage model using **GCS (Production)** and **MinIO (Local)**.
+    *   **Authoritative Privacy:** All document blobs are stored in private buckets with zero public access. 
+    *   **Time-Limited Access:** The backend authoritatively "signs" access tokens (Presigned URLs) only for verified contract parties, valid for short durations (e.g., 15 minutes).
+    *   **Encryption at Rest:** Enforced **SSE-KMS (GCP CMEK)** hardware-backed encryption for all institutional document blobs.
+4.  **Enriched Identity Modeling:** expanded the institutional directory to capture **Titles**, **Corporate Affiliations**, and **KYC Status**, ensuring on-chain provenance matches real-world legal signatories.
+
+### Intelligent Ingest & Verification Flow:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User (Legal/Ops)
+    participant F as Astro Frontend
+    participant G as Go Ingest API
+    participant AI as Gemini AI (Vertex)
+    participant S as S3/GCS (Private)
+    participant DB as Postgres (Draft Tunnel)
+
+    Note over U,F: Step 1: Multi-Part Ingest
+    U->>F: Upload Multiple Images/PDF
+    F->>F: Authoritative Re-ordering (HITL)
+    F->>G: POST /api/v1/ingest (Sequenced Files)
+    
+    Note over G,AI: Step 2: AI Orchestration
+    G->>AI: Classify Typology
+    AI-->>G: ContractType (e.g. ImportExport)
+    G->>AI: Extract Terms (using Schema)
+    AI-->>G: Extracted JSON
+    
+    Note over G,S: Step 3: High-Assurance Persistence
+    G->>S: Store Sequence (SSE-KMS Encrypted)
+    G->>DB: Save Versioned Draft
+    
+    Note over G,U: Step 4: Authoritative Verification
+    G-->>F: Suggested Draft + Schema Fields
+    F->>U: Side-by-Side HITL Review
+    U->>F: Finalize Terms
+    F->>G: Save Ratified Draft
+```
+
+*   **Outcome:** A high-fidelity bridge between institutional legal documents and cryptographic smart contracts, ensuring privacy and compliance at scale.

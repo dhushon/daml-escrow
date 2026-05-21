@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"daml-escrow/internal/ledger"
@@ -18,6 +19,9 @@ type Handler struct {
 	configService    *services.ConfigService
 	analyticsService *services.AnalyticsService
 	identityService  *services.IdentityService
+	schemaService    *services.SchemaService
+	ingestService    *services.IngestService
+	storageService   *services.StorageService
 }
 
 func NewHandler(
@@ -27,6 +31,9 @@ func NewHandler(
 	configService *services.ConfigService,
 	analyticsService *services.AnalyticsService,
 	identityService *services.IdentityService,
+	schemaService *services.SchemaService,
+	ingestService *services.IngestService,
+	storageService *services.StorageService,
 ) *Handler {
 	return &Handler{
 		logger:           logger,
@@ -35,6 +42,9 @@ func NewHandler(
 		configService:    configService,
 		analyticsService: analyticsService,
 		identityService:  identityService,
+		schemaService:    schemaService,
+		ingestService:    ingestService,
+		storageService:   storageService,
 	}
 }
 
@@ -126,6 +136,7 @@ func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		BeneficiaryEmail string          `json:"beneficiaryEmail"`
+		ContractType     string          `json:"contractType"`
 		Amount           float64         `json:"amount"`
 		Currency         string          `json:"currency"`
 		Terms            json.RawMessage `json:"terms"`
@@ -134,6 +145,10 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
+	}
+
+	if body.ContractType == "" {
+		body.ContractType = "Corporate"
 	}
 
 	userID, _ := r.Context().Value(AuthSubKey).(string)
@@ -146,7 +161,7 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 		role = identity.Role
 	}
 
-	draft, err := h.configService.CreateDraft(userID, role, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
+	draft, err := h.configService.CreateDraft(userID, role, body.ContractType, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
 	if err != nil {
 		h.logger.Error("failed to create draft", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
@@ -306,7 +321,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		"expiryDate":           req.ExpiryDate,
 	})
 	
-	draft, err := h.configService.CreateDraft(userID, role, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
+	draft, err := h.configService.CreateDraft(userID, role, req.ContractType, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
 	if err != nil {
 		h.logger.Error("failed to create institutional invitation draft", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -600,3 +615,58 @@ func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(wallets)
 }
+
+func (h *Handler) IngestContract(w http.ResponseWriter, r *http.Request) {
+	if h.ingestService == nil {
+		http.Error(w, "ingest service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	err := r.ParseMultipartForm(10 << 20) // 10MB limit
+	if err != nil {
+		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	files := r.MultipartForm.File["agreement"]
+	if len(files) == 0 {
+		http.Error(w, "missing 'agreement' files", http.StatusBadRequest)
+		return
+	}
+
+	var allFileData [][]byte
+	var mimeType string
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			continue
+		}
+		defer func() { _ = file.Close() }()
+
+		data, err := io.ReadAll(file)
+		if err == nil {
+			allFileData = append(allFileData, data)
+		}
+		if mimeType == "" {
+			mimeType = fileHeader.Header.Get("Content-Type")
+		}
+	}
+
+	if mimeType == "" {
+		mimeType = "application/pdf" // Fallback
+	}
+
+	// 3. Orchestrate AI Ingest
+	result, err := h.ingestService.IngestContract(r.Context(), allFileData, mimeType)
+
+	if err != nil {
+		h.logger.Error("contract ingest failed", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+

@@ -16,20 +16,22 @@ import (
 // ---------------------------------------------------------------------------
 
 func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRequest) (*EscrowProposal, error) {
-        depositorParty := c.GetParty(DepositorUser)
-        cbParty := c.GetParty(CentralBankUser)
-        beneficiaryParty := c.GetParty(req.Beneficiary)
-        mediatorParty := c.GetParty(EscrowMediatorUser)
+	depositorParty := c.GetParty(DepositorUser)
+	cbParty := c.GetParty(CentralBankUser)
+	beneficiaryParty := c.GetParty(req.Beneficiary)
+	mediatorParty := c.GetParty(req.Mediator)
 
-        payload := map[string]interface{}{
-                "issuer":      cbParty,
-                "depositor":   depositorParty,
-                "beneficiary": beneficiaryParty,
-                "mediator":    mediatorParty,
-                "asset":       toDamlAsset(req.Asset),
-                "terms":       toDamlTerms(req.Terms),
-                "metadata":    toMetadataJSON(req.Metadata),
-        }
+	payload := map[string]interface{}{
+		"issuer":       cbParty,
+		"initiator":    depositorParty, // Default to depositor for manual proposals
+		"depositor":    depositorParty,
+		"beneficiary":  beneficiaryParty,
+		"mediator":     mediatorParty,
+		"contractType": req.ContractType,
+		"asset":        toDamlAsset(req.Asset),
+		"terms":        toDamlTerms(req.Terms),
+		"metadata":     toMetadataJSON(req.Metadata),
+	}
 
         body := map[string]interface{}{
                 "commands": map[string]interface{}{
@@ -539,7 +541,7 @@ func (c *JsonLedgerClient) ClaimInvitation(ctx context.Context, inviteID string,
 	return c.parseProposalResponse(respBody)
 }
 
-func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
+func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, contractType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
 	inviterParty := c.GetParty(inviterID)
 	mediatorParty := c.GetParty(EscrowMediatorUser)
 	issuerParty := c.GetParty(CentralBankUser)
@@ -553,6 +555,7 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 		"inviteeEmail": inviteeEmail,
 		"inviteeRole":  role,
 		"inviteeType":  inviteeType,
+		"contractType": contractType,
 		"tokenHash":    tokenHash,
 		"asset":        toDamlAsset(asset),
 		"terms":        toDamlTerms(terms),
@@ -973,7 +976,7 @@ func toDamlAsset(a Asset) map[string]interface{} {
 }
 
 func toDamlTerms(t EscrowTerms) map[string]interface{} {
-	return map[string]interface{}{
+	m := map[string]interface{}{
 		"conditionDescription": t.ConditionDescription,
 		"conditionType":        t.ConditionType,
 		"evidenceRequired":     t.EvidenceRequired,
@@ -982,8 +985,21 @@ func toDamlTerms(t EscrowTerms) map[string]interface{} {
 		"disputeWindowDays":    t.DisputeWindowDays,
 		"partialSchedule":      []interface{}{}, // Empty list for now to match DAML type
 	}
-}
 
+	if t.MinAmount > 0 {
+		m["minAmount"] = map[string]interface{}{"tag": "Some", "value": strconv.FormatFloat(t.MinAmount, 'f', 2, 64)}
+	} else {
+		m["minAmount"] = map[string]interface{}{"tag": "None", "value": map[string]interface{}{}}
+	}
+
+	if t.MaxAmount > 0 {
+		m["maxAmount"] = map[string]interface{}{"tag": "Some", "value": strconv.FormatFloat(t.MaxAmount, 'f', 2, 64)}
+	} else {
+		m["maxAmount"] = map[string]interface{}{"tag": "None", "value": map[string]interface{}{}}
+	}
+
+	return m
+}
 func toMetadataJSON(m string) string {
 	return m
 }

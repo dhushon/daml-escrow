@@ -44,6 +44,12 @@ The backend translates OIDC scopes into cryptographic ledger rights:
 - **Scope `system:admin`:** Automatically grants `actAs` rights for the **CentralBank** party, enabling institutional oversight and disbursement actions.
 - **Default:** Every provisioned user is granted `actAs` rights for their own primary party.
 
+### D. Enriched Signatory Profiles (Phase 13)
+To bridge legal prose with digital identity, the platform authoritatively captures enriched signatory attributes during the Ingest/Verification phase:
+*   **Signatory Attributes:** `Title`, `Affiliation` (Law Firm/Consultancy), `Organization`, and `PhysicalAddress`.
+*   **KYC Governance:** A mandatory `KYCStatus` (PENDING, VERIFIED, REJECTED) is maintained in the institutional directory to ensure regulatory compliance before ledger commitment.
+*   **On-Chain Provenance:** These attributes are authoritatively stored in the DAML contract's `metadata` blob, ensuring that the identity of the person who signed the legacy agreement is cryptographically linked to the ledger transaction.
+
 ---
 
 ## 3. Home Realm Discovery (HRD) Strategy

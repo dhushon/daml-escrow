@@ -84,7 +84,7 @@ func (c *DamlClient) GetPartyMap() map[string]string {
 
 func (c *DamlClient) SetPartyMap(m map[string]string) {}
 
-func (c *DamlClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
+func (c *DamlClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, contractType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
 	return nil, fmt.Errorf("gRPC not implemented")
 }
 
