@@ -140,6 +140,11 @@ services:
     networks:
       - escrow-net
 
+networks:
+  escrow-net:
+    name: escrow-net
+    driver: bridge
+
 volumes:
   postgres_data:
 
