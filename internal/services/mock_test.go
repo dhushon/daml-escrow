@@ -27,3 +27,18 @@ func (m *MockAnalyticsService) GetWalletHistory(ctx context.Context, addr string
 	args := m.Called(ctx, addr)
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
+
+// AI Mock
+type MockAIProvider struct {
+	mock.Mock
+}
+
+func (m *MockAIProvider) ClassifyContract(ctx context.Context, allFileData [][]byte, mimeType string) (string, error) {
+	args := m.Called(ctx, allFileData, mimeType)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockAIProvider) ExtractTerms(ctx context.Context, allFileData [][]byte, mimeType string, contractType string, schema interface{}) (string, error) {
+	args := m.Called(ctx, allFileData, mimeType, contractType, schema)
+	return args.String(0), args.Error(1)
+}

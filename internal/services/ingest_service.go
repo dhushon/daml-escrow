@@ -11,13 +11,13 @@ import (
 
 type IngestService struct {
 	logger   *zap.Logger
-	ai       *AIService
+	ai       AIProvider
 	schema   *SchemaService
 	identity *IdentityService
 	storage  *StorageService
 }
 
-func NewIngestService(logger *zap.Logger, ai *AIService, schema *SchemaService, identity *IdentityService, storage *StorageService) *IngestService {
+func NewIngestService(logger *zap.Logger, ai AIProvider, schema *SchemaService, identity *IdentityService, storage *StorageService) *IngestService {
 	return &IngestService{
 		logger:   logger,
 		ai:       ai,

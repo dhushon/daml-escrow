@@ -133,3 +133,14 @@ bootstrap-gke: ## Authoritatively synchronize all tripartite nodes in GKE
 		./bin/ledger-sync -host localhost -port 7575 -impl stablecoin-escrow -iface stablecoin-escrow-interfaces -out log/gke-state-$$ns.json || true; \
 		kill $$PID || true; \
 	done
+
+## -- Testing & Verification --
+
+.PHONY: test
+test: ## Run all backend unit tests
+	@source ~/.zprofile && go test ./...
+
+.PHONY: test-storage
+test-storage: ## Authoritatively verify storage infrastructure (MinIO/GCS) and Read-Through logic
+	@echo "Running Storage Infrastructure & API Integration Tests..."
+	@source ~/.zprofile && go test -v -tags=integration -run TestEndToEndStorageMirroring_Infra ./internal/services/...

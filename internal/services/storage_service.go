@@ -154,6 +154,14 @@ func (s *StorageService) DownloadFromBucket(ctx context.Context, bucket, key str
 	return buf.Bytes(), err
 }
 
+func (s *StorageService) Delete(ctx context.Context, bucket, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	return err
+}
+
 func (s *StorageService) GetPresignedURL(ctx context.Context, bucket, key string, expiration time.Duration) (string, error) {
 	req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),

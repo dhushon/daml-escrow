@@ -9,6 +9,11 @@ import (
 	"google.golang.org/api/option"
 )
 
+type AIProvider interface {
+	ClassifyContract(ctx context.Context, allFileData [][]byte, mimeType string) (string, error)
+	ExtractTerms(ctx context.Context, allFileData [][]byte, mimeType string, contractType string, schema interface{}) (string, error)
+}
+
 type AIService struct {
 	client *genai.Client
 	model  *genai.GenerativeModel
