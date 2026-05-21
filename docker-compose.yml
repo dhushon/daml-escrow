@@ -116,12 +116,30 @@ services:
       db-init:
         condition: service_completed_successfully
     healthcheck:
-      # 1D97 is port 7575 in hex
       test: ["CMD-SHELL", "grep -q '1D97' /proc/net/tcp || grep -q '1D97' /proc/net/tcp6 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 60s
 
+  minio:
+    image: minio/minio
+    container_name: escrow-minio-dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=escrow
+      - MINIO_ROOT_PASSWORD=escrow-secret
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - escrow-net
+
 volumes:
   postgres_data:
+

@@ -198,10 +198,14 @@ func runServer() {
 	if err != nil {
 		logger.Fatal("failed to identity service", zap.Error(err))
 	}
+	storageService, err := services.NewStorageService(ctx, os.Getenv("STORAGE_BUCKET"))
+	if err != nil {
+		logger.Warn("storage service disabled (missing config)", zap.Error(err))
+	}
 	ingestService := services.NewIngestService(logger, aiService, schemaService, identityService)
 	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner)
 
-	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService)
+	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService, storageService)
 
 	router := chi.NewRouter()
 

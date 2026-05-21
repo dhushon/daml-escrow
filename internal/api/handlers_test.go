@@ -26,7 +26,6 @@ func TestHandler_GetHealth(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	
 	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
 	metrics := services.NewMetricsService()
 
@@ -34,7 +33,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
 
-	h := NewHandler(logger, svc, metrics, configSvc, nil, nil, nil, nil)
+	h := NewHandler(logger, svc, metrics, configSvc, nil, nil, nil, nil, nil)
 
 	t.Run("Health returns 200 and UP status", func(t *testing.T) {
 		mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("pkg-123", nil)
@@ -59,7 +58,7 @@ func TestHandler_GetIdentity(t *testing.T) {
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
 	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
-
+	
 	configContent := `
 providers:
   test.com:
@@ -75,7 +74,7 @@ providers:
 	defer func() { _ = db.Close() }()
 
 	idSvc, _ := services.NewIdentityService(tmpFile.Name(), db)
-	h := NewHandler(logger, svc, nil, nil, nil, idSvc, nil, nil)
+	h := NewHandler(logger, svc, nil, nil, nil, idSvc, nil, nil, nil)
 
 	t.Run("Existing Identity", func(t *testing.T) {
 		smock.ExpectQuery("SELECT .* FROM identities").
@@ -122,7 +121,7 @@ providers:
 	db2, _, _ := sqlmock.New()
 	defer func() { _ = db2.Close() }()
 	idSvc, _ := services.NewIdentityService(tmpFile.Name(), db2)
-	h := NewHandler(logger, nil, nil, nil, nil, idSvc, nil, nil)
+	h := NewHandler(logger, nil, nil, nil, nil, idSvc, nil, nil, nil)
 
 	t.Run("Successful Discovery", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v1/auth/discover?email=user@test.com", nil)
@@ -144,7 +143,7 @@ func TestHandler_OracleMilestoneTrigger(t *testing.T) {
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
 	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
-	h := NewHandler(logger, svc, nil, nil, nil, nil, nil, nil)
+	h := NewHandler(logger, svc, nil, nil, nil, nil, nil, nil, nil)
 
 	t.Run("Valid HMAC Trigger", func(t *testing.T) {
 		body := OracleWebhookRequest{

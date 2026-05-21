@@ -21,6 +21,7 @@ type Handler struct {
 	identityService  *services.IdentityService
 	schemaService    *services.SchemaService
 	ingestService    *services.IngestService
+	storageService   *services.StorageService
 }
 
 func NewHandler(
@@ -32,6 +33,7 @@ func NewHandler(
 	identityService *services.IdentityService,
 	schemaService *services.SchemaService,
 	ingestService *services.IngestService,
+	storageService *services.StorageService,
 ) *Handler {
 	return &Handler{
 		logger:           logger,
@@ -42,6 +44,7 @@ func NewHandler(
 		identityService:  identityService,
 		schemaService:    schemaService,
 		ingestService:    ingestService,
+		storageService:   storageService,
 	}
 }
 
