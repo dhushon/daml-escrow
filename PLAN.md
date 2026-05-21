@@ -109,32 +109,45 @@ Goals: Authoritative release and live verification under the vdatacloudai.com do
 
 ------------------------------------------------------------------------
 
-## Phase 11 --- Sovereign Negotiation & Off-Chain Drafts (IN PROGRESS)
+## Phase 11 --- Sovereign Negotiation & Off-Chain Drafts (COMPLETE)
 
 Goals: Implement cost-efficient institutional negotiation via intermediate draft tables and secure counterparty invitations.
 
-### Phase 11 Objectives
+### Achievements
 
-1. **Off-Chain Draft Intermediate:** Utilize the Postgres `user_config` database to house a `draft_escrows` table for low-cost bilateral negotiation before ledger commitment.
-2. **Invitation & Association Bridge:** Definitive logic for mapping email placeholders to registered chain identities upon "Promotion" to the ledger.
-3. **Bilateral Consensus Logic:** Iterative negotiation cockpit allowing either party to propose changes, resetting co-signatures until tripartite agreement is reached.
-4. **Authoritative Ledger Promotion:** A single high-assurance trigger that commits the agreement to the Canton Ledger and locks stablecoin holdings once all three parties authoritatively agree it is signature ready.
+1. **Off-Chain Draft Intermediate:** Utilized the Postgres `user_config` database to authoritatively house versioned negotiations, enabling low-cost bilateral iteration before ledger commitment.
+2. **Invitation & Association Bridge:** Implemented registration-code-based onboarding to bridge unprovisioned email identities to real ledger principals.
+3. **Bilateral Consensus Logic:** Built a negotiation cockpit where Depositors and Beneficiaries iterate on terms, authoritatively resetting approvals upon amendment.
+4. **Authoritative Ledger Promotion:** Built the promotion engine that authoritatively translates ratified drafts into active DAML contracts with immediate stablecoin locking.
 
-### Task 11.1: Draft Persistence Layer (COMPLETE)
+------------------------------------------------------------------------
 
-- [x] Refactor `user_config` schema with `draft_escrows` table and tripartite status tracking.
-- [x] Implement Go handlers for Draft CRUD and secure counterparty visibility.
-- [x] Track negotiation "Initiator" and their role to preserve bipartite rights.
+## Phase 15 --- Intelligent Ingest & Legal AI Alignment (COMPLETE)
 
-### Task 11.2: Invitation & Association Flow (COMPLETE)
+Goals: Authoritatively bridge legacy legal prose with DAML smart contracts using AI-native ingestion.
 
-- [x] Implement email-based placeholders for unprovisioned counterparties.
-- [x] Create the "Claim and Associate" logic to bridge fresh JIT identities to existing drafts.
+### Achievements
 
-### Task 11.3: Promotion & Settlement Trigger (COMPLETE)
+1. **AI Ingest Engine:** Integrated **Gemini-2.0-flash** to authoritatively classify typology and extract structured economic terms from multi-page agreements (PDF/PNG/TIFF).
+2. **Multi-Part File Sequencing:** Implemented a high-fidelity frontend **File Sequencer** allowing users to drag-and-drop file identifiers into their natural page order before processing.
+3. **Contract Typology:** Introduced industry-specific JSON schemas (**Import/Export**, **Real Estate**, **Grants**, **Corporate**) to authoritatively validate extracted terms before ledger commitment.
+4. **Enriched Identity Modeling:** Expanded the institutional directory to capture **Titles**, **Corporate Affiliations**, and **KYC Status**, authoritatively linking signatories to real system identities.
 
-- [x] Implement the promotion engine that authoritatively translates a ratified draft into an `ACTIVE` Daml contract.
-- [x] Enforce stablecoin locking as the final gate of the promotion flow.
+------------------------------------------------------------------------
+
+## Phase 16 --- High-Assurance Read-Through Storage & Mirroring (COMPLETE)
+
+Goals: Implement production-grade document privacy and sovereign storage mirroring.
+
+### Achievements
+
+1. **Valet Storage Pattern:** Implemented a high-assurance object storage model using **GCS (Production)** and **MinIO (Local)** with zero public access.
+2. **Read-Through Lazy Mirroring:** Built the authoritative distribution engine where document blobs are automatically "cached" in a party's local vault upon retrieval.
+3. **Dynamic Re-signing:** Implemented backend-authorized **Presigned URLs** that are dynamically re-signed for a user's specific vault for every fetch, authoritatively enforcing privacy.
+4. **SSE-KMS Encryption:** Enforced hardware-backed **Encryption at Rest** (SSE-KMS / GCP CMEK) for all institutional document blobs.
+5. **Authoritative Object Tagging:** Implemented S3/GCS tagging to link blobs to `contract-id`, `depositor`, and `beneficiary` identities, enabling cross-vault searchability.
+
+------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
