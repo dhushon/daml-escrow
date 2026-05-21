@@ -3,6 +3,8 @@ package services
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -17,10 +19,10 @@ import (
 type StorageService struct {
 	client        *s3.Client
 	presignClient *s3.PresignClient
-	bucket        string
+	bankBucket    string
 }
 
-func NewStorageService(ctx context.Context, bucket string) (*StorageService, error) {
+func NewStorageService(ctx context.Context, bankBucket string) (*StorageService, error) {
 	var cfg aws.Config
 	var err error
 
@@ -34,7 +36,6 @@ func NewStorageService(ctx context.Context, bucket string) (*StorageService, err
 
 	if endpoint != "" {
 		// High-Assurance Local Path: MinIO / S3-compatible
-		// Use static credentials for local development
 		cfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(region),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
@@ -59,22 +60,25 @@ func NewStorageService(ctx context.Context, bucket string) (*StorageService, err
 	return &StorageService{
 		client:        client,
 		presignClient: s3.NewPresignClient(client),
-		bucket:        bucket,
+		bankBucket:    bankBucket,
 	}, nil
 }
 
-func (s *StorageService) Upload(ctx context.Context, key string, data []byte, contentType string) (string, error) {
+// UploadVaulted stores a blob in a specific bucket and returns its SHA-256 hash.
+func (s *StorageService) UploadVaulted(ctx context.Context, bucket, key string, data []byte, contentType string) (string, string, error) {
 	kmsKeyID := os.Getenv("STORAGE_KMS_KEY_ID")
 	
+	// Authoritatively calculate SHA-256 hash for provenance
+	hash := sha256.Sum256(data)
+	contentHash := hex.EncodeToString(hash[:])
+
 	input := &s3.PutObjectInput{
-		Bucket:      aws.String(s.bucket),
+		Bucket:      aws.String(bucket),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(data),
 		ContentType: aws.String(contentType),
 	}
 
-	// High-Assurance: Authoritatively enforce encryption at rest if KMS key is provided
-	// Compatible with GCP CMEK (Customer-Managed Encryption Keys)
 	if kmsKeyID != "" {
 		input.ServerSideEncryption = types.ServerSideEncryptionAwsKms
 		input.SSEKMSKeyId = aws.String(kmsKeyID)
@@ -82,17 +86,54 @@ func (s *StorageService) Upload(ctx context.Context, key string, data []byte, co
 
 	_, err := s.client.PutObject(ctx, input)
 	if err != nil {
-		return "", fmt.Errorf("failed to upload to storage: %w", err)
+		return "", "", fmt.Errorf("failed to upload to vault %s: %w", bucket, err)
 	}
 
-	// High-Assurance: Return a logical URI. In production, this would be a signed URL or CloudFront link.
-	return fmt.Sprintf("storage://%s/%s", s.bucket, key), nil
+	return fmt.Sprintf("storage://%s/%s", bucket, key), contentHash, nil
 }
 
-func (s *StorageService) GetPresignedURL(ctx context.Context, key string, expiration time.Duration) (string, error) {
-	// High-Assurance: Authoritatively restrict access to a time-limited signed URL
+// ReadThroughMirror authoritatively implements the pull-on-demand pattern.
+func (s *StorageService) ReadThroughMirror(ctx context.Context, targetBucket, key string) ([]byte, error) {
+	// 1. Try to fetch from target bucket first
+	data, err := s.DownloadFromBucket(ctx, targetBucket, key)
+	if err == nil {
+		return data, nil
+	}
+
+	// 2. If missing, fetch from authoritative Bank Vault
+	bankData, err := s.DownloadFromBucket(ctx, s.bankBucket, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch from primary vault: %w", err)
+	}
+
+	// 3. Lazily mirror to target bucket
+	_, _, err = s.UploadVaulted(ctx, targetBucket, key, bankData, "application/pdf")
+	if err != nil {
+		// Non-blocking warning: serving from bank copy even if local caching fails
+		fmt.Printf("warning: failed to mirror blob to %s: %v\n", targetBucket, err)
+	}
+
+	return bankData, nil
+}
+
+func (s *StorageService) DownloadFromBucket(ctx context.Context, bucket, key string) ([]byte, error) {
+	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = output.Body.Close() }()
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(output.Body)
+	return buf.Bytes(), err
+}
+
+func (s *StorageService) GetPresignedURL(ctx context.Context, bucket, key string, expiration time.Duration) (string, error) {
 	req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	}, s3.WithPresignExpires(expiration))
 	
@@ -103,17 +144,20 @@ func (s *StorageService) GetPresignedURL(ctx context.Context, key string, expira
 	return req.URL, nil
 }
 
-func (s *StorageService) Download(ctx context.Context, key string) ([]byte, error) {
-	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to download from storage: %w", err)
-	}
-	defer func() { _ = output.Body.Close() }()
+// GetBankBucket returns the authoritative primary bucket name.
+func (s *StorageService) GetBankBucket() string {
+	return s.bankBucket
+}
 
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(output.Body)
-	return buf.Bytes(), err
+// VerifyIntegrity authoritatively checks a local blob's hash against the ledger record.
+func (s *StorageService) VerifyIntegrity(ctx context.Context, bucket, key, expectedHash string) (bool, error) {
+	data, err := s.DownloadFromBucket(ctx, bucket, key)
+	if err != nil {
+		return false, err
+	}
+
+	hash := sha256.Sum256(data)
+	actualHash := hex.EncodeToString(hash[:])
+	
+	return actualHash == expectedHash, nil
 }

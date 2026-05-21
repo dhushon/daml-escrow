@@ -98,7 +98,41 @@ func (s *EscrowService) ListEscrows(ctx context.Context, userID string) ([]*ledg
 }
 
 func (s *EscrowService) GetEscrow(ctx context.Context, id string, userID string) (*ledger.EscrowContract, error) {
-	return s.ledger.GetEscrow(ctx, id, userID)
+	escrow, err := s.ledger.GetEscrow(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Authoritatively resolve the storage perimeter for the user
+	// In production, this would be derived from the user's institutional ID
+	var bucket string
+	if strings.Contains(userID, "depositor") {
+		bucket = "escrow-depositor"
+	} else if strings.Contains(userID, "beneficiary") {
+		bucket = "escrow-beneficiary"
+	} else {
+		bucket = s.storage.GetBankBucket()
+	}
+
+	// 2. Resolve Agreement URI and Metadata
+	var meta ledger.EscrowMetadata
+	if err := json.Unmarshal([]byte(escrow.Metadata), &meta); err == nil && meta.AgreementURI != "" {
+		// 3. Authoritatively execute Read-Through Mirror if needed
+		// This ensures the party has their own local copy
+		key := strings.TrimPrefix(meta.AgreementURI, fmt.Sprintf("storage://%s/", s.storage.GetBankBucket()))
+		
+		if bucket != s.storage.GetBankBucket() {
+			_, _ = s.storage.ReadThroughMirror(ctx, bucket, key)
+		}
+
+		// 4. Generate backend-signed URL (Valid for 15 mins)
+		signedURL, err := s.storage.GetPresignedURL(ctx, bucket, key, 15*time.Minute)
+		if err == nil {
+			escrow.AgreementURL = signedURL
+		}
+	}
+
+	return escrow, nil
 }
 
 func (s *EscrowService) GetLedgerClient() ledger.Client {

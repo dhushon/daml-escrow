@@ -35,8 +35,10 @@ type EscrowTerms struct {
 }
 
 type EscrowMetadata struct {
-	SchemaURL string                 `json:"schemaUrl"`
-	Payload   map[string]interface{} `json:"payload"`
+	SchemaURL    string                 `json:"schemaUrl"`
+	AgreementURI string                 `json:"agreementUri,omitempty"` // storage://bank-vault/ingest/abc.pdf
+	ContentHash  string                 `json:"contentHash,omitempty"`  // SHA-256
+	Payload      map[string]interface{} `json:"payload"`
 }
 
 type SettlementTerms struct {
@@ -76,6 +78,7 @@ type EscrowContract struct {
 	Asset                 Asset       `json:"asset"`
 	Terms                 EscrowTerms `json:"terms"`
 	Metadata              string      `json:"metadata"`
+	AgreementURL          string      `json:"agreementUrl,omitempty"`
 	State                 string      `json:"state"`
 	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
 	DepositorAccepted     bool        `json:"depositorAccepted"`
