@@ -47,7 +47,16 @@
   - **Beneficiary Acceptance:** Added `BeneficiaryAcceptedProposal` state to handle multi-stage co-signing without requiring all parties online simultaneously.
 - **Audit Logging:** Every state transition MUST emit an `EscrowEvent` interface instance.
 
-## 6. JSON API V2 Serialization
+## 6. Authoritative Metadata & Provenance (Phase 13)
+
+- **Schema-Driven Data:** The `metadata` JSON blob MUST conform to a specific **Contract Typology** (ImportExport, RealEstate, Corporate). 
+- **Identity Linkage:** Signatory metadata (Title, Organization) MUST be authoritatively captured and stored in the `metadata` for off-ledger reconciliation.
+- **Valet Storage pattern:**
+    *   Documents (PDF/Image) MUST be stored in private, SSE-KMS encrypted object storage (GCS/MinIO).
+    *   The ledger MUST NOT store document blobs; it authoritatively stores the **S3 Logical URI** and **Content Hash** for integrity verification.
+    *   Access is authoritatively granted via **Backend-Signed URLs**, restricted to ledger-verified signatories only.
+
+## 7. JSON API V2 Serialization
 
 - **Nullary Constructors:** Data constructors with no fields MUST be represented as a plain string: `"payload": "ApproveMilestoneArg"`.
 - **Zero-Argument Choices:** Choices with no parameters MUST use an empty object: `"choiceArgument": {}`.

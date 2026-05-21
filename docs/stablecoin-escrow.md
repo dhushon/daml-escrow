@@ -27,12 +27,19 @@ Interoperability in the Canton Network is driven by the **CIP-0056** token stand
 - **Wallet-as-a-Service:** Integration with **Privy** or **Dfns** provides participants with secure, standard-compliant key management.
 
 ---
-
 ## 3. High-Assurance Escrow Workflow
 
-A robust escrow process requires three critical phases: Locking, Validation, and Terminal Settlement.
+A robust escrow process requires four critical phases: Ingest, Locking, Validation, and Terminal Settlement.
+
+### Step 0: Intelligent Ingest (AI-Native)
+The platform authoritatively bridges generic legal prose with cryptographic smart contracts via the **Ingest Engine**:
+*   **AI Extraction:** Multi-page PDFs or scanned images (PNG/TIFF) are processed by **Gemini-2.0-flash** to extract structured terms and signatory identities.
+*   **Typology Matching:** Agreements are classified into domain-specific schemas (**Import/Export**, **Real Estate**, **Grants**) to enforce authoritative metadata validation.
+*   **Enriched Identity:** Captures institutional metadata (Titles, Organizations, KYC Status) for on-chain provenance.
 
 ### Step 1: Locking (Daml)
+...
+
 The Depositor proposes an escrow agreement, specifying the amount and conditions. Once terms are signed, stablecoins (**USDCx**) are locked from the Depositor's account into the escrow smart contract using a Daml script or command.
 
 ### Step 2: Validation (Noves)

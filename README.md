@@ -29,6 +29,7 @@ graph TD
     Prometheus --> Grafana[Grafana Dashboards]
 
     BankAPI <-->|KMS| KMS[GCP KMS HSM]
+    BankAPI <-->|S3| GCS[(GCP Cloud Storage / MinIO)]
     BankAPI <-->|Port 8081| JSON[Daml JSON API V2]
     JSON <-->|Port 7575| Canton[Canton Ledger]
 ```
@@ -39,6 +40,9 @@ This platform implements a **Sovereign Tripartite Architecture**, ensuring each 
 
 *   **Institutional Development:** The platform authoritatively mirrors the tripartite GKE topology in the local environment. See the **[Tripartite Development Guide](./docs/DEVELOPMENT.md)** for details on the orchestration model and service registry.
 *   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/depositor`, `/beneficiary`).
+*   **High-Assurance Object Storage:** Authoritative document persistence using **GCP Cloud Storage (GCS)** or **MinIO** for local parity.
+    *   **Encryption at Rest:** Integrated with **SSE-KMS (GCP CMEK)** to ensure institutional document blobs are authoritatively encrypted using hardware-backed keys.
+    *   **Privacy-First Access:** Utilizes a **"Valet" Presigned URL pattern**; documents remain in private buckets with zero public access. The backend authoritatively generates time-limited signed tokens only for verified contract parties.
 *   **OpenTelemetry (OTEL) Integration:** Distributed tracing and real-time metrics capture the institutional request lifecycle across distributed nodes.
     *   **Authoritative Visibility:** See the **[Observability Guide](./docs/OBSERVABILITY.md)** for detailed telemetry flow diagrams and metrics dictionaries.
     *   **Jaeger Tracing:** Authoritative visualization of tripartite request spans tagged by `account.id`.
@@ -117,6 +121,14 @@ Hardened the physical infrastructure orchestration with three distinct security 
 *   **Tier 2 (Workload):** Orchestrates tripartite GKE nodes, KMS HSM keys, and pilot workloads.
 *   **Tier 3 (Identity):** Dedicated to SAML/Okta institutional federation.
 *   **Outcome:** Enforced strict principle separation and least-privilege operations, fulfilling the definitive SOC2 readiness mandate.
+
+### 8. Intelligent Ingest & Contract Typology (Phase 13)
+
+Introduced an AI-native ingestion engine to authoritatively bridge legacy legal prose with DAML smart contracts:
+*   **Multi-Stage AI Extraction:** Utilizes **Gemini-2.0-flash** to classify agreements and extract structured terms from multi-page PDFs or scanned images (PNG/TIFF).
+*   **Contract Typology:** Authoritative industry-specific schemas (Import/Export, Real Estate, Grants) ensure metadata is validated against domain-specific standards before ledger commitment.
+*   **HITL Verification:** High-fidelity Human-in-the-loop (HITL) UX with side-by-side original source and AI-extracted form for authoritative verification.
+*   **Enriched Identity:** Authoritatively matches signatories against the institutional directory, capturing titles, corporate affiliations, and KYC status for on-chain provenance.
 
 ------------------------------------------------------------------------
 

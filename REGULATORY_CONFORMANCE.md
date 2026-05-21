@@ -19,6 +19,9 @@ This document outlines the architectural decisions and technical controls implem
 *   **Node-Level Isolation:** By utilizing separate Canton participant nodes for Bank, Depositor, and Beneficiary, we ensure that data is physically segregated. 
     *   The **Beneficiary Node** never receives data about the **Depositor's** unrelated escrows.
     *   The **Bank Node** only sees the financial metadata required for settlement, not the private trade secrets (Evidence/Metadata) stored on participant nodes.
+*   **Authoritative Document Privacy:** External legal agreements (PDF/Image) are authoritatively protected using a **Zero-Public-Access** object storage model (GCS/MinIO).
+    *   **Encryption at Rest:** All blobs are authoritatively encrypted using **SSE-KMS (GCP CMEK)** hardware-backed keys.
+    *   **Authoritative Access (Valet Pattern):** The platform utilizes **Time-Limited Signed URLs**. Document access is only granted to authenticated parties authoritatively verified against the DAML contract's signatory set on the ledger.
 *   **Right to be Forgotten:** Archive patterns in DAML allow for the logical deletion of contract data while maintaining a cryptographic audit trail for regulators.
 
 ## 3. The "Four-Eyes" Principle & Identity
