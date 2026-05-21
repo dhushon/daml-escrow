@@ -169,6 +169,26 @@ export async function promoteDraftToLedger(draftID: string) {
     if (!response.ok) throw new Error('Failed to promote draft to ledger');
 }
 
+export async function ingestContract(file: File) {
+    const formData = new FormData();
+    formData.append('agreement', file);
+
+    const headers = getAuthHeaders();
+    // Remove Content-Type to let browser set boundary
+    delete headers['Content-Type'];
+
+    const response = await fetch(resolveApiPath('/ingest'), {
+        method: 'POST',
+        headers: headers,
+        body: formData
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to ingest contract');
+    }
+    return response.json();
+}
+
 export async function discoverAuth(email: string) {
     const response = await fetch(resolveApiPath(`/auth/discover?email=${encodeURIComponent(email)}`));
     if (!response.ok) throw new Error('Failed to discover auth provider');

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"fmt"
@@ -148,15 +149,21 @@ func (s *EscrowService) GetMetrics(ctx context.Context, userID string) (*ledger.
 func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, userID string) (string, error) {
 	s.logger.Info("promoting draft to ledger", zap.String("rootId", draft.RootID), zap.String("userID", userID))
 
+	var terms ledger.EscrowTerms
+	if err := json.Unmarshal(draft.Terms, &terms); err != nil {
+		s.logger.Warn("failed to unmarshal draft terms, using defaults", zap.Error(err))
+		terms = ledger.EscrowTerms{
+			ExpiryDate: time.Now().AddDate(0, 0, 30),
+		}
+	}
+
 	// 1. Authoritatively determine if beneficiary is registered
 	if draft.BeneficiaryID == "" {
 		// No beneficiary ID yet, we must create an Invitation
-		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.BeneficiaryEmail, "Beneficiary", "Business", ledger.Asset{
+		inv, err := s.ledger.CreateInvitation(ctx, draft.InitiatorID, draft.BeneficiaryEmail, "Beneficiary", "Business", draft.ContractType, ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
-		}, ledger.EscrowTerms{
-			ExpiryDate: time.Now().AddDate(0, 0, 30), // Default
-		})
+		}, terms)
 		if err != nil {
 			return "", fmt.Errorf("failed to create escrow invitation: %w", err)
 		}
@@ -165,17 +172,20 @@ func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, us
 
 	// 2. Beneficiary is registered, create a Proposal
 	req := ledger.CreateEscrowRequest{
-		Depositor:   draft.InitiatorID,
-		Beneficiary: draft.BeneficiaryID,
-		Mediator:    "EscrowMediator", // Default for now
+		Depositor:    draft.DepositorID,
+		Beneficiary:  draft.BeneficiaryID,
+		Mediator:     draft.MediatorID,
+		ContractType: draft.ContractType,
 		Asset: ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
 		},
-		Terms: ledger.EscrowTerms{
-			ExpiryDate: time.Now().AddDate(0, 0, 30),
-		},
+		Terms:    terms,
 		Metadata: string(draft.Metadata),
+	}
+
+	if req.Mediator == "" {
+		req.Mediator = "EscrowMediator"
 	}
 
 	proposal, err := s.ledger.ProposeEscrow(ctx, req)

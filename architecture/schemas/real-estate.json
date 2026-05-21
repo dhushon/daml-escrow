@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stablecoin-escrow.io/schemas/real-estate.v1.json",
+  "title": "Real Estate Escrow Metadata",
+  "type": "object",
+  "properties": {
+    "propertyAddress": { "type": "string" },
+    "parcelId": { "type": "string" },
+    "closingDate": { "type": "string", "format": "date-time" },
+    "titleInsuranceProvider": { "type": "string" },
+    "inspectionContingency": { "type": "boolean", "default": true },
+    "earnestMoneyAmount": { "type": "number" },
+    "deedReference": { "type": "string" }
+  },
+  "required": ["propertyAddress", "parcelId", "closingDate"]
+}

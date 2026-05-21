@@ -1,0 +1,55 @@
+---
+interface Props {
+	id: string;
+	accept?: string;
+	label?: string;
+}
+
+const { id, accept = ".pdf", label = "Drop agreement PDF here or click to upload" } = Astro.props;
+---
+
+<div class="upload-zone relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center transition-all hover:border-blue-500 group cursor-pointer bg-white dark:bg-slate-900 shadow-sm">
+	<input type="file" id={id} accept={accept} class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+	
+	<div class="space-y-4">
+		<div class="mx-auto w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+			</svg>
+		</div>
+		
+		<div class="space-y-1">
+			<p class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">{label}</p>
+			<p class="text-xs text-slate-500 dark:text-slate-400">Institutional Escrow Agreement (SEC Form, Import/Export, etc.)</p>
+		</div>
+		
+		<div id={`${id}-filename`} class="hidden text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full inline-block"></div>
+	</div>
+</div>
+
+<script define:vars={{ id }}>
+	const zone = document.querySelector('.upload-zone');
+	const input = document.getElementById(id);
+	const filenameDisplay = document.getElementById(`${id}-filename`);
+
+	input?.addEventListener('change', (e) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			filenameDisplay.textContent = file.name;
+			filenameDisplay.classList.remove('hidden');
+			zone?.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/10');
+			
+			// Dispatch custom event for parent pages
+			window.dispatchEvent(new CustomEvent('file-selected', { detail: { id, file } }));
+		}
+	});
+
+	zone?.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		zone.classList.add('border-blue-500', 'scale-[1.01]');
+	});
+
+	zone?.addEventListener('dragleave', () => {
+		zone.classList.remove('border-blue-500', 'scale-[1.01]');
+	});
+</script>

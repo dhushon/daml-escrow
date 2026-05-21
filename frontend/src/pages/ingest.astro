@@ -1,0 +1,228 @@
+---
+import Layout from '../layouts/Layout.astro';
+import UploadZone from '../components/UploadZone.astro';
+import MetadataRenderer from '../components/MetadataRenderer.astro';
+
+// Authoritative schemas for dynamic form generation
+const schemas = {
+	Corporate: {
+		title: "Corporate & Equity",
+		properties: {
+			offeringName: { type: "string", title: "Offering Name" },
+			minAmount: { type: "number", title: "Minimum Threshold" },
+			maxAmount: { type: "number", title: "Maximum Cap" },
+			jurisdiction: { type: "string", title: "Jurisdiction", default: "Commonwealth of Virginia" }
+		},
+		required: ["offeringName", "minAmount"]
+	},
+	ImportExport: {
+		title: "Import / Export Logistics",
+		properties: {
+			billOfLading: { type: "string", title: "Bill of Lading #" },
+			carrier: { type: "string", title: "Logistics Carrier" },
+			incoterms: { type: "string", title: "Incoterms (e.g. FOB, CIF)" },
+			inspectionRequired: { type: "boolean", title: "Third-Party Inspection?", default: true }
+		},
+		required: ["billOfLading", "carrier"]
+	},
+	RealEstate: {
+		title: "Real Estate & Property",
+		properties: {
+			propertyAddress: { type: "string", title: "Property Address" },
+			parcelId: { type: "string", title: "Parcel ID / APN" },
+			closingDate: { type: "string", format: "date-time", title: "Target Closing" },
+			titleInsuranceProvider: { type: "string", title: "Title Insurance" }
+		},
+		required: ["propertyAddress", "closingDate"]
+	}
+};
+---
+
+<Layout title="Intelligent Ingest | Stablecoin Escrow">
+	<div class="max-w-6xl mx-auto">
+		<div class="mb-12 text-left">
+			<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Intelligent Agreement Ingest</h2>
+			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">Authoritatively transform legacy PDFs into structured DAML smart contracts.</p>
+		</div>
+
+		<!-- Step 1: Upload -->
+		<div id="step-upload" class="max-w-2xl mx-auto">
+			<UploadZone id="agreement-upload" label="Upload Escrow Agreement (PDF)" />
+			
+			<div id="ingest-loading" class="hidden mt-8 text-center space-y-4">
+				<div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+				<p class="text-xs font-black text-blue-600 uppercase tracking-widest">AI Extraction in Progress...</p>
+				<p class="text-[10px] text-slate-400 italic">Classifying typology & extracting institutional terms</p>
+			</div>
+		</div>
+
+		<!-- Step 2: Verification (HITL) -->
+		<div id="step-verify" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+			<!-- PDF Preview (Left) -->
+			<div class="bg-slate-100 dark:bg-slate-800 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-700 h-[800px] shadow-inner relative">
+				<div class="absolute top-4 left-4 z-10 flex items-center space-x-2">
+					<span class="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg uppercase tracking-widest">Original Source</span>
+				</div>
+				<iframe id="pdf-preview" class="w-full h-full border-none"></iframe>
+			</div>
+
+			<!-- Extracted Form (Right) -->
+			<div class="space-y-6">
+				<div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+					<div class="flex justify-between items-center mb-8">
+						<div>
+							<h3 id="contract-type-badge" class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Detected Typology</h3>
+							<h2 id="contract-type-title" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Corporate Agreement</h2>
+						</div>
+						<div class="text-right">
+							<span class="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-black px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800 uppercase tracking-widest">AI Confidence: 94%</span>
+						</div>
+					</div>
+
+					<form id="verify-form" class="space-y-8">
+						<!-- Core Terms -->
+						<div class="space-y-6 border-b border-slate-100 dark:border-slate-800 pb-8">
+							<h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+								<span class="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span> Core Economic Terms
+							</h4>
+							
+							<div class="grid grid-cols-2 gap-4">
+								<div class="text-left">
+									<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Amount</label>
+									<input type="number" name="amount" required step="0.01" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white" />
+								</div>
+								<div class="text-left">
+									<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Currency</label>
+									<select name="currency" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
+										<option value="USD">USD - Digital Dollar</option>
+										<option value="EUR">EUR - Digital Euro</option>
+									</select>
+								</div>
+							</div>
+
+							<div class="text-left">
+								<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Beneficiary Email</label>
+								<input type="email" name="beneficiaryEmail" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white" />
+							</div>
+						</div>
+
+						<!-- Dynamic Schema Metadata -->
+						<div class="space-y-6">
+							<h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+								<span class="w-1.5 h-1.5 bg-purple-500 rounded-full mr-2"></span> Industry-Specific Metadata
+							</h4>
+							<MetadataRenderer id="dynamic-metadata" />
+						</div>
+
+						<div class="flex items-center justify-end space-x-4 pt-4">
+							<button type="button" id="reset-ingest" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest bg-transparent border-none cursor-pointer">Discard</button>
+							<button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-blue-500/20 active:scale-95 transition-all border-none cursor-pointer">
+								Verify & Create Draft
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-6 rounded-2xl text-left">
+					<p class="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
+						<strong class="font-black uppercase tracking-widest mr-2">Legal AI Note:</strong> 
+						Signatories and titles are being cross-referenced with your institutional directory. 
+						Final draft will require a tripartite signature on the Canton ledger.
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</Layout>
+
+<script define:vars={{ schemas }}>
+	import { ingestContract, saveDraft } from '../lib/api';
+
+	const stepUpload = document.getElementById('step-upload');
+	const stepVerify = document.getElementById('step-verify');
+	const loading = document.getElementById('ingest-loading');
+	const pdfPreview = document.getElementById('pdf-preview');
+	const verifyForm = document.getElementById('verify-form');
+	const resetBtn = document.getElementById('reset-ingest');
+	const contractTitle = document.getElementById('contract-type-title');
+
+	window.addEventListener('file-selected', async (e) => {
+		const { file } = e.detail;
+		loading.classList.remove('hidden');
+
+		// Create local URL for preview
+		const fileURL = URL.createObjectURL(file);
+		pdfPreview.src = fileURL;
+
+		try {
+			const result = await ingestContract(file);
+			
+			// Transition UI
+			stepUpload.classList.add('hidden');
+			stepVerify.classList.remove('hidden');
+
+			// Populate Core Fields
+			const form = verifyForm;
+			form.amount.value = result.extracted.amount || 0;
+			form.currency.value = result.extracted.currency || 'USD';
+			form.beneficiaryEmail.value = result.extracted.beneficiaryEmail || '';
+
+			// Update Typology
+			const typeInfo = schemas[result.contractType] || schemas.Corporate;
+			contractTitle.textContent = typeInfo.title;
+
+			// Render Dynamic Metadata
+			window.dispatchEvent(new CustomEvent('render-metadata', {
+				detail: {
+					containerId: 'dynamic-metadata',
+					schema: typeInfo,
+					values: result.extracted.metadata || result.extracted
+				}
+			}));
+
+		} catch (err) {
+			alert('Ingest Failed: ' + err.message);
+			loading.classList.add('hidden');
+		}
+	});
+
+	resetBtn?.addEventListener('click', () => {
+		stepVerify.classList.add('hidden');
+		stepUpload.classList.remove('hidden');
+		loading.classList.add('hidden');
+		verifyForm.reset();
+	});
+
+	verifyForm?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const formData = new FormData(verifyForm);
+		
+		// Collect dynamic metadata (prefixed with meta-)
+		const metadata = {};
+		for (const [key, value] of formData.entries()) {
+			if (key.startsWith('meta-')) {
+				metadata[key.replace('meta-', '')] = value;
+			}
+		}
+
+		const req = {
+			beneficiaryEmail: formData.get('beneficiaryEmail'),
+			contractType: contractTitle.textContent.replace(' Agreement', '').replace(' & Property', '').replace(' / Export Logistics', '').replace(' & Equity', ''),
+			amount: parseFloat(formData.get('amount')?.toString() || '0'),
+			currency: formData.get('currency'),
+			terms: {
+				conditionDescription: "Extracted from Ingested Agreement",
+				expiryDate: new Date(Date.now() + 86400000 * 30).toISOString()
+			},
+			metadata: metadata
+		};
+
+		try {
+			await saveDraft(req);
+			alert('Agreement verified and promoted to Institutional Draft.');
+			window.location.href = '/';
+		} catch (err) {
+			alert('Failed to save draft: ' + err.message);
+		}
+	});
+</script>

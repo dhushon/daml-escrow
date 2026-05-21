@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"daml-escrow/internal/ledger"
@@ -18,6 +19,8 @@ type Handler struct {
 	configService    *services.ConfigService
 	analyticsService *services.AnalyticsService
 	identityService  *services.IdentityService
+	schemaService    *services.SchemaService
+	ingestService    *services.IngestService
 }
 
 func NewHandler(
@@ -27,6 +30,8 @@ func NewHandler(
 	configService *services.ConfigService,
 	analyticsService *services.AnalyticsService,
 	identityService *services.IdentityService,
+	schemaService *services.SchemaService,
+	ingestService *services.IngestService,
 ) *Handler {
 	return &Handler{
 		logger:           logger,
@@ -35,6 +40,8 @@ func NewHandler(
 		configService:    configService,
 		analyticsService: analyticsService,
 		identityService:  identityService,
+		schemaService:    schemaService,
+		ingestService:    ingestService,
 	}
 }
 
@@ -126,6 +133,7 @@ func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		BeneficiaryEmail string          `json:"beneficiaryEmail"`
+		ContractType     string          `json:"contractType"`
 		Amount           float64         `json:"amount"`
 		Currency         string          `json:"currency"`
 		Terms            json.RawMessage `json:"terms"`
@@ -134,6 +142,10 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
+	}
+
+	if body.ContractType == "" {
+		body.ContractType = "Corporate"
 	}
 
 	userID, _ := r.Context().Value(AuthSubKey).(string)
@@ -146,7 +158,7 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 		role = identity.Role
 	}
 
-	draft, err := h.configService.CreateDraft(userID, role, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
+	draft, err := h.configService.CreateDraft(userID, role, body.ContractType, body.BeneficiaryEmail, body.Amount, body.Currency, body.Terms, body.Metadata)
 	if err != nil {
 		h.logger.Error("failed to create draft", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
@@ -306,7 +318,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		"expiryDate":           req.ExpiryDate,
 	})
 	
-	draft, err := h.configService.CreateDraft(userID, role, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
+	draft, err := h.configService.CreateDraft(userID, role, req.ContractType, req.InviteeEmail, req.Amount, req.Currency, terms, nil)
 	if err != nil {
 		h.logger.Error("failed to create institutional invitation draft", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -600,3 +612,43 @@ func (h *Handler) ListWallets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(wallets)
 }
+
+func (h *Handler) IngestContract(w http.ResponseWriter, r *http.Request) {
+	if h.ingestService == nil {
+		http.Error(w, "ingest service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// 1. Parse Multipart Form
+	err := r.ParseMultipartForm(10 << 20) // 10MB limit
+	if err != nil {
+		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("agreement")
+	if err != nil {
+		http.Error(w, "missing 'agreement' file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// 2. Read File Data
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Orchestrate AI Ingest
+	result, err := h.ingestService.IngestPDF(r.Context(), fileData)
+	if err != nil {
+		h.logger.Error("contract ingest failed", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+

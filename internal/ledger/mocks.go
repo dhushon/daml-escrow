@@ -102,8 +102,8 @@ func (m *MockLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 	return args.Get(0).([]*EscrowProposal), args.Error(1)
 }
 
-func (m *MockLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
-	args := m.Called(ctx, inviterID, inviteeEmail, role, inviteeType, asset, terms)
+func (m *MockLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, contractType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
+	args := m.Called(ctx, inviterID, inviteeEmail, role, inviteeType, contractType, asset, terms)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

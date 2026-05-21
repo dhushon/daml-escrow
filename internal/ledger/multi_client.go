@@ -203,8 +203,8 @@ func (m *MultiLedgerClient) GetEscrow(ctx context.Context, id string, userID str
 	return m.getClientForUser(userID).GetEscrow(ctx, id, userID)
 }
 
-func (m *MultiLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
-	return m.getClientForUser(inviterID).CreateInvitation(ctx, inviterID, inviteeEmail, role, inviteeType, asset, terms)
+func (m *MultiLedgerClient) CreateInvitation(ctx context.Context, inviterID string, inviteeEmail string, role string, inviteeType string, contractType string, asset Asset, terms EscrowTerms) (*EscrowInvitation, error) {
+	return m.getClientForUser(inviterID).CreateInvitation(ctx, inviterID, inviteeEmail, role, inviteeType, contractType, asset, terms)
 }
 
 func (m *MultiLedgerClient) ClaimInvitation(ctx context.Context, inviteID string, claimantID string) (*EscrowProposal, error) {

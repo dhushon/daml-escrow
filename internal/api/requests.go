@@ -133,6 +133,7 @@ type CreateInvitationRequest struct {
         InviteeEmail         string    `json:"inviteeEmail"`
         InviteeRole          string    `json:"inviteeRole"` // Depositor or Beneficiary
         InviteeType          string    `json:"inviteeType"`
+        ContractType         string    `json:"contractType"` // ImportExport, RealEstate, etc.
         AssetType            string    `json:"assetType"`
         AssetID              string    `json:"assetId"`
         Amount               float64   `json:"amount"`
@@ -151,6 +152,9 @@ func (r *CreateInvitationRequest) Validate() error {
         }
         if r.InviteeRole != "Depositor" && r.InviteeRole != "Beneficiary" {
                 return errors.New("inviteeRole must be 'Depositor' or 'Beneficiary'")
+        }
+        if strings.TrimSpace(r.ContractType) == "" {
+                r.ContractType = "Corporate" // Default
         }
         if r.Amount <= 0 {
                 return errors.New("amount must be greater than zero")

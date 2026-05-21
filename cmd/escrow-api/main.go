@@ -186,13 +186,23 @@ func runServer() {
 
 	complianceService := services.NewMockCompliance()
 	analyticsService := services.NewAnalyticsService(logger)
-	identityService, err := services.NewIdentityService("config/identity_providers.yaml")
+	schemaService, err := services.NewSchemaService("architecture/schemas")
+	if err != nil {
+		logger.Fatal("failed to initialize schema service", zap.Error(err))
+	}
+	aiService, err := services.NewAIService(ctx)
+	if err != nil {
+		logger.Warn("AI service disabled (missing API key or config)", zap.Error(err))
+	}
+	identityService, err := services.NewIdentityService("config/identity_providers.yaml", configService.GetDB())
 	if err != nil {
 		logger.Fatal("failed to identity service", zap.Error(err))
 	}
+	ingestService := services.NewIngestService(logger, aiService, schemaService, identityService)
 	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner)
 
-	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService)
+	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService)
+
 	router := chi.NewRouter()
 
 	if telemetry != nil {
@@ -223,6 +233,7 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 		r.Get("/auth/me", handler.GetIdentity)
 
 		// --- Phase 11: Draft & Negotiation ---
+		r.Post("/ingest", handler.IngestContract)
 		r.Post("/drafts", handler.SaveDraft)
 		r.Get("/drafts", handler.ListDrafts)
 		r.Get("/drafts/{draftID}", handler.GetDraft)

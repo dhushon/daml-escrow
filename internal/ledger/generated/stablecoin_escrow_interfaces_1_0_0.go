@@ -261,6 +261,8 @@ type EscrowTerms struct {
 	GracePeriodDays      types.INT64     `json:"gracePeriodDays"`
 	DisputeWindowDays    types.INT64     `json:"disputeWindowDays"`
 	PartialSchedule      []types.Tuple2  `json:"partialSchedule"`
+	MinAmount            *types.NUMERIC  `json:"minAmount" hex:"optional"`
+	MaxAmount            *types.NUMERIC  `json:"maxAmount" hex:"optional"`
 }
 
 // ToMap converts EscrowTerms to a map for DAML arguments
@@ -291,6 +293,28 @@ func (t EscrowTerms) ToMap() map[string]any {
 		}
 		return res
 	}()
+
+	if t.MinAmount != nil {
+		m["minAmount"] = map[string]any{
+			"_type": "optional",
+			"value": *t.MinAmount,
+		}
+	} else {
+		m["minAmount"] = map[string]any{
+			"_type": "optional",
+		}
+	}
+
+	if t.MaxAmount != nil {
+		m["maxAmount"] = map[string]any{
+			"_type": "optional",
+			"value": *t.MaxAmount,
+		}
+	} else {
+		m["maxAmount"] = map[string]any{
+			"_type": "optional",
+		}
+	}
 
 	return m
 }
@@ -534,15 +558,16 @@ func (t *Unlock) UnmarshalJSON(data []byte) error {
 
 // View is a Record type
 type View struct {
-	Issuer      types.PARTY `json:"issuer"`
-	Initiator   types.PARTY `json:"initiator"`
-	Depositor   types.PARTY `json:"depositor"`
-	Beneficiary types.PARTY `json:"beneficiary"`
-	Mediator    types.PARTY `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	State       EscrowState `json:"state"`
-	Metadata    types.TEXT  `json:"metadata"`
+	Issuer       types.PARTY `json:"issuer"`
+	Initiator    types.PARTY `json:"initiator"`
+	Depositor    types.PARTY `json:"depositor"`
+	Beneficiary  types.PARTY `json:"beneficiary"`
+	Mediator     types.PARTY `json:"mediator"`
+	ContractType types.TEXT  `json:"contractType"`
+	Asset        Asset       `json:"asset"`
+	Terms        EscrowTerms `json:"terms"`
+	State        EscrowState `json:"state"`
+	Metadata     types.TEXT  `json:"metadata"`
 }
 
 // ToMap converts View to a map for DAML arguments
@@ -558,6 +583,8 @@ func (t View) ToMap() map[string]any {
 	m["beneficiary"] = t.Beneficiary.ToMap()
 
 	m["mediator"] = t.Mediator.ToMap()
+
+	m["contractType"] = string(t.ContractType)
 
 	m["asset"] = func() any {
 		type mapper interface{ toMap() map[string]any }

@@ -60,11 +60,11 @@ func TestEscrowService_Unit(t *testing.T) {
 	t.Run("Invitation Flow", func(t *testing.T) {
 		asset := ledger.Asset{Amount: 100}
 		terms := ledger.EscrowTerms{ConditionDescription: "Test"}
-		mockLedger.On("CreateInvitation", mock.Anything, "Bank", "user@test.com", "Depositor", "Residential", asset, terms).
+		mockLedger.On("CreateInvitation", mock.Anything, "Bank", "user@test.com", "Depositor", "Business", "Corporate", asset, terms).
 			Return(&ledger.EscrowInvitation{ID: "inv-123"}, nil)
 
 		// Call through ledger client
-		resp, err := svc.GetLedgerClient().CreateInvitation(context.Background(), "Bank", "user@test.com", "Depositor", "Residential", asset, terms)
+		resp, err := svc.GetLedgerClient().CreateInvitation(context.Background(), "Bank", "user@test.com", "Depositor", "Business", "Corporate", asset, terms)
 		assert.NoError(t, err)
 		assert.Equal(t, "inv-123", resp.ID)
 	})

@@ -11,14 +11,15 @@ import DA.Optional (fromSome)
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
-    issuer      : Party
-    initiator   : Party -- Tracks the party who authoritatively proposed the deal
-    depositor   : Party
-    beneficiary : Party
-    mediator    : Party
-    asset       : Asset
-    terms       : EscrowTerms
-    metadata    : Text
+    issuer       : Party
+    initiator    : Party -- Tracks the party who authoritatively proposed the deal
+    depositor    : Party
+    beneficiary  : Party
+    mediator     : Party
+    contractType : Text -- Corporate, ImportExport, RealEstate, etc.
+    asset        : Asset
+    terms        : EscrowTerms
+    metadata     : Text
   where
     signatory issuer
     observer  depositor, beneficiary, mediator
@@ -35,6 +36,7 @@ template EscrowProposal
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = DRAFT
@@ -67,14 +69,15 @@ template EscrowProposal
 -- ---------------------------------------------------------------------------
 template BeneficiaryAcceptedProposal
   with
-    issuer      : Party
-    initiator   : Party
-    depositor   : Party
-    beneficiary : Party
-    mediator    : Party
-    asset       : Asset
-    terms       : EscrowTerms
-    metadata    : Text
+    issuer       : Party
+    initiator    : Party
+    depositor    : Party
+    beneficiary  : Party
+    mediator     : Party
+    contractType : Text
+    asset        : Asset
+    terms        : EscrowTerms
+    metadata     : Text
   where
     signatory issuer, beneficiary
     observer  depositor, mediator
@@ -89,6 +92,7 @@ template BeneficiaryAcceptedProposal
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = DRAFT
@@ -109,6 +113,7 @@ template BeneficiaryAcceptedProposal
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset with 
             custodyRef = Some custodyRef
             holdingCid = Some holdingCid
@@ -121,15 +126,16 @@ template BeneficiaryAcceptedProposal
 -- ---------------------------------------------------------------------------
 template EscrowContract
   with
-    issuer      : Party
-    initiator   : Party
-    depositor   : Party
-    beneficiary : Party
-    mediator    : Party
-    asset       : Asset
-    terms       : EscrowTerms
-    metadata    : Text
-    state       : EscrowState
+    issuer       : Party
+    initiator    : Party
+    depositor    : Party
+    beneficiary  : Party
+    mediator     : Party
+    contractType : Text
+    asset        : Asset
+    terms        : EscrowTerms
+    metadata     : Text
+    state        : EscrowState
   where
     signatory issuer, depositor, beneficiary
     observer  mediator
@@ -145,6 +151,7 @@ template EscrowContract
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = state
@@ -185,6 +192,7 @@ template EscrowContract
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
@@ -204,6 +212,7 @@ template EscrowContract
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
@@ -219,6 +228,7 @@ template DisputeRecord
     depositor    : Party
     beneficiary  : Party
     mediator     : Party
+    contractType : Text
     asset        : Asset
     terms        : EscrowTerms
     metadata     : Text
@@ -237,6 +247,7 @@ template DisputeRecord
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = DISPUTED
@@ -255,6 +266,7 @@ template DisputeRecord
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
@@ -272,6 +284,7 @@ template SettlementRecord
     depositor           : Party
     beneficiary         : Party
     mediator            : Party
+    contractType        : Text
     asset               : Asset
     terms               : EscrowTerms
     metadata            : Text
@@ -291,6 +304,7 @@ template SettlementRecord
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = PROPOSED
@@ -317,6 +331,7 @@ template SettlementRecord
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
@@ -331,6 +346,7 @@ template SettlementRecord
           depositor = depositor
           beneficiary = beneficiary
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
@@ -341,15 +357,16 @@ template SettlementRecord
 -- ---------------------------------------------------------------------------
 template DisbursementOrder
   with
-    issuer     : Party
-    initiator  : Party
-    depositor  : Party
-    beneficiary: Party
-    mediator   : Party
-    asset      : Asset
-    terms      : EscrowTerms
-    metadata   : Text
-    settlement : SettlementTerms
+    issuer       : Party
+    initiator    : Party
+    depositor    : Party
+    beneficiary  : Party
+    mediator     : Party
+    contractType : Text
+    asset        : Asset
+    terms        : EscrowTerms
+    metadata     : Text
+    settlement   : SettlementTerms
   where
     signatory issuer, depositor, beneficiary, mediator
 
@@ -363,6 +380,7 @@ template DisbursementOrder
         depositor = depositor
         beneficiary = beneficiary
         mediator = mediator
+        contractType = contractType
         asset = asset
         terms = terms
         state = SETTLED
@@ -402,6 +420,7 @@ template EscrowInvitation
     inviteeEmail : Text
     inviteeRole  : Text -- "Depositor" or "Beneficiary"
     inviteeType  : Text -- "Individual" or "Business"
+    contractType : Text
     tokenHash    : Text
     asset        : Asset
     terms        : EscrowTerms
@@ -434,6 +453,7 @@ template EscrowInvitation
           depositor = if isInviteeDepositor then claimingParty else inviter
           beneficiary = if isInviteeDepositor then inviter else claimingParty
           mediator = mediator
+          contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata

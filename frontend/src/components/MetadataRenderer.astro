@@ -1,0 +1,89 @@
+---
+interface Props {
+	id: string;
+}
+
+const { id } = Astro.props;
+---
+
+<div id={id} class="metadata-renderer space-y-6">
+	<div class="text-center py-12 text-slate-400 italic text-sm">
+		Upload a document to generate schema-driven fields
+	</div>
+</div>
+
+<script>
+	/**
+	 * MetadataRenderer authoritatively generates form inputs from a JSON Schema.
+	 */
+	window.addEventListener('render-metadata', (e: any) => {
+		const { containerId, schema, values } = e.detail;
+		const container = document.getElementById(containerId);
+		if (!container) return;
+
+		container.innerHTML = ''; // Clear
+
+		if (!schema || !schema.properties) {
+			container.innerHTML = '<p class="text-xs text-slate-400 italic">No additional metadata required for this type.</p>';
+			return;
+		}
+
+		const properties = schema.properties;
+		const required = schema.required || [];
+
+		Object.keys(properties).forEach(key => {
+			const prop = properties[key];
+			const val = values?.[key] || prop.default || '';
+			const isRequired = required.includes(key);
+
+			const fieldDiv = document.createElement('div');
+			fieldDiv.className = 'text-left';
+
+			const label = document.createElement('label');
+			label.className = 'block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5';
+			label.innerHTML = `${prop.title || key} ${isRequired ? '<span class="text-red-500">*</span>' : ''}`;
+			fieldDiv.appendChild(label);
+
+			let input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+			if (prop.type === 'boolean') {
+				const select = document.createElement('select');
+				select.name = `meta-${key}`;
+				select.className = 'w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white';
+				select.innerHTML = `
+					<option value="true" ${val === true ? 'selected' : ''}>Yes</option>
+					<option value="false" ${val === false ? 'selected' : ''}>No</option>
+				`;
+				input = select;
+			} else if (prop.format === 'date-time') {
+				input = document.createElement('input');
+				input.type = 'datetime-local';
+				input.name = `meta-${key}`;
+				// Simple ISO to local datetime-local format conversion
+				if (val) {
+					try { input.value = new Date(val).toISOString().slice(0, 16); } catch(e) {}
+				}
+			} else {
+				input = document.createElement('input');
+				input.type = prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text';
+				input.name = `meta-${key}`;
+				input.value = val;
+				if (prop.type === 'number') (input as HTMLInputElement).step = '0.01';
+			}
+
+			input.className = 'w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white';
+			if (isRequired) input.required = true;
+			
+			fieldDiv.appendChild(input);
+
+			if (prop.description) {
+				const desc = document.createElement('p');
+				desc.className = 'mt-1 text-[9px] text-slate-500 italic';
+				desc.textContent = prop.description;
+				fieldDiv.appendChild(desc);
+			}
+
+			container.appendChild(fieldDiv);
+		});
+	});
+</script>

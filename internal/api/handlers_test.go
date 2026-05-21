@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +34,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	defer func() { _ = db.Close() }()
 	configSvc := services.NewMockConfigService(db)
 
-	h := NewHandler(logger, svc, metrics, configSvc, nil, nil)
+	h := NewHandler(logger, svc, metrics, configSvc, nil, nil, nil, nil)
 
 	t.Run("Health returns 200 and UP status", func(t *testing.T) {
 		mockLedger.On("SearchPackageID", mock.Anything, "stablecoin-escrow").Return("pkg-123", nil)
@@ -70,10 +71,17 @@ providers:
 	_, _ = tmpFile.Write([]byte(configContent))
 	_ = tmpFile.Close()
 
-	idSvc, _ := services.NewIdentityService(tmpFile.Name())
-	h := NewHandler(logger, svc, nil, nil, nil, idSvc)
+	db, smock, _ := sqlmock.New()
+	defer func() { _ = db.Close() }()
+
+	idSvc, _ := services.NewIdentityService(tmpFile.Name(), db)
+	h := NewHandler(logger, svc, nil, nil, nil, idSvc, nil, nil)
 
 	t.Run("Existing Identity", func(t *testing.T) {
+		smock.ExpectQuery("SELECT .* FROM identities").
+			WithArgs("user-123").
+			WillReturnError(sql.ErrNoRows)
+
 		ctx := context.WithValue(context.Background(), AuthSubKey, "user-123")
 		ctx = context.WithValue(ctx, EmailKey, "user@test.com")
 		req, _ := http.NewRequestWithContext(ctx, "GET", "/api/v1/auth/me", nil)
@@ -81,7 +89,14 @@ providers:
 		mockLedger.On("GetIdentity", mock.Anything, "user-123").Return(&ledger.UserIdentity{
 			OktaSub:    "user-123",
 			DamlUserID: "user_party",
+			DamlPartyID: "p-123",
+			Email: "user@test.com",
+			Role: "Depositor",
 		}, nil)
+
+		smock.ExpectExec("INSERT INTO identities").
+			WithArgs("user-123", "user_party", "p-123", "user@test.com", "", "Depositor").
+			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		rr := httptest.NewRecorder()
 		h.GetIdentity(rr, req)
@@ -104,8 +119,10 @@ providers:
 	_, _ = tmpFile.Write([]byte(configContent))
 	_ = tmpFile.Close()
 
-	idSvc, _ := services.NewIdentityService(tmpFile.Name())
-	h := NewHandler(logger, nil, nil, nil, nil, idSvc)
+	db2, _, _ := sqlmock.New()
+	defer func() { _ = db2.Close() }()
+	idSvc, _ := services.NewIdentityService(tmpFile.Name(), db2)
+	h := NewHandler(logger, nil, nil, nil, nil, idSvc, nil, nil)
 
 	t.Run("Successful Discovery", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v1/auth/discover?email=user@test.com", nil)
@@ -127,7 +144,7 @@ func TestHandler_OracleMilestoneTrigger(t *testing.T) {
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
 	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer)
-	h := NewHandler(logger, svc, nil, nil, nil, nil)
+	h := NewHandler(logger, svc, nil, nil, nil, nil, nil, nil)
 
 	t.Run("Valid HMAC Trigger", func(t *testing.T) {
 		body := OracleWebhookRequest{
