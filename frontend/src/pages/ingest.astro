@@ -45,10 +45,27 @@ const schemas = {
 			<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">Authoritatively transform legacy PDFs into structured DAML smart contracts.</p>
 		</div>
 
-		<!-- Step 1: Upload -->
-		<div id="step-upload" class="max-w-2xl mx-auto">
-			<UploadZone id="agreement-upload" label="Upload Escrow Agreement (PDF)" />
+		<!-- Step 1: Upload & Sequence -->
+		<div id="step-upload" class="max-w-2xl mx-auto space-y-8">
+			<UploadZone id="agreement-upload" label="Upload Escrow Agreement (PDF or Images)" />
 			
+			<!-- File Sequencer -->
+			<div id="file-sequencer" class="hidden space-y-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Document Sequence</h3>
+					<p class="text-[10px] text-slate-400 italic">Drag to reorder pages</p>
+				</div>
+				<ul id="file-list" class="space-y-2 list-none p-0 m-0">
+					<!-- Sequenced files will be injected here -->
+				</ul>
+				
+				<div class="pt-4 flex justify-center">
+					<button id="process-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-2xl text-sm font-black shadow-xl shadow-blue-500/20 active:scale-95 transition-all border-none cursor-pointer uppercase tracking-widest">
+						Begin AI Extraction
+					</button>
+				</div>
+			</div>
+
 			<div id="ingest-loading" class="hidden mt-8 text-center space-y-4">
 				<div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
 				<p class="text-xs font-black text-blue-600 uppercase tracking-widest">AI Extraction in Progress...</p>
@@ -139,6 +156,9 @@ const schemas = {
 	import { ingestContract, saveDraft } from '../lib/api';
 
 	const stepUpload = document.getElementById('step-upload');
+	const sequencer = document.getElementById('file-sequencer');
+	const fileList = document.getElementById('file-list');
+	const processBtn = document.getElementById('process-btn') as HTMLButtonElement;
 	const stepVerify = document.getElementById('step-verify');
 	const loading = document.getElementById('ingest-loading');
 	const pdfPreview = document.getElementById('pdf-preview');
@@ -146,32 +166,103 @@ const schemas = {
 	const resetBtn = document.getElementById('reset-ingest');
 	const contractTitle = document.getElementById('contract-type-title');
 
-	window.addEventListener('file-selected', async (e) => {
-		const { file } = e.detail;
-		loading.classList.remove('hidden');
+	let selectedFiles: File[] = [];
+	let dragSrcEl: HTMLElement | null = null;
 
-		// Create local URL for preview
-		const fileURL = URL.createObjectURL(file);
+	window.addEventListener('files-selected', (e: any) => {
+		const { files } = e.detail;
+		selectedFiles = files;
+		renderFileList();
+		sequencer?.classList.remove('hidden');
+	});
+
+	function renderFileList() {
+		if (!fileList) return;
+		fileList.innerHTML = '';
+		selectedFiles.forEach((file, index) => {
+			const li = document.createElement('li');
+			li.className = 'flex items-center space-x-4 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 cursor-move transition-all active:scale-[0.98] active:rotate-1';
+			li.draggable = true;
+			li.dataset.index = index.toString();
+			
+			li.innerHTML = `
+				<div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white text-[10px] font-black rounded-full flex items-center justify-center">${index + 1}</div>
+				<div class="flex-grow text-left">
+					<p class="text-xs font-bold text-slate-900 dark:text-white truncate">${file.name}</p>
+					<p class="text-[9px] text-slate-400 uppercase font-black tracking-widest">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+				</div>
+				<div class="flex-shrink-0 text-slate-300">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" /></svg>
+				</div>
+			`;
+
+			li.addEventListener('dragstart', handleDragStart);
+			li.addEventListener('dragover', handleDragOver);
+			li.addEventListener('drop', handleDrop);
+			li.addEventListener('dragend', handleDragEnd);
+			
+			fileList.appendChild(li);
+		});
+	}
+
+	function handleDragStart(e: DragEvent) {
+		dragSrcEl = e.currentTarget as HTMLElement;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', (e.currentTarget as HTMLElement).dataset.index || '0');
+		}
+		(e.currentTarget as HTMLElement).classList.add('opacity-40');
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		return false;
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.stopPropagation();
+		const fromIndex = parseInt(dragSrcEl?.dataset.index || '0');
+		const toIndex = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
+
+		if (fromIndex !== toIndex) {
+			const item = selectedFiles.splice(fromIndex, 1)[0];
+			selectedFiles.splice(toIndex, 0, item);
+			renderFileList();
+		}
+		return false;
+	}
+
+	function handleDragEnd(e: DragEvent) {
+		(e.currentTarget as HTMLElement).classList.remove('opacity-40');
+	}
+
+	processBtn?.addEventListener('click', async () => {
+		if (selectedFiles.length === 0) return;
+		
+		loading?.classList.remove('hidden');
+		sequencer?.classList.add('hidden');
+		processBtn.disabled = true;
+
+		// Create local URL for preview (of first file)
+		const fileURL = URL.createObjectURL(selectedFiles[0]);
 		pdfPreview.src = fileURL;
 
 		try {
-			const result = await ingestContract(file);
+			// Pass all files to the ingest API
+			const result = await ingestContract(selectedFiles);
 			
-			// Transition UI
-			stepUpload.classList.add('hidden');
-			stepVerify.classList.remove('hidden');
+			stepUpload?.classList.add('hidden');
+			stepVerify?.classList.remove('hidden');
 
-			// Populate Core Fields
-			const form = verifyForm;
+			const form = verifyForm as any;
 			form.amount.value = result.extracted.amount || 0;
 			form.currency.value = result.extracted.currency || 'USD';
 			form.beneficiaryEmail.value = result.extracted.beneficiaryEmail || '';
 
-			// Update Typology
-			const typeInfo = schemas[result.contractType] || schemas.Corporate;
+			const typeInfo = schemas[result.contractType as keyof typeof schemas] || schemas.Corporate;
 			contractTitle.textContent = typeInfo.title;
 
-			// Render Dynamic Metadata
 			window.dispatchEvent(new CustomEvent('render-metadata', {
 				detail: {
 					containerId: 'dynamic-metadata',
@@ -180,17 +271,21 @@ const schemas = {
 				}
 			}));
 
-		} catch (err) {
+		} catch (err: any) {
 			alert('Ingest Failed: ' + err.message);
-			loading.classList.add('hidden');
+			loading?.classList.add('hidden');
+			sequencer?.classList.remove('hidden');
+			processBtn.disabled = false;
 		}
 	});
 
 	resetBtn?.addEventListener('click', () => {
-		stepVerify.classList.add('hidden');
-		stepUpload.classList.remove('hidden');
-		loading.classList.add('hidden');
-		verifyForm.reset();
+		stepVerify?.classList.add('hidden');
+		stepUpload?.classList.remove('hidden');
+		loading?.classList.add('hidden');
+		sequencer?.classList.add('hidden');
+		processBtn.disabled = false;
+		verifyForm?.reset();
 	});
 
 	verifyForm?.addEventListener('submit', async (e) => {

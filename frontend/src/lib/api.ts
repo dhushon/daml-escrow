@@ -169,9 +169,11 @@ export async function promoteDraftToLedger(draftID: string) {
     if (!response.ok) throw new Error('Failed to promote draft to ledger');
 }
 
-export async function ingestContract(file: File) {
+export async function ingestContract(files: File[]) {
     const formData = new FormData();
-    formData.append('agreement', file);
+    files.forEach(file => {
+        formData.append('agreement', file);
+    });
 
     const headers = getAuthHeaders();
     // Remove Content-Type to let browser set boundary

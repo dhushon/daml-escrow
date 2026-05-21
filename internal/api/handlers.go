@@ -619,34 +619,44 @@ func (h *Handler) IngestContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Parse Multipart Form
 	err := r.ParseMultipartForm(10 << 20) // 10MB limit
 	if err != nil {
 		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
-	file, header, err := r.FormFile("agreement")
-	if err != nil {
-		http.Error(w, "missing 'agreement' file", http.StatusBadRequest)
+	files := r.MultipartForm.File["agreement"]
+	if len(files) == 0 {
+		http.Error(w, "missing 'agreement' files", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
 
-	mimeType := header.Header.Get("Content-Type")
+	var allFileData [][]byte
+	var mimeType string
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		if err == nil {
+			allFileData = append(allFileData, data)
+		}
+		if mimeType == "" {
+			mimeType = fileHeader.Header.Get("Content-Type")
+		}
+	}
+
 	if mimeType == "" {
 		mimeType = "application/pdf" // Fallback
 	}
 
-	// 2. Read File Data
-	fileData, err := io.ReadAll(file)
-	if err != nil {
-		http.Error(w, "failed to read file", http.StatusInternalServerError)
-		return
-	}
-
 	// 3. Orchestrate AI Ingest
-	result, err := h.ingestService.IngestContract(r.Context(), fileData, mimeType)
+	result, err := h.ingestService.IngestContract(r.Context(), allFileData, mimeType)
+
 	if err != nil {
 		h.logger.Error("contract ingest failed", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)

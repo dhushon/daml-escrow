@@ -35,18 +35,20 @@ func NewAIService(ctx context.Context) (*AIService, error) {
 	}, nil
 }
 
-func (s *AIService) ClassifyContract(ctx context.Context, fileData []byte, mimeType string) (string, error) {
+func (s *AIService) ClassifyContract(ctx context.Context, allFileData [][]byte, mimeType string) (string, error) {
 	prompt := `
-		Analyze the following escrow agreement and classify it into exactly one of these types:
+		Analyze the following escrow agreement (provided as one or more pages) and classify it into exactly one of these types:
 		ImportExport, RealEstate, Grants, Corporate.
 		
 		Return ONLY the type name.
 	`
 	
-	resp, err := s.model.GenerateContent(ctx, 
-		genai.Text(prompt),
-		genai.Blob{MIMEType: mimeType, Data: fileData},
-	)
+	parts := []genai.Part{genai.Text(prompt)}
+	for _, data := range allFileData {
+		parts = append(parts, genai.Blob{MIMEType: mimeType, Data: data})
+	}
+
+	resp, err := s.model.GenerateContent(ctx, parts...)
 	if err != nil {
 		return "", fmt.Errorf("classification failed: %w", err)
 	}
@@ -63,19 +65,21 @@ func (s *AIService) ClassifyContract(ctx context.Context, fileData []byte, mimeT
 	return "Corporate", nil
 }
 
-func (s *AIService) ExtractTerms(ctx context.Context, fileData []byte, mimeType string, contractType string, schema interface{}) (string, error) {
+func (s *AIService) ExtractTerms(ctx context.Context, allFileData [][]byte, mimeType string, contractType string, schema interface{}) (string, error) {
 	prompt := fmt.Sprintf(`
-		Extract the escrow terms from the attached agreement.
+		Extract the escrow terms from the attached agreement (provided as one or more pages).
 		The extracted data MUST conform to the following JSON Schema:
 		%v
 
 		Return the data as a valid JSON object.
 	`, schema)
 
-	resp, err := s.model.GenerateContent(ctx,
-		genai.Text(prompt),
-		genai.Blob{MIMEType: mimeType, Data: fileData},
-	)
+	parts := []genai.Part{genai.Text(prompt)}
+	for _, data := range allFileData {
+		parts = append(parts, genai.Blob{MIMEType: mimeType, Data: data})
+	}
+
+	resp, err := s.model.GenerateContent(ctx, parts...)
 	if err != nil {
 		return "", fmt.Errorf("extraction failed: %w", err)
 	}

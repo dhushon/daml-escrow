@@ -3,13 +3,14 @@ interface Props {
 	id: string;
 	accept?: string;
 	label?: string;
+	multiple?: boolean;
 }
 
-const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement (PDF, PNG, TIFF) here or click to upload" } = Astro.props;
+const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement(s) here or click to upload", multiple = true } = Astro.props;
 ---
 
 <div class="upload-zone relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center transition-all hover:border-blue-500 group cursor-pointer bg-white dark:bg-slate-900 shadow-sm">
-	<input type="file" id={id} accept={accept} class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+	<input type="file" id={id} accept={accept} multiple={multiple} class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
 	
 	<div class="space-y-4">
 		<div class="mx-auto w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
@@ -23,7 +24,7 @@ const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement (PDF, PNG, 
 			<p class="text-xs text-slate-500 dark:text-slate-400">Institutional Escrow Agreement (PDF or Scanned Images)</p>
 		</div>
 		
-		<div id={`${id}-filename`} class="hidden text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full inline-block"></div>
+		<div id={`${id}-filename`} class="hidden text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg inline-block"></div>
 	</div>
 </div>
 
@@ -33,14 +34,14 @@ const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement (PDF, PNG, 
 	const filenameDisplay = document.getElementById(`${id}-filename`);
 
 	input?.addEventListener('change', (e) => {
-		const file = e.target.files?.[0];
-		if (file) {
-			filenameDisplay.textContent = file.name;
+		const files = Array.from(e.target.files || []);
+		if (files.length > 0) {
+			filenameDisplay.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
 			filenameDisplay.classList.remove('hidden');
 			zone?.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/10');
 			
 			// Dispatch custom event for parent pages
-			window.dispatchEvent(new CustomEvent('file-selected', { detail: { id, file } }));
+			window.dispatchEvent(new CustomEvent('files-selected', { detail: { id, files } }));
 		}
 	});
 
