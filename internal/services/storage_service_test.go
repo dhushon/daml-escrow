@@ -12,10 +12,10 @@ func TestStorageService_Initialization(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Local Initialization (MinIO)", func(t *testing.T) {
-		os.Setenv("STORAGE_ENDPOINT", "http://localhost:9000")
-		os.Setenv("STORAGE_ACCESS_KEY", "test")
-		os.Setenv("STORAGE_SECRET_KEY", "test-secret")
-		defer os.Unsetenv("STORAGE_ENDPOINT")
+		_ = os.Setenv("STORAGE_ENDPOINT", "http://localhost:9000")
+		_ = os.Setenv("STORAGE_ACCESS_KEY", "test")
+		_ = os.Setenv("STORAGE_SECRET_KEY", "test-secret")
+		defer func() { _ = os.Unsetenv("STORAGE_ENDPOINT") }()
 
 		svc, err := NewStorageService(ctx, "test-bucket")
 		assert.NoError(t, err)
@@ -24,7 +24,7 @@ func TestStorageService_Initialization(t *testing.T) {
 	})
 
 	t.Run("Production-Style Initialization", func(t *testing.T) {
-		os.Unsetenv("STORAGE_ENDPOINT")
+		_ = os.Unsetenv("STORAGE_ENDPOINT")
 		
 		svc, err := NewStorageService(ctx, "prod-bucket")
 		assert.NoError(t, err)

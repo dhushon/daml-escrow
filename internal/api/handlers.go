@@ -642,7 +642,7 @@ func (h *Handler) IngestContract(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		data, err := io.ReadAll(file)
 		if err == nil {

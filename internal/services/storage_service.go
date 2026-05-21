@@ -34,17 +34,10 @@ func NewStorageService(ctx context.Context, bucket string) (*StorageService, err
 
 	if endpoint != "" {
 		// High-Assurance Local Path: MinIO / S3-compatible
-		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:           endpoint,
-				SigningRegion: region,
-			}, nil
-		})
-
+		// Use static credentials for local development
 		cfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(region),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-			config.WithEndpointResolverWithOptions(customResolver),
 		)
 	} else {
 		// High-Assurance Production Path: GCS S3-Interoperability or Native S3
@@ -55,8 +48,12 @@ func NewStorageService(ctx context.Context, bucket string) (*StorageService, err
 		return nil, fmt.Errorf("failed to load storage config: %w", err)
 	}
 
+	// High-Assurance: Authoritatively configure the S3 client
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.UsePathStyle = true // Required for MinIO
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+		}
+		o.UsePathStyle = true // Required for MinIO and GCS S3 Interop
 	})
 
 	return &StorageService{
@@ -114,7 +111,7 @@ func (s *StorageService) Download(ctx context.Context, key string) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to download from storage: %w", err)
 	}
-	defer output.Body.Close()
+	defer func() { _ = output.Body.Close() }()
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(output.Body)
