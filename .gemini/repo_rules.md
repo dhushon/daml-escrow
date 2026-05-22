@@ -22,6 +22,11 @@ feat: fix: docs: refactor: test: chore:
 
 ## Pull Request Rules
 
+**MANDATORY:** ALL changes to the codebase MUST be made as a formal Pull Request. 
+
+- Direct pushes to `origin/main` are NOT allowed.
+- Exception: Bug fixes may be pushed directly to `main` ONLY after asking and receiving explicit user confirmation.
+
 PR must include:
 
 - description
