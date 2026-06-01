@@ -98,7 +98,8 @@ const showDevMode = import.meta.env.MODE === 'development' || true;
 </Layout>
 
 <script>
-	import { handleLoginDiscovery, loginAsRole, setRedirect, getRedirect } from '../lib/auth';
+	import { handleLoginDiscovery, loginAsRole, setRedirect, getRedirect, finalizeWalletAuthentication } from '../lib/auth';
+	import { fetchNonce, verifyWallet } from '../lib/api';
 
 	const form = document.getElementById('discovery-form') as HTMLFormElement;
 	const btn = document.getElementById('submit-btn') as HTMLButtonElement;
