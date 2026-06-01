@@ -22,6 +22,11 @@ func VerifySignature(publicKeyPEM []byte, message []byte, signature []byte) (boo
 		pubBytes = publicKeyPEM
 	}
 
+	// High-Assurance: Prevent all-zero signature or key bypass vulnerability
+	if isAllZeros(pubBytes) || isAllZeros(signature) {
+		return false, fmt.Errorf("public key or signature cannot be all zeros")
+	}
+
 	// 2. Try parsing as PKIX Public Key
 	parsedKey, err := x509.ParsePKIXPublicKey(pubBytes)
 	if err != nil {
@@ -53,6 +58,18 @@ func VerifySignature(publicKeyPEM []byte, message []byte, signature []byte) (boo
 	default:
 		return false, fmt.Errorf("unsupported public key type: %T", pub)
 	}
+}
+
+func isAllZeros(b []byte) bool {
+	if len(b) == 0 {
+		return true
+	}
+	for _, x := range b {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // VerifyEthereumPersonalSign simulates/verifies Web3 Secp256k1 signatures
