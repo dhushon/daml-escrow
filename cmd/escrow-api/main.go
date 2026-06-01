@@ -220,15 +220,19 @@ func runServer() {
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Dev-User", "X-Requested-With", "Origin"},
 	}))
-var verifier api.TokenVerifier
-if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
-	var err error
-	verifier, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
-	if err != nil {
-		logger.Fatal("failed to OIDC verifier", zap.Error(err))
-	}
-}
+	var verifier api.TokenVerifier
+	var oktaVer api.TokenVerifier
 
+	if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
+		oktaVer, err = api.NewRealVerifier(ctx, cfg.Auth.Issuer, cfg.Auth.Audience)
+		if err != nil {
+			logger.Fatal("failed to OIDC verifier", zap.Error(err))
+		}
+	}
+
+	// High-Assurance: Wrap with UnifiedTokenVerifier to allow local wallet JWT verification
+	jwtSecret := []byte("platform-jwt-signing-secret-key-32-bytes!")
+	verifier = api.NewUnifiedTokenVerifier(oktaVer, jwtSecret)
 
 	router.Use(api.AuthMiddleware(cfg.Auth, verifier, logger))
 	
@@ -236,6 +240,8 @@ if cfg.Auth.Environment != "dev" || !cfg.Auth.AuthBypass {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
 		r.Get("/auth/discover", handler.DiscoverAuth)
+		r.Get("/auth/nonce", handler.GetNonce)
+		r.Post("/auth/wallet/verify", handler.VerifyWallet)
 		r.Get("/identities", handler.ListIdentities)
 		r.Get("/config", handler.GetConfig)
 		r.Post("/config", handler.SaveConfig)

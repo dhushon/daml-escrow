@@ -1,4 +1,4 @@
-import { discoverAuth, authenticateIdentity } from './api';
+import { discoverAuth, authenticateIdentity, fetchNonce, verifyWallet } from './api';
 
 export interface AuthSession {
     token: string;
@@ -145,6 +145,23 @@ export async function finalizeAuthentication(token: string) {
     // Set cookies for Astro SSR compatibility
     document.cookie = `user_email=${identity.email}; path=/; max-age=3600`;
     document.cookie = `user_scopes=${scopes.join(',')}; path=/; max-age=3600`;
+    
+    return session;
+}
+
+export async function finalizeWalletAuthentication(token: string, identity: any) {
+    const session: AuthSession = {
+        token,
+        email: identity.email,
+        identity,
+        scopes: ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin']
+    };
+
+    setSession(session);
+    
+    // Set cookies for Astro SSR compatibility
+    document.cookie = `user_email=${identity.email}; path=/; max-age=3600`;
+    document.cookie = `user_scopes=${session.scopes.join(',')}; path=/; max-age=3600`;
     
     return session;
 }

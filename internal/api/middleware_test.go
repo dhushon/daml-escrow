@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -19,12 +18,12 @@ type MockVerifier struct {
 	mock.Mock
 }
 
-func (m *MockVerifier) Verify(ctx context.Context, token string) (*oidc.IDToken, error) {
+func (m *MockVerifier) Verify(ctx context.Context, token string) (*TokenClaims, error) {
 	args := m.Called(ctx, token)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*oidc.IDToken), args.Error(1)
+	return args.Get(0).(*TokenClaims), args.Error(1)
 }
 
 func TestAuthMiddleware_Bypass(t *testing.T) {

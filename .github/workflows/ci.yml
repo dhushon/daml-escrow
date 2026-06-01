@@ -85,6 +85,9 @@ jobs:
             exit 1
           fi
           
+          # Install the specific SDK version required by our daml.yaml configurations
+          dpm install 3.4.11
+          
           cd contracts
           dpm build --all
           cd stablecoin-escrow-tests

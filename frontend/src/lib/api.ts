@@ -335,3 +335,22 @@ export async function authenticateIdentity(jwt: string) {
     }
     return response.json();
 }
+
+export async function fetchNonce() {
+    const response = await fetch(resolveApiPath('/auth/nonce'));
+    if (!response.ok) throw new Error('Failed to fetch authentication nonce');
+    return response.json();
+}
+
+export async function verifyWallet(req: { nonce: string; signature: string; publicKey: string; damlPartyId: string }) {
+    const response = await fetch(resolveApiPath('/auth/wallet/verify'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Wallet verification failed');
+    }
+    return response.json();
+}

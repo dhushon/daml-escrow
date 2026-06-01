@@ -1,6 +1,6 @@
 # Binaries
 bin/
-escrow-api
+/escrow-api
 *.exe
 *.exe~
 *.dll

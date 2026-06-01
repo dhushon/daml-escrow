@@ -1,16 +1,36 @@
 package api
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 
+	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+type DamlCommand struct {
+	CommandType string                 `json:"commandType"` // "create" or "exercise"
+	TemplateID  string                 `json:"templateId"`
+	ContractID  string                 `json:"contractId,omitempty"`
+	Choice      string                 `json:"choice,omitempty"`
+	Argument    map[string]interface{} `json:"argument"`
+}
+
+type DryRunResponse struct {
+	IsDryRun bool          `json:"isDryRun"`
+	Commands []DamlCommand `json:"commands"`
+}
 
 type Handler struct {
 	logger           *zap.Logger
@@ -47,6 +67,21 @@ func NewHandler(
 		storageService:   storageService,
 	}
 }
+
+func (h *Handler) isDryRun(r *http.Request) bool {
+	authMethod, _ := r.Context().Value(AuthMethodKey).(string)
+	return authMethod == "wallet"
+}
+
+func (h *Handler) writeDryRun(w http.ResponseWriter, commands []DamlCommand) {
+	payload := DryRunResponse{
+		IsDryRun: true,
+		Commands: commands,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
 
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("health check requested")
@@ -93,6 +128,112 @@ func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(config)
+}
+
+func (h *Handler) GetNonce(w http.ResponseWriter, r *http.Request) {
+	nonceID := uuid.New().String()
+	challenge := fmt.Sprintf("Sign this challenge to authenticate: %s", nonceID)
+
+	// Persist the challenge in the DB to prevent replays
+	if err := h.configService.CreateNonce(r.Context(), challenge); err != nil {
+		h.logger.Error("failed to create nonce", zap.Error(err))
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"nonce": challenge})
+}
+
+type VerifyWalletRequest struct {
+	Nonce       string `json:"nonce"`
+	Signature   string `json:"signature"`
+	PublicKey   string `json:"publicKey"`
+	DamlPartyId string `json:"damlPartyId"`
+}
+
+func (h *Handler) VerifyWallet(w http.ResponseWriter, r *http.Request) {
+	var req VerifyWalletRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Authoritatively verify and consume the nonce to prevent replay attacks
+	valid, err := h.configService.VerifyAndConsumeNonce(r.Context(), req.Nonce)
+	if err != nil || !valid {
+		h.logger.Warn("invalid or expired nonce verification attempt", zap.Error(err))
+		http.Error(w, "invalid or expired nonce", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Decode signature and public key from hex
+	sig, err := hex.DecodeString(req.Signature)
+	if err != nil {
+		http.Error(w, "invalid signature encoding", http.StatusBadRequest)
+		return
+	}
+
+	pubKey, err := hex.DecodeString(req.PublicKey)
+	if err != nil {
+		// Fallback: If not hex, try using raw bytes directly (typically for PEM-based keys)
+		pubKey = []byte(req.PublicKey)
+	}
+
+	// 3. Cryptographically verify the signature
+	verified, err := crypto.VerifySignature(pubKey, []byte(req.Nonce), sig)
+	if err != nil || !verified {
+		h.logger.Warn("cryptographic signature verification failed", zap.Error(err))
+		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	// 4. Resolve the user's institutional identity
+	// Sync the wallet party as a managed identity in Postgres
+	oktaSub := "wallet:" + req.DamlPartyId
+	// Extract simple name prefix from party name (e.g., Depositor::1220... -> Depositor)
+	roleName := "Depositor"
+	parts := strings.Split(req.DamlPartyId, "::")
+	if len(parts) > 0 {
+		roleName = parts[0]
+	}
+	email := strings.ToLower(roleName) + "@wallet.devlocal"
+
+	identity, err := h.identityService.GetOrCreateIdentity(r.Context(), oktaSub, email, h.escrowService.GetLedgerClient())
+	if err != nil {
+		h.logger.Error("failed to resolve identity for wallet", zap.Error(err))
+		http.Error(w, "identity synchronization failed", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Generate secure Platform JWT Session Token
+	jwtSecret := []byte("platform-jwt-signing-secret-key-32-bytes!") // Default fallback
+	
+	claims := jwt.MapClaims{
+		"sub":           oktaSub,
+		"email":         email,
+		"scp":           []string{ScopeEscrowRead, ScopeEscrowWrite, ScopeEscrowAccept},
+		"origin_domain": "wallet.devlocal",
+		"auth_method":   "wallet",
+		"iss":           "daml-escrow-platform",
+		"aud":           "daml-escrow",
+		"exp":           time.Now().Add(24 * time.Hour).Unix(),
+		"iat":           time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString(jwtSecret)
+	if err != nil {
+		h.logger.Error("failed to sign platform token", zap.Error(err))
+		http.Error(w, "token generation failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"token":    tokenStr,
+		"identity": identity,
+	})
 }
 
 func (h *Handler) ListIdentities(w http.ResponseWriter, r *http.Request) {
@@ -415,6 +556,23 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "create",
+				TemplateID:  "StablecoinEscrow:EscrowProposal",
+				Argument: map[string]interface{}{
+					"depositor":   ledgerReq.Depositor,
+					"beneficiary": ledgerReq.Beneficiary,
+					"mediator":    ledgerReq.Mediator,
+					"amount":      ledgerReq.Asset.Amount,
+					"currency":    ledgerReq.Asset.Currency,
+				},
+			},
+		})
+		return
+	}
+
 	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledgerReq)
 	if err != nil {
 		h.logger.Error("escrow proposal failed", zap.Error(err))
@@ -432,6 +590,22 @@ func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "fund",
+				Argument: map[string]interface{}{
+					"holdingCid": req.HoldingCid,
+				},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.FundEscrow(r.Context(), escrowID, userID, req.HoldingCid)
 	if err != nil {
@@ -443,6 +617,20 @@ func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+	
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "activate",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.ActivateEscrow(r.Context(), escrowID, userID, []string{userID})
 	if err != nil {
@@ -454,6 +642,20 @@ func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "confirmConditions",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.GetLedgerClient().ConfirmConditions(r.Context(), escrowID, userID)
 	if err != nil {
@@ -465,6 +667,20 @@ func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RaiseDispute(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "raiseDispute",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.RaiseDispute(r.Context(), escrowID, userID)
 	if err != nil {
@@ -481,6 +697,22 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "proposeSettlement",
+				Argument: map[string]interface{}{
+					"depositorReturn": req.DepositorReturn,
+				},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.DepositorReturn)
 	if err != nil {
@@ -492,6 +724,20 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "ratifySettlement",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.GetLedgerClient().RatifySettlement(r.Context(), escrowID, userID)
 	if err != nil {
@@ -503,6 +749,20 @@ func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "finalizeSettlement",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.GetLedgerClient().FinalizeSettlement(r.Context(), escrowID, userID)
 	if err != nil {
@@ -514,6 +774,20 @@ func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Disburse(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "disburse",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.DisburseEscrow(r.Context(), escrowID, userID, []string{userID})
 	if err != nil {

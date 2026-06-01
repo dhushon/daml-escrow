@@ -4,12 +4,14 @@ import (
 	"context"
 	"daml-escrow/internal/config"
 	"daml-escrow/internal/services"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 )
 
@@ -20,6 +22,7 @@ const (
 	EmailKey        contextKey = "email"
 	ScopesKey       contextKey = "scopes"
 	OriginDomainKey contextKey = "origin_domain"
+	AuthMethodKey   contextKey = "auth_method"
 )
 
 // Permission Scopes
@@ -78,9 +81,18 @@ func MetricsMiddleware(metrics *services.MetricsService) func(http.Handler) http
 	}
 }
 
-// TokenVerifier defines the interface for OIDC token verification.
+// TokenClaims defines a unified representation of authentication claims across OIDC and local JWTs.
+type TokenClaims struct {
+	Subject      string   `json:"sub"`
+	Email        string   `json:"email"`
+	Scopes       []string `json:"scp"`
+	OriginDomain string   `json:"origin_domain"`
+	AuthMethod   string   `json:"auth_method"` // "oidc" or "wallet"
+}
+
+// TokenVerifier defines the interface for OIDC or Platform JWT token verification.
 type TokenVerifier interface {
-	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
+	Verify(ctx context.Context, token string) (*TokenClaims, error)
 }
 
 // RealVerifier is the production implementation using go-oidc.
@@ -88,8 +100,26 @@ type RealVerifier struct {
 	verifier *oidc.IDTokenVerifier
 }
 
-func (v *RealVerifier) Verify(ctx context.Context, token string) (*oidc.IDToken, error) {
-	return v.verifier.Verify(ctx, token)
+func (v *RealVerifier) Verify(ctx context.Context, token string) (*TokenClaims, error) {
+	idToken, err := v.verifier.Verify(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	var claims struct {
+		Email        string   `json:"email"`
+		Scopes       []string `json:"scp"`
+		OriginDomain string   `json:"origin_domain"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return nil, err
+	}
+	return &TokenClaims{
+		Subject:      idToken.Subject,
+		Email:        claims.Email,
+		Scopes:       claims.Scopes,
+		OriginDomain: claims.OriginDomain,
+		AuthMethod:   "oidc",
+	}, nil
 }
 
 func NewRealVerifier(ctx context.Context, issuer, audience string) (TokenVerifier, error) {
@@ -100,6 +130,84 @@ func NewRealVerifier(ctx context.Context, issuer, audience string) (TokenVerifie
 	return &RealVerifier{
 		verifier: provider.Verifier(&oidc.Config{ClientID: audience}),
 	}, nil
+}
+
+// PlatformJWTVerifier implements TokenVerifier for local wallet sessions.
+type PlatformJWTVerifier struct {
+	secret []byte
+}
+
+func NewPlatformJWTVerifier(secret []byte) *PlatformJWTVerifier {
+	return &PlatformJWTVerifier{secret: secret}
+}
+
+func (v *PlatformJWTVerifier) Verify(ctx context.Context, token string) (*TokenClaims, error) {
+	parsedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return v.secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
+		sub, _ := claims["sub"].(string)
+		email, _ := claims["email"].(string)
+		originDomain, _ := claims["origin_domain"].(string)
+		authMethod, _ := claims["auth_method"].(string)
+		if authMethod == "" {
+			authMethod = "wallet"
+		}
+		
+		var scopes []string
+		if scpRaw, exists := claims["scp"]; exists {
+			if scpSlice, ok := scpRaw.([]interface{}); ok {
+				for _, s := range scpSlice {
+					if str, ok := s.(string); ok {
+						scopes = append(scopes, str)
+					}
+				}
+			}
+		}
+
+		return &TokenClaims{
+			Subject:      sub,
+			Email:        email,
+			Scopes:       scopes,
+			OriginDomain: originDomain,
+			AuthMethod:   authMethod,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("invalid platform token")
+}
+
+// UnifiedTokenVerifier handles routing token verification between Okta and Local Platform JWTs.
+type UnifiedTokenVerifier struct {
+	oktaVerifier  TokenVerifier
+	localVerifier *PlatformJWTVerifier
+}
+
+func NewUnifiedTokenVerifier(oktaVerifier TokenVerifier, localSecret []byte) *UnifiedTokenVerifier {
+	return &UnifiedTokenVerifier{
+		oktaVerifier:  oktaVerifier,
+		localVerifier: NewPlatformJWTVerifier(localSecret),
+	}
+}
+
+func (u *UnifiedTokenVerifier) Verify(ctx context.Context, tokenStr string) (*TokenClaims, error) {
+	// High-Assurance: Check if it is our local platform JWT first to prevent slow network lookups
+	if claims, err := u.localVerifier.Verify(ctx, tokenStr); err == nil {
+		return claims, nil
+	}
+
+	if u.oktaVerifier == nil {
+		return nil, fmt.Errorf("okta verifier is uninitialized")
+	}
+
+	return u.oktaVerifier.Verify(ctx, tokenStr)
 }
 
 func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger *zap.Logger) func(http.Handler) http.Handler {
@@ -117,6 +225,8 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 			// Bypass auth for health, swagger, and anonymous token endpoints
 			if strings.HasPrefix(r.URL.Path, "/api/v1/health") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/auth/discover") ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/auth/nonce") ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/auth/wallet/verify") ||
 				strings.HasPrefix(r.URL.Path, "/swagger") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/invites/token/") {
 
@@ -178,29 +288,18 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 				return
 			}
 
-			// Verify the ID token using the injected verifier.
-			idToken, err := verifier.Verify(r.Context(), tokenStr)
+			// Verify the token using the injected verifier.
+			claims, err := verifier.Verify(r.Context(), tokenStr)
 			if err != nil {
-				logger.Warn("failed to verify ID token", zap.Error(err))
+				logger.Warn("failed to verify token", zap.Error(err))
 				http.Error(w, "unauthorized: invalid token", http.StatusUnauthorized)
 				return
 			}
 
-			// Extract claims from the validated token.
-			var claims struct {
-				Email        string   `json:"email"`
-				Scopes       []string `json:"scp"`
-				OriginDomain string   `json:"origin_domain"`
-			}
-			if err := idToken.Claims(&claims); err != nil {
-				logger.Error("failed to extract claims from token", zap.Error(err))
-				http.Error(w, "invalid claims", http.StatusUnauthorized)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), AuthSubKey, idToken.Subject)
+			ctx := context.WithValue(r.Context(), AuthSubKey, claims.Subject)
 			ctx = context.WithValue(ctx, EmailKey, claims.Email)
 			ctx = context.WithValue(ctx, ScopesKey, claims.Scopes)
+			ctx = context.WithValue(ctx, AuthMethodKey, claims.AuthMethod)
 
 			// Determine origin domain with fallback for IdPs that don't support custom claims
 			originDomain := claims.OriginDomain
