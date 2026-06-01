@@ -19,6 +19,19 @@ import (
 	"go.uber.org/zap"
 )
 
+type DamlCommand struct {
+	CommandType string                 `json:"commandType"` // "create" or "exercise"
+	TemplateID  string                 `json:"templateId"`
+	ContractID  string                 `json:"contractId,omitempty"`
+	Choice      string                 `json:"choice,omitempty"`
+	Argument    map[string]interface{} `json:"argument"`
+}
+
+type DryRunResponse struct {
+	IsDryRun bool          `json:"isDryRun"`
+	Commands []DamlCommand `json:"commands"`
+}
+
 type Handler struct {
 	logger           *zap.Logger
 	escrowService    *services.EscrowService
@@ -54,6 +67,21 @@ func NewHandler(
 		storageService:   storageService,
 	}
 }
+
+func (h *Handler) isDryRun(r *http.Request) bool {
+	authMethod, _ := r.Context().Value(AuthMethodKey).(string)
+	return authMethod == "wallet"
+}
+
+func (h *Handler) writeDryRun(w http.ResponseWriter, commands []DamlCommand) {
+	payload := DryRunResponse{
+		IsDryRun: true,
+		Commands: commands,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
 
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("health check requested")
@@ -528,6 +556,23 @@ func (h *Handler) ProposeEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "create",
+				TemplateID:  "StablecoinEscrow:EscrowProposal",
+				Argument: map[string]interface{}{
+					"depositor":   ledgerReq.Depositor,
+					"beneficiary": ledgerReq.Beneficiary,
+					"mediator":    ledgerReq.Mediator,
+					"amount":      ledgerReq.Asset.Amount,
+					"currency":    ledgerReq.Asset.Currency,
+				},
+			},
+		})
+		return
+	}
+
 	proposal, err := h.escrowService.ProposeEscrow(r.Context(), ledgerReq)
 	if err != nil {
 		h.logger.Error("escrow proposal failed", zap.Error(err))
@@ -545,6 +590,22 @@ func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "fund",
+				Argument: map[string]interface{}{
+					"holdingCid": req.HoldingCid,
+				},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.FundEscrow(r.Context(), escrowID, userID, req.HoldingCid)
 	if err != nil {
@@ -556,6 +617,20 @@ func (h *Handler) Fund(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+	
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "activate",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.ActivateEscrow(r.Context(), escrowID, userID, []string{userID})
 	if err != nil {
@@ -567,6 +642,20 @@ func (h *Handler) Activate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "confirmConditions",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.GetLedgerClient().ConfirmConditions(r.Context(), escrowID, userID)
 	if err != nil {
@@ -578,6 +667,20 @@ func (h *Handler) ConfirmConditions(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RaiseDispute(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "raiseDispute",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.RaiseDispute(r.Context(), escrowID, userID)
 	if err != nil {
@@ -594,6 +697,22 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "proposeSettlement",
+				Argument: map[string]interface{}{
+					"depositorReturn": req.DepositorReturn,
+				},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.ProposeSettlement(r.Context(), escrowID, userID, req.DepositorReturn)
 	if err != nil {
@@ -605,6 +724,20 @@ func (h *Handler) ProposeSettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "ratifySettlement",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.GetLedgerClient().RatifySettlement(r.Context(), escrowID, userID)
 	if err != nil {
@@ -616,6 +749,20 @@ func (h *Handler) RatifySettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "finalizeSettlement",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	id, err := h.escrowService.GetLedgerClient().FinalizeSettlement(r.Context(), escrowID, userID)
 	if err != nil {
@@ -627,6 +774,20 @@ func (h *Handler) FinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Disburse(w http.ResponseWriter, r *http.Request) {
 	escrowID := chi.URLParam(r, "escrowID")
+
+	if h.isDryRun(r) {
+		h.writeDryRun(w, []DamlCommand{
+			{
+				CommandType: "exercise",
+				TemplateID:  "StablecoinEscrow:Escrow",
+				ContractID:  escrowID,
+				Choice:      "disburse",
+				Argument:    map[string]interface{}{},
+			},
+		})
+		return
+	}
+
 	userID, _ := r.Context().Value(AuthSubKey).(string)
 	err := h.escrowService.DisburseEscrow(r.Context(), escrowID, userID, []string{userID})
 	if err != nil {
