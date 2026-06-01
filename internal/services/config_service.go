@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -62,6 +63,36 @@ func (s *ConfigService) GetConfig(userID, key string) (json.RawMessage, error) {
 	}
 	return val, nil
 }
+
+// --- Auth Nonce Management (Phase 17.1) ---
+
+func (s *ConfigService) CreateNonce(ctx context.Context, nonce string) error {
+	query := `
+		INSERT INTO auth_nonces (nonce, created_at)
+		VALUES ($1, CURRENT_TIMESTAMP)
+	`
+	_, err := s.db.ExecContext(ctx, query, nonce)
+	return err
+}
+
+func (s *ConfigService) VerifyAndConsumeNonce(ctx context.Context, nonce string) (bool, error) {
+	// High-Assurance: Single-use delete on retrieve with strict 5-minute expiration
+	query := `
+		DELETE FROM auth_nonces
+		WHERE nonce = $1 AND created_at >= CURRENT_TIMESTAMP - INTERVAL '5 minutes'
+		RETURNING nonce
+	`
+	var found string
+	err := s.db.QueryRowContext(ctx, query, nonce).Scan(&found)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return found != "", nil
+}
+
 
 // --- Phase 11 & 12: Versioned Draft Escrow Management ---
 

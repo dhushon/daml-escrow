@@ -39,6 +39,17 @@ services:
              psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE canton_mediator;' || true;
              psql postgres://escrow:escrow@escrow-postgres:5432/postgres -c 'CREATE DATABASE user_config;' || true;
              psql postgres://escrow:escrow@escrow-postgres:5432/user_config -c \"
+               CREATE TABLE IF NOT EXISTS configs (
+                 user_id TEXT NOT NULL,
+                 config_key TEXT NOT NULL,
+                 config_value JSONB NOT NULL,
+                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                 PRIMARY KEY (user_id, config_key)
+               );
+               CREATE TABLE IF NOT EXISTS auth_nonces (
+                 nonce TEXT PRIMARY KEY,
+                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+               );
                CREATE TABLE IF NOT EXISTS identities (
                  okta_sub TEXT PRIMARY KEY,
                  daml_user_id TEXT NOT NULL,
