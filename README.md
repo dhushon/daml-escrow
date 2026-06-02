@@ -38,7 +38,7 @@ graph TD
 
 This platform implements a **Sovereign Tripartite Architecture**, ensuring each participant maintains data and compute isolation while providing unified operational visibility.
 
-*   **Institutional Development:** The platform authoritatively mirrors the tripartite GKE topology in the local environment. See the **[Tripartite Development Guide](./docs/DEVELOPMENT.md)** for details on the orchestration model and service registry.
+*   **Institutional Development:** The platform authoritatively mirrors the tripartite GKE topology in the local environment. See the **[Tripartite Development Guide](./docs/DEVELOPMENT.md)** for details on the orchestration model and service registry, and our chronological **[Architecture Evolution Ledger](./ARCHITECTURE_EVOLUTION.md)** for major system milestones.
 *   **Unified API Gateway (Nginx):** A single, secure entry point (Port 8080) that authoritatively routes traffic to isolated participant namespaces (`/bank`, `/depositor`, `/beneficiary`).
 *   **High-Assurance Object Storage:** Authoritative document persistence using **GCP Cloud Storage (GCS)** or **MinIO** for local parity.
     *   **Encryption at Rest:** Integrated with **SSE-KMS (GCP CMEK)** to ensure institutional document blobs are authoritatively encrypted using hardware-backed keys.
@@ -48,7 +48,7 @@ This platform implements a **Sovereign Tripartite Architecture**, ensuring each 
     *   **Jaeger Tracing:** Authoritative visualization of tripartite request spans tagged by `account.id`.
     *   **Grafana Dashboards:** Pre-provisioned dashboards for system health, account performance, and contract-level operational velocity.
 *   **HSM-Backed Cryptography:** Authoritative settlement triggers are authoritatively proofed via **GCP Cloud KMS** hardware-backed asymmetric signatures.
-*   **High-Assurance Identity:** Sovereign principal models (Contributor vs Deployment Service) are authoritatively codified. See the **[Identity Registry](./docs/IDENTITY.md)** for details.
+*   **High-Assurance Identity:** Sovereign principal models (Contributor vs Deployment Service) are authoritatively codified. See our main **[Identity Registry](./IDENTITY.md)** and the synchronized **[Identity Registry Guide](./docs/IDENTITY.md)** for details on Okta, tripartite onboarding, and permissions.
 *   **Networking & Ports:** Authoritative mapping for tripartite routing and observability. See the **[Networking Registry](./docs/NETWORKING.md)** for details.
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
@@ -56,7 +56,7 @@ This platform implements a **Sovereign Tripartite Architecture**, ensuring each 
 
 ### Escrow Lifecycle (Formal Model)
 
-Refined per `ESCROW-PROCESS.md` to ensure bilateral consent and tripartite authority.
+Refined per the formal process specification **[ESCROW-PROCESS.md](./ESCROW-PROCESS.md)** to ensure bilateral consent and tripartite authority. For ledger-level details, see our **[Canton Ledger Design](./CANTON_LEDGER.md)** and **[DAML Contract Specification](./CONTRACT.md)**.
 
 ```mermaid
 stateDiagram-v2
@@ -109,7 +109,7 @@ The frontend dashboard provides a live cockpit for monitoring these states with 
 
 ### 6. Off-Chain Negotiation & Bipartite Onboarding (Phase 12)
 
-Evolved the bipartite handshake to support cost-optimized institutional negotiation before ledger commitment:
+Evolved the bipartite handshake to support cost-optimized institutional negotiation before ledger commitment, detailed in our **[Off-Chain Negotiation Plan](./plans/OFF_CHAIN_NEGOTIATION_PLAN.md)**:
 *   **Draft Tunnel:** Propose terms, milestones, and mediators in a high-speed Postgres intermediate layer with zero transaction fees.
 *   **Invitation Codes:** Bridge novel email identities to real ledger principals using cryptographically secure registration codes.
 *   **Postgres-to-Canton Promotion:** authoritatively commit to the ledger only when all three parties (Depositor + Beneficiary + Mediator) have definitively ratified the terms.
@@ -124,7 +124,7 @@ Hardened the physical infrastructure orchestration with three distinct security 
 
 ### 8. Intelligent Ingest & Contract Typology (Phase 13)
 
-Introduced an AI-native ingestion engine to authoritatively bridge legacy legal prose with DAML smart contracts:
+Introduced an AI-native ingestion engine to authoritatively bridge legacy legal prose with DAML smart contracts, outlined in our **[Intelligent Ingest Plan](./plans/INTELLIGENT_INGEST_PLAN.md)**:
 *   **Multi-Stage AI Extraction:** Utilizes **Gemini-2.0-flash** to classify agreements and extract structured terms from multi-page PDFs or scanned images (PNG/TIFF).
 *   **Contract Typology:** Authoritative industry-specific schemas (Import/Export, Real Estate, Grants) ensure metadata is validated against domain-specific standards before ledger commitment.
 *   **HITL Verification:** High-fidelity Human-in-the-loop (HITL) UX with side-by-side original source and AI-extracted form for authoritative verification.
@@ -132,7 +132,7 @@ Introduced an AI-native ingestion engine to authoritatively bridge legacy legal 
 
 ### 9. High-Assurance Read-Through Storage & Mirroring (Phase 16)
 
-Implemented production-grade document privacy and sovereign storage mirroring:
+Implemented production-grade document privacy and sovereign storage mirroring, verified via our **[Storage Infrastructure Test Plan](./plans/STORAGE_INFRA_TEST_PLAN.md)**:
 *   **Valet Storage Pattern:** High-assurance object storage using **GCS (Production)** and **MinIO (Local)** with zero public access.
 *   **Read-Through Lazy Mirroring:** Document blobs are automatically and lazily "cached" in a party's local vault upon retrieval, avoiding complex synchronous replication protocols.
 *   **Dynamic Re-signing:** Enforces time-limited, backend-signed **Presigned URLs** dynamically generated from the user's specific local vault for every fetch.
@@ -141,7 +141,7 @@ Implemented production-grade document privacy and sovereign storage mirroring:
 
 ### 10. CIP-0103 Wallet & Progressive Custody (Phase 17)
 
-Aligned identity and wallet strategies with the **Canton Network CIP-0103 standard**:
+Aligned identity and wallet strategies with the **Canton Network CIP-0103 standard**, laid out in our **[CIP-0103 Integration Plan](./plans/CIP_0103_INTEGRATION_PLAN.md)**:
 *   **Progressive Custody (Dual Path)**: Supports both traditional corporate users (Okta OIDC with server-side signing) and self-sovereign institutional users (Canton connected wallets with client-side signing) within a unified API gateway.
 *   **Wallet-as-Identity**: Implements a secure cryptographic challenge-response login flow with single-use, 5-minute database nonces to prevent replay attacks.
 *   **Strict Session-to-Wallet Binding**: Immutably binds a session to the verified wallet at login. If the dApp SDK detects a wallet disconnect or account change, the frontend instantly destroys the session and redirects to `/login`.
