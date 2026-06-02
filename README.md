@@ -130,6 +130,24 @@ Introduced an AI-native ingestion engine to authoritatively bridge legacy legal 
 *   **HITL Verification:** High-fidelity Human-in-the-loop (HITL) UX with side-by-side original source and AI-extracted form for authoritative verification.
 *   **Enriched Identity:** Authoritatively matches signatories against the institutional directory, capturing titles, corporate affiliations, and KYC status for on-chain provenance.
 
+### 9. High-Assurance Read-Through Storage & Mirroring (Phase 16)
+
+Implemented production-grade document privacy and sovereign storage mirroring:
+*   **Valet Storage Pattern:** High-assurance object storage using **GCS (Production)** and **MinIO (Local)** with zero public access.
+*   **Read-Through Lazy Mirroring:** Document blobs are automatically and lazily "cached" in a party's local vault upon retrieval, avoiding complex synchronous replication protocols.
+*   **Dynamic Re-signing:** Enforces time-limited, backend-signed **Presigned URLs** dynamically generated from the user's specific local vault for every fetch.
+*   **SSE-KMS Encryption:** Enforces hardware-backed **Encryption at Rest** (SSE-KMS / GCP CMEK) for all institutional document blobs.
+*   **Authoritative Object Tagging:** S3/GCS object tagging binds contract-id, depositor, and beneficiary identities directly to storage blobs, enabling cross-vault searchability.
+
+### 10. CIP-0103 Wallet & Progressive Custody (Phase 17)
+
+Aligned identity and wallet strategies with the **Canton Network CIP-0103 standard**:
+*   **Progressive Custody (Dual Path)**: Supports both traditional corporate users (Okta OIDC with server-side signing) and self-sovereign institutional users (Canton connected wallets with client-side signing) within a unified API gateway.
+*   **Wallet-as-Identity**: Implements a secure cryptographic challenge-response login flow with single-use, 5-minute database nonces to prevent replay attacks.
+*   **Strict Session-to-Wallet Binding**: Immutably binds a session to the verified wallet at login. If the dApp SDK detects a wallet disconnect or account change, the frontend instantly destroys the session and redirects to `/login`.
+*   **Payload Delegation DTOs**: Backend remains the source of truth for business logic, generating dry-run DAML command payloads which the connected wallet signs and submits.
+*   **Browser Wallet Emulator**: Native SubtleCrypto Ed25519 emulator built directly into the login page to enable zero-dependency local testing.
+
 ------------------------------------------------------------------------
 
 ## Analytics & Operational Velocity (Phase 6.3)
