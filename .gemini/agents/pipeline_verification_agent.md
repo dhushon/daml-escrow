@@ -45,7 +45,21 @@ policy.deny(
 
 ---
 
-## 4. Auditing & Extension Guide
+## 4. Pull Request & CI Verification Rules
 
-- **To Audit:** Execute `make verify` to ensure the entire verification pipeline succeeds.
-- **To Extend:** Add new Playwright specs in `frontend/src/e2e/` to test new user flows, or update `install-git-hooks.sh` to add new pre-commit linters.
+- **Branch Selection**: Never push directly to `main` or `develop`. Create a specific branch prefixed by work type (e.g. `feature/`, `bugfix/`, `chore/`).
+- **PR Generation**: Use GitHub CLI (`gh pr create`) to launch a Pull Request. Provide a highly descriptive overview listing:
+  - High-level changes summary
+  - Key modified component details
+  - Dev test outputs (e.g. log success, unit test outputs)
+- **CI Pipeline Monitoring**: 
+  - After PR creation, monitor checking suites via `gh pr checks <pr-number>`.
+  - If any job fails, the agent MUST immediately pull logs, diagnose the issue, apply target fixes, and push updates.
+  - This verification cycle must repeat until all check-runs succeed (`gh pr checks` returns exit code 0).
+
+---
+
+## 5. Auditing & Extension Guide
+
+- **To Audit**: Execute `make verify` to ensure the entire verification pipeline succeeds.
+- **To Extend**: Add new Playwright specs in `frontend/src/e2e/` to test new user flows, or update `install-git-hooks.sh` to add new pre-commit linters.
