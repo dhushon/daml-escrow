@@ -161,3 +161,16 @@ verify: ## Run all local verification tests (Go, DAML, Astro build, frontend tes
 .PHONY: install-hooks
 install-hooks: ## Install local git hooks
 	@bash scripts/install-git-hooks.sh
+
+.PHONY: test-e2e
+test-e2e: ## Run Playwright E2E integration tests locally (boots, tests, and tears down stack)
+	@echo "Launching local baseline stack..."
+	@make standalone-up
+	@echo "Awaiting services health check..."
+	@npx wait-on -t 120000 http-get://localhost:8081/api/v1/health http-get://localhost:4321/login
+	@echo "Executing Playwright E2E integration tests..."
+	@cd frontend && npx playwright test; \
+	status=$$?; \
+	echo "Tearing down baseline stack..."; \
+	make standalone-down; \
+	exit $$status
