@@ -1,3 +1,9 @@
+// @title Stablecoin Escrow API
+// @version 1.0
+// @description API for managing privacy-preserving stablecoin escrows on DAML.
+// @host localhost:8081
+// @BasePath /api/v1
+// @query.collection.format multi
 package main
 
 import (
@@ -82,6 +88,7 @@ func initConfig() {
 	}
 	if authBypass {
 		viper.Set("auth.authBypass", true)
+		viper.Set("auth.environment", "dev")
 	}
 }
 
@@ -218,7 +225,7 @@ func runServer() {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"http://localhost:4321", "http://localhost:8080", "https://*.vdatacloudai.com"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Dev-User", "X-Requested-With", "Origin"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Dev-User", "X-Assumed-Role", "X-Requested-With", "Origin"},
 	}))
 	var verifier api.TokenVerifier
 	var oktaVer api.TokenVerifier

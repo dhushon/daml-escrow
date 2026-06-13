@@ -223,8 +223,8 @@ type AmendDraftRequest struct {
         Summary  string          `json:"summary"`
         Amount   float64         `json:"amount"`
         Currency string          `json:"currency"`
-        Terms    json.RawMessage `json:"terms"`
-        Metadata json.RawMessage `json:"metadata"`
+        Terms    json.RawMessage `json:"terms" swaggertype:"object"`
+        Metadata json.RawMessage `json:"metadata" swaggertype:"object"`
 }
 
 func (r *AmendDraftRequest) Validate() error {
@@ -241,4 +241,47 @@ func (r *AmendDraftRequest) Validate() error {
 type ApprovalRequest struct {
         Approved bool `json:"approved"`
 }
+
+// DiscoverAuthRequest is the API DTO for discovering IdP configs for an email.
+type DiscoverAuthRequest struct {
+	Email string `json:"email"`
+}
+
+func (r *DiscoverAuthRequest) Validate() error {
+	if strings.TrimSpace(r.Email) == "" {
+		return errors.New("email is required")
+	}
+	return nil
+}
+
+// SaveConfigRequest is the API DTO for saving config entries.
+type SaveConfigRequest struct {
+	Key   string          `json:"key"`
+	Value json.RawMessage `json:"value" swaggertype:"object"`
+}
+
+func (r *SaveConfigRequest) Validate() error {
+	if strings.TrimSpace(r.Key) == "" {
+		return errors.New("key is required")
+	}
+	return nil
+}
+
+// SaveDraftRequest is the API DTO for saving/updating a draft escrow.
+type SaveDraftRequest struct {
+	BeneficiaryEmail string          `json:"beneficiaryEmail"`
+	ContractType     string          `json:"contractType"`
+	Amount           float64         `json:"amount"`
+	Currency         string          `json:"currency"`
+	Terms            json.RawMessage `json:"terms" swaggertype:"object"`
+	Metadata         json.RawMessage `json:"metadata" swaggertype:"object"`
+}
+
+func (r *SaveDraftRequest) Validate() error {
+	if r.Amount <= 0 {
+		return errors.New("amount must be greater than zero")
+	}
+	return nil
+}
+
 

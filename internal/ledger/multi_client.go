@@ -29,14 +29,15 @@ func (m *MultiLedgerClient) getClientForUser(userID string) Client {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Simple routing based on email domain or hardcoded users
-	if strings.Contains(userID, "bank.com") || userID == CentralBankUser || userID == EscrowMediatorUser {
+	userIDLower := strings.ToLower(userID)
+
+	if strings.Contains(userIDLower, "bank") || userID == CentralBankUser || strings.Contains(userIDLower, "mediator") || userID == EscrowMediatorUser {
 		return m.clients["bank"]
 	}
-	if strings.Contains(userID, "depositor.com") || userID == DepositorUser {
+	if strings.Contains(userIDLower, "depositor") || userID == DepositorUser {
 		return m.clients["depositor"]
 	}
-	if strings.Contains(userID, "beneficiary.com") || userID == BeneficiaryUser {
+	if strings.Contains(userIDLower, "beneficiary") || userID == BeneficiaryUser {
 		return m.clients["beneficiary"]
 	}
 
@@ -122,6 +123,10 @@ func (m *MultiLedgerClient) GetPartyMap() map[string]string {
 }
 
 func (m *MultiLedgerClient) GetParty(user string) string {
+	if strings.Contains(user, "::") {
+		return user
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -289,6 +294,7 @@ func (m *MultiLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, e
 		}
 	}
 	if firstIdentity != nil {
+		_ = m.Discover(ctx, false)
 		return firstIdentity, nil
 	}
 	return nil, fmt.Errorf("failed to provision user on any node: %v", lastErr)

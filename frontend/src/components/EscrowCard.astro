@@ -23,7 +23,55 @@ const amount = escrow.amount || 0;
 const currency = escrow.currency || 'USD';
 const state = escrow.state || 'DRAFT';
 const currentMilestoneIndex = escrow.currentMilestoneIndex || 0;
-const milestones = escrow.milestones || [];
+
+let milestones = escrow.milestones || [];
+if (milestones.length === 0 && escrow.terms && escrow.terms.conditionDescription) {
+	const desc = escrow.terms.conditionDescription;
+	const parts = desc.split(',');
+	milestones = parts.map((part, idx) => {
+		const colonIdx = part.lastIndexOf(':');
+		let label = part.trim();
+		let mAmount = amount; // fallback to total amount
+		if (colonIdx !== -1) {
+			label = part.substring(0, colonIdx).trim();
+			const amountStr = part.substring(colonIdx + 1).trim();
+			mAmount = parseFloat(amountStr) || amount;
+		}
+		return {
+			label: label,
+			amount: mAmount,
+			completed: idx < currentMilestoneIndex
+		};
+	});
+}
+
+const steps = [
+	{ label: 'Draft' },
+	{ label: 'Funded' },
+	{ label: 'Active' },
+	{ label: 'Settled' }
+];
+
+let currentStepIndex = 0;
+switch (state) {
+	case 'DRAFT':
+		currentStepIndex = 0;
+		break;
+	case 'FUNDED':
+		currentStepIndex = 1;
+		break;
+	case 'ACTIVE':
+	case 'DISPUTED':
+		currentStepIndex = 2;
+		break;
+	case 'PROPOSED':
+	case 'SETTLED':
+	case 'DISBURSING':
+		currentStepIndex = 3;
+		break;
+	default:
+		currentStepIndex = 0;
+}
 ---
 
 <div class="glass-card interactive-card rounded-3xl overflow-hidden group flex flex-col justify-between h-full">

@@ -158,5 +158,66 @@ The backend remains the absolute source of truth for business logic. When a Wall
       ]
     }
     ```
-3.  The frontend passes this command array directly to `sdk.prepareExecute(commands)` for standard wallet signing and submission, preventing "Blind Signing" manipulation risks.
+    The frontend passes this command array directly to `sdk.prepareExecute(commands)` for standard wallet signing and submission, preventing "Blind Signing" manipulation risks.
 
+---
+
+## 8. Identity Decision Graph & UX Mapping
+
+To bridge cryptographic ledger entities with intuitive human interactions, the platform implements a **Triple-Tier Identity Alignment** and a decorated user selection flow.
+
+### A. Triple-Tier Identity Model
+1.  **Registration Identity (T1):** The human/organizational level. Stored in Postgres (Okta `sub`, email, display name, organization).
+2.  **Ledger User ID (T2):** The node-level authorization account (e.g. `u-joey-depositor-com`) containing specific ledger rights (`actAs`, `readAs`).
+3.  **Canton Network Identity (T3):** The cryptographically addressable party hash (e.g. `Depositor::12207b5b...`). Used for template signatories and observers on-chain.
+
+### B. Authentication & Role-Assumption Decision Graph
+
+```mermaid
+flowchart TD
+    Start([User Visits Platform]) --> Choice{Select Auth Path}
+    
+    %% Custodial path
+    Choice -->|OIDC Custodial| EnterEmail[Enter Corporate Email & Select Role to Assume]
+    EnterEmail --> HRD{Home Realm Discovery}
+    HRD --> Okta[Redirect to Okta/OIDC Provider]
+    Okta --> VerifyToken[Validate OIDC Token in Go Backend]
+    VerifyToken --> JIT{First Time User?}
+    JIT -->|Yes| ProvisionT2[JIT Provision Daml User T2 & Party T3]
+    JIT -->|No| FetchT2[Retrieve mapped T2 / T3 from Postgres Directory]
+    ProvisionT2 --> LinkT1[Store T1 <-> T3 Mapping in Postgres]
+    FetchT2 --> SessionOIDC[Generate Session JWT carrying T3 Party ID & Assumed Role]
+
+    %% Self-sovereign path
+    Choice -->|SS CIP-0103 Wallet| ConnectWallet[Connect Canton Wallet via dApp SDK]
+    ConnectWallet --> GetT3s[Retrieve Wallet-Held Party ID Hashes T3s]
+    GetT3s --> DecorateT3s[Query Directory Service to Decorate T3s with T1 Metadata]
+    DecorateT3s --> SelectT3[User Selects Decorated Party ID & Assumed Role to Play]
+    SelectT3 --> Challenge[Request Random Nonce Challenge from Go Backend]
+    Challenge --> SignChallenge[Wallet Signs Nonce with Party Private Key]
+    SignChallenge --> VerifyWallet[Verify Signature in Go Backend]
+    VerifyWallet --> SessionWallet[Generate Session JWT carrying T3 Party ID & Assumed Role]
+
+    %% Finalize
+    SessionOIDC --> Finalize[Set assumed_role Cookie & Save Session State]
+    SessionWallet --> Finalize
+    Finalize --> Dashboard([Dashboard loaded in Assumed Role Perspective])
+```
+
+### C. UX Model: Party ID Decoration
+Because raw Canton Party IDs are cryptographic hashes (e.g., `Depositor::12207b5b48bc6...`), showing them directly in the user interface is a severe UX hazard. 
+
+To resolve this, the system enforces **Directory Decoration**:
+1.  **Ledger Metadata Annotations:** On-chain, the JIT provisioner attaches annotations to User records (`email`, `role`).
+2.  **Off-Chain Directory (Postgres):** The `identities` table is the definitive directory lookup.
+3.  **API Enrichment:** When the frontend requests directories, counterparty lists, or escrow states, the Go backend intercepts T3 hashes and decorates them with T1 metadata:
+    ```json
+    {
+      "damlPartyId": "Depositor::12207b5b...",
+      "displayName": "Joey Depositor",
+      "email": "joey@depositor.com",
+      "organization": "Acme Corp",
+      "role": "Depositor"
+    }
+    ```
+4.  **UI Representation:** In selection boxes (e.g., counterparties in draft creation), the user sees `Joey Depositor (Acme Corp)` instead of the cryptographic hash, maintaining legal clarity and operational assurance.

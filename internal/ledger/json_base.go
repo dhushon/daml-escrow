@@ -109,6 +109,7 @@ func (c *JsonLedgerClient) Discover(ctx context.Context, wait bool) error {
 						}
 						if found && len(state.Parties) > 0 {
 							c.logger.Info("ledger state verified against live ledger")
+							_ = c.refreshPartyMap(ctx)
 							return nil
 						}
 					}
@@ -194,6 +195,12 @@ func (c *JsonLedgerClient) SearchPackageID(ctx context.Context, name string) (st
 			// Note: This relies on the JSON API returning binary for /v2/packages/$pid 
 			// We check the binary for the package name string as a hack for DevNet
 			if bytes.Contains(pkgBody, []byte(name)) {
+				// High-Assurance: Avoid collision where "stablecoin-escrow" matches "stablecoin-escrow-interfaces" or "stablecoin-escrow-tests"
+				if name == "stablecoin-escrow" {
+					if bytes.Contains(pkgBody, []byte("stablecoin-escrow-interfaces")) || bytes.Contains(pkgBody, []byte("stablecoin-escrow-tests")) {
+						continue
+					}
+				}
 				return pid, nil
 			}
 		}

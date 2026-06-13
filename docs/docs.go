@@ -14,17 +14,2226 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/auth/discover": {
+            "post": {
+                "description": "Return the configured Identity Provider (IdP) or bypass settings for a given email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Discover auth settings for an email",
+                "parameters": [
+                    {
+                        "description": "Discover Auth Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.DiscoverAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "provider not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "description": "Retrieve the authenticated user's profile and resolved Canton Party ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get current user identity",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.UserIdentity"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/nonce": {
+            "get": {
+                "description": "Generate and persist a single-use UUID challenge string for wallet authentication handshakes (replays prevented)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get cryptographic challenge nonce",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/wallet/verify": {
+            "post": {
+                "description": "Authoritatively validates the cryptographic signature of the nonce and returns a secure JWT platform session token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Verify wallet signature and obtain token",
+                "parameters": [
+                    {
+                        "description": "Verify Wallet Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.VerifyWalletRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid signature or nonce",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "token generation failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/config": {
+            "get": {
+                "description": "Retrieve all persistent database configurations for the authenticated user context",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Get application config settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Set or update a persistent database configuration key-value pair for the current authenticated user context",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Save config settings",
+                "parameters": [
+                    {
+                        "description": "Save Config Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.SaveConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/drafts": {
+            "get": {
+                "description": "Get all active or completed draft versions where the user is an initiator or invitee counterparty",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "List drafts for user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/services.DraftEscrow"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new persistent contract proposal draft in the Postgres database, initialized as DRAFT state",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Save new draft agreement",
+                "parameters": [
+                    {
+                        "description": "Save Draft Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.SaveDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.DraftEscrow"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/drafts/{draftID}": {
+            "get": {
+                "description": "Retrieve the latest version details of a specific contract draft by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Get draft by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "draftID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.DraftEscrow"
+                        }
+                    },
+                    "404": {
+                        "description": "draft not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/drafts/{draftID}/amend": {
+            "post": {
+                "description": "Propose a modified version of a contract draft, creating a new history item in Postgres and bumping the version",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Propose draft amendment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "draftID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Amend Draft Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AmendDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.DraftEscrow"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/drafts/{draftID}/approve": {
+            "post": {
+                "description": "Approve the current latest version of a contract draft. If both counterparty roles approve, state shifts to RATIFIED.",
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Approve contract draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "draftID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "failed to approve",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/drafts/{draftID}/promote": {
+            "post": {
+                "description": "Bilateral promote a RATIFIED contract draft onto the Canton ledger as a proposed or active Escrow contract",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Promote draft to active ledger escrow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "draftID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "returns status and ledgerId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "draft not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "promotion failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows": {
+            "get": {
+                "description": "Get a list of active Escrow contracts from the Canton ledger associated with the user's role/party",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "List active escrows",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.EscrowContract"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a draft agreement on the Canton ledger awaiting counterparty acceptance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Propose a new escrow agreement",
+                "parameters": [
+                    {
+                        "description": "Propose Escrow Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ProposeEscrowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.EscrowProposal"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "proposal failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/activate": {
+            "post": {
+                "description": "Acknowledge funding and activate the escrow contract for condition validation",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Activate funded escrow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "activated contract ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "activation failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/confirm": {
+            "post": {
+                "description": "Bilateral or mediator counter-signing confirming conditions of the active escrow are met",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Confirm escrow conditions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "confirmation failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/disburse": {
+            "post": {
+                "description": "Release funds for the active milestone to the beneficiary upon successful condition confirmation",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Disburse active milestone funds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "disbursement failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/dispute": {
+            "post": {
+                "description": "Initiates dispute state on the active escrow, halting normal milestone disbursement and routing to the mediator",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Raise escrow dispute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "dispute failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/finalize": {
+            "post": {
+                "description": "Finalize a ratified dispute settlement split on the ledger",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Finalize dispute settlement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "finalized contract ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "finalization failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/fund": {
+            "post": {
+                "description": "Approve and authorize transfer of stablecoins from depositor custody vault holding into the escrow contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Fund active escrow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fund Escrow Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.FundEscrowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "funding failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/propose-settlement": {
+            "post": {
+                "description": "Create a settlement payout distribution proposal (buyer refund amount vs seller disburse amount)",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Propose dispute settlement split",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Propose Settlement Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ProposeSettlementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "proposed settlement ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "proposal failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{escrowID}/ratify": {
+            "post": {
+                "description": "Bilateral ratify the proposed dispute payout split",
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Ratify dispute settlement split",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "escrowID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ratified contract ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "ratification failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{id}": {
+            "get": {
+                "description": "Retrieve the full contract state details of a specific escrow by its ledger ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Get escrow details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.EscrowContract"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "escrow not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/escrows/{id}/lifecycle": {
+            "get": {
+                "description": "Retrieve structured audit log events (creation, funding, activate, confirm, etc.) for a specific escrow contract",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "escrows"
+                ],
+                "summary": "Get escrow event history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Escrow ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.EscrowLifecycleMetadata"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Check uptime, CPU/Memory stats and status of internal services",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Get system health and uptime",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/identities": {
+            "get": {
+                "description": "Get a directory of all Canton identities enriched with displays names, affiliation, titles, and emails from Postgres database",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "identities"
+                ],
+                "summary": "List enriched participant identities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.UserIdentity"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ingest": {
+            "post": {
+                "description": "Accept uploaded PDF/images, perform AI extraction of escrow terms and amount, and return structured metadata",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Ingest agreement documents via AI",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Agreement contract PDF or image files",
+                        "name": "agreement",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.IngestResult"
+                        }
+                    },
+                    "400": {
+                        "description": "missing or invalid files",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "ingestion failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "ingest service unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites": {
+            "get": {
+                "description": "Fetch a list of active invitations awaiting claimant countersignatures from the Canton ledger",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "List ledger invitations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.EscrowInvitation"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Propose an off-chain contract draft for a counterparty email invite, establishing a zero-latency initiation tunnel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Create off-chain invitation",
+                "parameters": [
+                    {
+                        "description": "Create Invitation Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.CreateInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.DraftEscrow"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/token/{token}": {
+            "get": {
+                "description": "Resolve a specific Canton ledger invitation details by token hash",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Get invitation by token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation Token Hash",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.EscrowInvitation"
+                        }
+                    },
+                    "404": {
+                        "description": "invitation not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/token/{token}/claim": {
+            "post": {
+                "description": "Claim an invitation token hash, linking the off-chain draft with the claimant user and initiating verification",
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Claim invitation token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation Token Hash",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "invalid or expired token",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Retrieve real-time metrics including total volume in escrow, active counts, API latency, and CPU/Memory usage",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Get system performance metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ledger.LedgerMetrics"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements": {
+            "get": {
+                "description": "Retrieve all active settlement payment instructions awaiting Central Bank stablecoin release execution",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "List pending settlements",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.EscrowSettlement"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/settlements/{settlementID}/settle": {
+            "post": {
+                "description": "Central Bank settles the payout instruction, releasing stablecoins to the target recipient and marking it completed",
+                "tags": [
+                    "settlements"
+                ],
+                "summary": "Settle pending payment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Settlement ID",
+                        "name": "settlementID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "settlement failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallets": {
+            "get": {
+                "description": "Retrieve mock/simulated wallet balances for Central Bank, Depositor, Beneficiary, and Mediator in dev perimeters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallets"
+                ],
+                "summary": "List simulated wallets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ledger.Wallet"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/webhooks/milestone": {
+            "post": {
+                "description": "External webhook receiver for oracle providers to sign off milestone target conditions",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Oracle webhook callback",
+                "parameters": [
+                    {
+                        "description": "Oracle Webhook Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.OracleWebhookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "trigger rejected",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.AmendDraftRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "terms": {
+                    "type": "object"
+                }
+            }
+        },
+        "api.CreateInvitationRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "assetId": {
+                    "type": "string"
+                },
+                "assetType": {
+                    "type": "string"
+                },
+                "conditionDescription": {
+                    "type": "string"
+                },
+                "conditionType": {
+                    "type": "string"
+                },
+                "contractType": {
+                    "description": "ImportExport, RealEstate, etc.",
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "disputeWindowDays": {
+                    "type": "integer"
+                },
+                "evidenceRequired": {
+                    "type": "string"
+                },
+                "expiryDate": {
+                    "type": "string"
+                },
+                "gracePeriodDays": {
+                    "type": "integer"
+                },
+                "inviteeEmail": {
+                    "type": "string"
+                },
+                "inviteeRole": {
+                    "description": "Depositor or Beneficiary",
+                    "type": "string"
+                },
+                "inviteeType": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.DiscoverAuthRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.FundEscrowRequest": {
+            "type": "object",
+            "properties": {
+                "custodyRef": {
+                    "type": "string"
+                },
+                "holdingCid": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.OracleWebhookRequest": {
+            "type": "object",
+            "properties": {
+                "asymmetric": {
+                    "type": "boolean"
+                },
+                "escrowId": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "milestoneIndex": {
+                    "type": "integer"
+                },
+                "oracleProvider": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ProposeEscrowRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "assetId": {
+                    "type": "string"
+                },
+                "assetType": {
+                    "type": "string"
+                },
+                "beneficiary": {
+                    "type": "string"
+                },
+                "conditionDescription": {
+                    "type": "string"
+                },
+                "conditionType": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "disputeWindowDays": {
+                    "type": "integer"
+                },
+                "evidenceRequired": {
+                    "type": "string"
+                },
+                "expiryDate": {
+                    "type": "string"
+                },
+                "gracePeriodDays": {
+                    "type": "integer"
+                },
+                "mediator": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "schemaUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ProposeSettlementRequest": {
+            "type": "object",
+            "properties": {
+                "beneficiaryPayment": {
+                    "type": "number"
+                },
+                "depositorReturn": {
+                    "type": "number"
+                },
+                "mediatorFee": {
+                    "type": "number"
+                },
+                "settlementType": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.SaveConfigRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "object"
+                }
+            }
+        },
+        "api.SaveDraftRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "beneficiaryEmail": {
+                    "type": "string"
+                },
+                "contractType": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "terms": {
+                    "type": "object"
+                }
+            }
+        },
+        "api.VerifyWalletRequest": {
+            "type": "object",
+            "properties": {
+                "assumedRole": {
+                    "type": "string"
+                },
+                "damlPartyId": {
+                    "type": "string"
+                },
+                "nonce": {
+                    "type": "string"
+                },
+                "publicKey": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.ActivityPoint": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.Asset": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "assetId": {
+                    "type": "string"
+                },
+                "assetType": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "custodyRef": {
+                    "type": "string"
+                },
+                "holdingCid": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.EscrowContract": {
+            "type": "object",
+            "properties": {
+                "agreementUrl": {
+                    "type": "string"
+                },
+                "asset": {
+                    "$ref": "#/definitions/ledger.Asset"
+                },
+                "beneficiary": {
+                    "type": "string"
+                },
+                "beneficiaryAccepted": {
+                    "type": "boolean"
+                },
+                "currentMilestoneIndex": {
+                    "type": "integer"
+                },
+                "depositor": {
+                    "type": "string"
+                },
+                "depositorAccepted": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "mediator": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "terms": {
+                    "$ref": "#/definitions/ledger.EscrowTerms"
+                }
+            }
+        },
+        "ledger.EscrowInvitation": {
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "$ref": "#/definitions/ledger.Asset"
+                },
+                "contractType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inviteeEmail": {
+                    "type": "string"
+                },
+                "inviteeRole": {
+                    "description": "Depositor or Beneficiary",
+                    "type": "string"
+                },
+                "inviter": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "mediator": {
+                    "type": "string"
+                },
+                "terms": {
+                    "$ref": "#/definitions/ledger.EscrowTerms"
+                },
+                "tokenHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.EscrowProposal": {
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "$ref": "#/definitions/ledger.Asset"
+                },
+                "beneficiary": {
+                    "type": "string"
+                },
+                "depositor": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "mediator": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "string"
+                },
+                "terms": {
+                    "$ref": "#/definitions/ledger.EscrowTerms"
+                }
+            }
+        },
+        "ledger.EscrowSettlement": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "escrowId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "recipient": {
+                    "type": "string"
+                },
+                "settlement": {
+                    "$ref": "#/definitions/ledger.SettlementTerms"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.EscrowTerms": {
+            "type": "object",
+            "properties": {
+                "conditionDescription": {
+                    "type": "string"
+                },
+                "conditionType": {
+                    "type": "string"
+                },
+                "disputeWindowDays": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "evidenceRequired": {
+                    "type": "string"
+                },
+                "expiryDate": {
+                    "type": "string"
+                },
+                "gracePeriodDays": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "maxAmount": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "minAmount": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "partialSchedule": {
+                    "description": "Simplified for JSON",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "ledger.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "cpuUsage": {
+                    "type": "number"
+                },
+                "goroutines": {
+                    "type": "integer"
+                },
+                "memoryUsage": {
+                    "type": "number"
+                },
+                "services": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/ledger.ServiceHealth"
+                    }
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.LedgerHealth": {
+            "type": "object",
+            "properties": {
+                "activeContracts": {
+                    "type": "integer"
+                },
+                "commandSuccessRate": {
+                    "type": "number"
+                },
+                "identitiesAllocated": {
+                    "type": "integer"
+                },
+                "tps": {
+                    "type": "number"
+                }
+            }
+        },
+        "ledger.LedgerMetrics": {
+            "type": "object",
+            "properties": {
+                "activeEscrows": {
+                    "type": "integer"
+                },
+                "activityHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ledger.ActivityPoint"
+                    }
+                },
+                "avgTimeToSettle": {
+                    "type": "string"
+                },
+                "bottleneckStage": {
+                    "type": "string"
+                },
+                "disputedEscrows": {
+                    "type": "integer"
+                },
+                "ledgerHealth": {
+                    "$ref": "#/definitions/ledger.LedgerHealth"
+                },
+                "settledVolume": {
+                    "type": "number"
+                },
+                "stageLatencies": {
+                    "description": "ms",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "successRate": {
+                    "description": "percentage",
+                    "type": "number"
+                },
+                "systemPerformance": {
+                    "$ref": "#/definitions/ledger.SystemPerformance"
+                },
+                "totalActiveEscrows": {
+                    "type": "integer"
+                },
+                "totalEscrows": {
+                    "type": "integer"
+                },
+                "totalValueInEscrow": {
+                    "type": "number"
+                },
+                "tpsHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ledger.ActivityPoint"
+                    }
+                }
+            }
+        },
+        "ledger.ServiceHealth": {
+            "type": "object",
+            "properties": {
+                "latencyMs": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "UP, DOWN, DEGRADED",
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.SettlementTerms": {
+            "type": "object",
+            "properties": {
+                "beneficiaryPayment": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "depositorReturn": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "mediatorFee": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "settlementType": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.SystemPerformance": {
+            "type": "object",
+            "properties": {
+                "apiLatencyMs": {
+                    "type": "integer"
+                },
+                "cpuUsage": {
+                    "type": "number"
+                },
+                "memoryUsage": {
+                    "type": "number"
+                },
+                "p95LatencyMs": {
+                    "type": "integer"
+                },
+                "p99LatencyMs": {
+                    "type": "integer"
+                },
+                "uptime": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.UserIdentity": {
+            "type": "object",
+            "properties": {
+                "affiliation": {
+                    "type": "string"
+                },
+                "damlPartyId": {
+                    "type": "string"
+                },
+                "damlUserId": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "kycStatus": {
+                    "description": "PENDING, VERIFIED, REJECTED",
+                    "type": "string"
+                },
+                "oktaSub": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "physicalAddress": {
+                    "type": "string"
+                },
+                "role": {
+                    "description": "Depositor, Beneficiary, Mediator",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "ledger.Wallet": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.DraftEscrow": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "approvals": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "beneficiaryEmail": {
+                    "type": "string"
+                },
+                "beneficiaryId": {
+                    "type": "string"
+                },
+                "changeSummary": {
+                    "type": "string"
+                },
+                "contractType": {
+                    "description": "ImportExport, RealEstate, Grants, Corporate",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "depositorId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "initiatorId": {
+                    "type": "string"
+                },
+                "initiatorRole": {
+                    "type": "string"
+                },
+                "invitationCode": {
+                    "type": "string"
+                },
+                "mediatorId": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "proposerId": {
+                    "type": "string"
+                },
+                "rootId": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "DRAFT, CLAIMED, NEGOTIATION, RATIFIED, PROMOTED",
+                    "type": "string"
+                },
+                "terms": {
+                    "type": "object"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.EscrowLifecycleMetadata": {
+            "type": "object",
+            "properties": {
+                "avgTimeToComplete": {
+                    "type": "string"
+                },
+                "currentState": {
+                    "type": "string"
+                },
+                "escrowId": {
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.LifecycleStep"
+                    }
+                },
+                "timeInCurrent": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.IngestResult": {
+            "type": "object",
+            "properties": {
+                "contentHash": {
+                    "type": "string"
+                },
+                "contractType": {
+                    "type": "string"
+                },
+                "extracted": {
+                    "type": "object"
+                },
+                "storageUri": {
+                    "type": "string"
+                },
+                "suggested": {
+                    "description": "Merged and validated draft",
+                    "type": "object"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "services.LifecycleStep": {
+            "type": "object",
+            "properties": {
+                "actionBy": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "COMPLETED, CURRENT, PENDING",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:8081",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "Stablecoin Escrow API",
+	Description:      "API for managing privacy-preserving stablecoin escrows on DAML.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

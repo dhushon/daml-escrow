@@ -124,6 +124,70 @@ func (s *IdentityService) GetOrCreateIdentity(ctx context.Context, oktaSub, emai
 	return ledgerIdentity, nil
 }
 
+func (s *IdentityService) ListEnrichedIdentities(ctx context.Context, ledgerClient ledger.Client) ([]*ledger.UserIdentity, error) {
+	// 1. Get raw identities from ledger
+	rawIdentities, err := ledgerClient.ListIdentities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Query Postgres directory
+	query := "SELECT daml_user_id, email, display_name, role, title, affiliation, organization, physical_address, kyc_status FROM identities"
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		// Fallback to raw identities if DB query fails
+		return rawIdentities, nil
+	}
+	defer func() { _ = rows.Close() }()
+
+	dbMap := make(map[string]*ledger.UserIdentity)
+	for rows.Next() {
+		var id ledger.UserIdentity
+		var title, affiliation, organization, address, kyc sql.NullString
+		if err := rows.Scan(&id.DamlUserID, &id.Email, &id.DisplayName, &id.Role, &title, &affiliation, &organization, &address, &kyc); err == nil {
+			id.Title = title.String
+			id.Affiliation = affiliation.String
+			id.Organization = organization.String
+			id.PhysicalAddress = address.String
+			id.KYCStatus = kyc.String
+			dbMap[id.DamlUserID] = &id
+		}
+	}
+
+	// 3. Decorate raw identities with T1 metadata
+	for _, raw := range rawIdentities {
+		if dbId, ok := dbMap[raw.DamlUserID]; ok {
+			if dbId.DisplayName != "" {
+				raw.DisplayName = dbId.DisplayName
+			}
+			if dbId.Email != "" {
+				raw.Email = dbId.Email
+			}
+			if dbId.Role != "" {
+				raw.Role = dbId.Role
+			}
+			raw.Title = dbId.Title
+			raw.Affiliation = dbId.Affiliation
+			raw.Organization = dbId.Organization
+			raw.PhysicalAddress = dbId.PhysicalAddress
+			raw.KYCStatus = dbId.KYCStatus
+		}
+	}
+
+	return rawIdentities, nil
+}
+
+func (s *IdentityService) FindPartyIDByEmail(ctx context.Context, email string) (string, error) {
+	var partyID string
+	query := "SELECT daml_party_id FROM identities WHERE LOWER(email) = LOWER($1) LIMIT 1"
+	err := s.db.QueryRowContext(ctx, query, email).Scan(&partyID)
+	if err != nil {
+		return "", err
+	}
+	return partyID, nil
+}
+
+
 func (s *IdentityService) getDefaultProvider() AuthProvider {
 	if provider, ok := s.config.Providers["default"]; ok {
 		return provider

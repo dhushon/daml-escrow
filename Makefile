@@ -109,7 +109,7 @@ codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR file
 .PHONY: swagger-gen
 swagger-gen: ## Regenerate Swagger/OpenAPI documentation
 	@echo "Generating API Swagger docs..."
-	@swag init -g cmd/escrow-api/main.go -o docs
+	@swag init -g main.go --dir cmd/escrow-api,internal/api,internal/ledger,internal/services -o docs
 
 .PHONY: pilot-release
 pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
@@ -124,6 +124,7 @@ pilot-release: ## Authoritatively build and push image to GCP Artifact Registry 
 
 .PHONY: bootstrap-local
 bootstrap-local: ## Synchronize DAR packages and allocate Parties on localhost
+	@rm -f ledger-state.json
 	@GOARCH=$(ARCH) ./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
@@ -149,3 +150,28 @@ test: ## Run all backend unit tests
 test-storage: ## Authoritatively verify storage infrastructure (MinIO/GCS) and Read-Through logic
 	@echo "Running Storage Infrastructure & API Integration Tests..."
 	@source ~/.zprofile && go test -v -tags=integration -run TestEndToEndStorageMirroring_Infra ./internal/services/...
+
+.PHONY: verify
+verify: ## Run all local verification tests (Go, DAML, Astro build, frontend tests)
+	@echo "Running local verification..."
+	@source ~/.zprofile && go test ./...
+	@cd contracts/stablecoin-escrow-tests && source ~/.zprofile && daml test
+	@cd frontend && npm run build
+	@cd frontend && npm run test
+
+.PHONY: install-hooks
+install-hooks: ## Install local git hooks
+	@bash scripts/install-git-hooks.sh
+
+.PHONY: test-e2e
+test-e2e: ## Run Playwright E2E integration tests locally (boots, tests, and tears down stack)
+	@echo "Launching local baseline stack..."
+	@make standalone-up
+	@echo "Awaiting services health check..."
+	@npx wait-on -t 120000 http-get://localhost:8081/api/v1/health http-get://localhost:4321/login
+	@echo "Executing Playwright E2E integration tests..."
+	@cd frontend && npx playwright test; \
+	status=$$?; \
+	echo "Tearing down baseline stack..."; \
+	make -C .. standalone-down; \
+	exit $$status

@@ -131,8 +131,8 @@ type DraftEscrow struct {
 	MediatorID       string          `json:"mediatorId"`
 	Amount           float64         `json:"amount"`
 	Currency         string          `json:"currency"`
-	Terms            json.RawMessage `json:"terms"`
-	Metadata         json.RawMessage `json:"metadata"`
+	Terms            json.RawMessage `json:"terms" swaggertype:"object"`
+	Metadata         json.RawMessage `json:"metadata" swaggertype:"object"`
 	ChangeSummary    string          `json:"changeSummary"`
 	Approvals        []string        `json:"approvals"`
 	Status           string          `json:"status"` // DRAFT, CLAIMED, NEGOTIATION, RATIFIED, PROMOTED
@@ -300,6 +300,13 @@ func (s *ConfigService) UpdateDraftStatus(id, status string) error {
 	_, err := s.db.Exec(query, status, id)
 	return err
 }
+
+func (s *ConfigService) UpdateDraftBeneficiary(id, beneficiaryID string) error {
+	query := "UPDATE draft_escrows SET beneficiary_id = $1 WHERE id = $2"
+	_, err := s.db.Exec(query, beneficiaryID, id)
+	return err
+}
+
 
 func NewMockConfigService(db *sql.DB) *ConfigService {
 	return &ConfigService{db: db}
