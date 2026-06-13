@@ -27,13 +27,22 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     // Select Counterparty (Jimmy/Beneficiary)
     const counterpartySelect = page.locator('#counterparty-select');
     await expect(counterpartySelect).toBeVisible();
-    // Select option with Jimmy's email
-    await counterpartySelect.selectOption({ label: 'Beneficiary: jimmy (jimmy...)' });
+    // Wait for asynchronous directory search to populate options
+    await page.waitForFunction(() => {
+      const el = document.getElementById('counterparty-select') as HTMLSelectElement;
+      return el && el.options.length > 0 && !el.options[0].text.includes('Searching');
+    });
+    await counterpartySelect.selectOption({ index: 0 });
 
     // Select Mediator (Sally)
     const mediatorSelect = page.locator('#mediator-select');
     await expect(mediatorSelect).toBeVisible();
-    await mediatorSelect.selectOption({ label: 'sally (Institutional Mediator)' });
+    // Wait for asynchronous mediators search to populate options
+    await page.waitForFunction(() => {
+      const el = document.getElementById('mediator-select') as HTMLSelectElement;
+      return el && el.options.length > 0 && !el.options[0].text.includes('Searching');
+    });
+    await mediatorSelect.selectOption({ index: 0 });
 
     // Select Currency
     const currencySelect = page.locator('select[name="currency"]');
