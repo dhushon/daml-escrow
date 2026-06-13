@@ -17,7 +17,7 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     console.log('Successfully logged in. Dashboard loaded.');
     
     // Validate Depositor identity displayed
-    await expect(page.locator('text=joey@depositor.devlocal')).toBeVisible();
+    await expect(page.locator('text=joey@depositor.devlocal').first()).toBeVisible();
 
     // 2. CREATE A NEW OFF-CHAIN DRAFT AGREEMENT
     console.log('Composing new draft escrow agreement...');
@@ -94,7 +94,7 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     await page.waitForURL('**/');
 
     // Confirm Jimmy is logged in
-    await expect(page.locator('text=jimmy@beneficiary.devlocal')).toBeVisible();
+    await expect(page.locator('text=jimmy@beneficiary.devlocal').first()).toBeVisible();
 
     // Open same draft as Beneficiary
     console.log('Opening draft as Beneficiary...');
