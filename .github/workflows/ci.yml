@@ -8,6 +8,9 @@ on:
       - feat/phase3-oracle-integration
       - feat/bitgo-stablecoin-integration
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   lint:
     name: Go Lint
@@ -52,7 +55,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -131,7 +134,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
