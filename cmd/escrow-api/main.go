@@ -82,6 +82,7 @@ func initConfig() {
 	}
 	if authBypass {
 		viper.Set("auth.authBypass", true)
+		viper.Set("auth.environment", "dev")
 	}
 }
 

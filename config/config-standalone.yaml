@@ -20,6 +20,8 @@ auth:
   issuer: "https://integrator-6277421.okta.com/oauth2/aus11kvijsbutv9dC698"
   clientId: "0oa11kvi7mxaHbQaV698"
   audience: "daml-escrow"
+  environment: "dev"
+  authBypass: true
 
 oracle:
   webhookSecret: "development-secret-key"
