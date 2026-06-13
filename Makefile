@@ -149,3 +149,15 @@ test: ## Run all backend unit tests
 test-storage: ## Authoritatively verify storage infrastructure (MinIO/GCS) and Read-Through logic
 	@echo "Running Storage Infrastructure & API Integration Tests..."
 	@source ~/.zprofile && go test -v -tags=integration -run TestEndToEndStorageMirroring_Infra ./internal/services/...
+
+.PHONY: verify
+verify: ## Run all local verification tests (Go, DAML, Astro build, frontend tests)
+	@echo "Running local verification..."
+	@source ~/.zprofile && go test ./...
+	@cd contracts/stablecoin-escrow-tests && source ~/.zprofile && daml test
+	@cd frontend && npm run build
+	@cd frontend && npm run test
+
+.PHONY: install-hooks
+install-hooks: ## Install local git hooks
+	@bash scripts/install-git-hooks.sh

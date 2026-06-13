@@ -1,4 +1,234 @@
-info:
-  contact: {}
-paths: {}
 swagger: "2.0"
+info:
+  title: Stablecoin Escrow API
+  description: API for managing privacy-preserving stablecoin escrows on DAML.
+  version: "1.0"
+host: localhost:8081
+basePath: /api/v1
+schemes:
+  - http
+consumes:
+  - application/json
+produces:
+  - application/json
+
+paths:
+  /health:
+    get:
+      summary: Get system health and uptime
+      tags:
+        - system
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+
+  /escrows:
+    get:
+      summary: List active escrows
+      parameters:
+        - name: user
+          in: query
+          description: User ID context
+          type: string
+      tags:
+        - escrows
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/api.EscrowResponse'
+    post:
+      summary: Create a new active escrow
+      tags:
+        - escrows
+      parameters:
+        - in: body
+          name: request
+          schema:
+            $ref: '#/definitions/api.CreateEscrowRequest'
+      responses:
+        201:
+          description: Created
+          schema:
+            $ref: '#/definitions/api.EscrowResponse'
+
+  /escrows/propose:
+    post:
+      summary: Propose a new escrow agreement
+      description: Create a draft agreement awaiting counterparty signature.
+      tags:
+        - escrows
+      parameters:
+        - in: body
+          name: request
+          schema:
+            $ref: '#/definitions/api.CreateEscrowRequest'
+      responses:
+        201:
+          description: Created
+          schema:
+            $ref: '#/definitions/api.EscrowProposal'
+
+  /escrows/proposals:
+    get:
+      summary: List pending agreement proposals
+      tags:
+        - escrows
+      parameters:
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/api.EscrowProposal'
+
+  /escrows/{escrowID}:
+    get:
+      summary: Get escrow details
+      tags:
+        - escrows
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          type: string
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/api.EscrowResponse'
+
+  /escrows/{escrowID}/accept:
+    post:
+      summary: Accept and sign a proposed agreement
+      tags:
+        - escrows
+      parameters:
+        - name: escrowID
+          in: path
+          required: true
+          type: string
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: Accepted
+
+  /metrics:
+    get:
+      summary: Fetch platform and system performance metrics
+      tags:
+        - system
+      parameters:
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/api.LedgerMetrics'
+
+  /wallets:
+    get:
+      summary: List mocked stablecoin accounts
+      tags:
+        - wallets
+      parameters:
+        - name: user
+          in: query
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/api.Wallet'
+
+definitions:
+  api.HealthResponse:
+    type: object
+    properties:
+      status: { type: string }
+      version: { type: string }
+      uptime: { type: string }
+      startTime: { type: string }
+      cpuUsage: { type: number }
+      memoryUsage: { type: number }
+
+  api.CreateEscrowRequest:
+    type: object
+    properties:
+      buyer: { type: string, example: "Buyer" }
+      seller: { type: string, example: "Seller" }
+      amount: { type: number, example: 500.0 }
+      currency: { type: string, example: "USD" }
+      description: { type: string }
+      milestones:
+        type: array
+        items: { $ref: '#/definitions/ledger.Milestone' }
+
+  api.EscrowResponse:
+    type: object
+    properties:
+      id: { type: string }
+      buyer: { type: string }
+      seller: { type: string }
+      amount: { type: number }
+      currency: { type: string }      state: { type: string }
+      currentMilestoneIndex: { type: integer }
+      milestones:
+        type: array
+        items: { $ref: '#/definitions/ledger.Milestone' }
+
+  api.EscrowProposal:
+    type: object
+    properties:
+      id: { type: string }
+      buyer: { type: string }
+      seller: { type: string }
+      amount: { type: number }
+      currency: { type: string }
+      description: { type: string }
+
+  api.LedgerMetrics:
+    type: object
+    properties:
+      totalActiveEscrows: { type: integer }
+      totalValueInEscrow: { type: number }
+      systemPerformance: { $ref: '#/definitions/api.SystemPerformance' }
+
+  api.SystemPerformance:
+    type: object
+    properties:
+      apiLatencyMs: { type: integer }
+      requestCount: { type: integer }
+      errorRate: { type: number }
+
+  api.Wallet:
+    type: object
+    properties:
+      id: { type: string }
+      owner: { type: string }
+      currency: { type: string }
+      balance: { type: number }
+
+  ledger.Milestone:
+    type: object
+    properties:
+      label: { type: string }
+      amount: { type: number }
+      completed: { type: boolean }

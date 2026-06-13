@@ -40,12 +40,16 @@ function resolveApiPath(path: string): string {
     if (!data || isStandalone) return `${API_URL}/api/v1${path}`;
     
     const session = JSON.parse(data);
-    const email = session.identity.email?.toLowerCase() || '';
+    const email = session.identity?.email?.toLowerCase() || '';
     let rolePath = 'bank'; // Default fallback
 
-    if (email.includes('depositor')) rolePath = 'depositor';
-    if (email.includes('beneficiary')) rolePath = 'beneficiary';
-    if (email.includes('bank')) rolePath = 'bank';
+    if (email.includes('depositor')) {
+        rolePath = 'depositor';
+    } else if (email.includes('beneficiary')) {
+        rolePath = 'beneficiary';
+    } else if (email.includes('bank')) {
+        rolePath = 'bank';
+    }
 
     return `${API_URL}/${rolePath}/api/v1${path}`;
 }
