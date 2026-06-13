@@ -114,13 +114,20 @@ func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DiscoverAuth(w http.ResponseWriter, r *http.Request) {
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		http.Error(w, "email parameter required", http.StatusBadRequest)
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	config, err := h.identityService.GetIdPConfigForEmail(email)
+	if body.Email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+
+	config, err := h.identityService.GetIdPConfigForEmail(body.Email)
 	if err != nil {
 		http.Error(w, "provider not found", http.StatusNotFound)
 		return
@@ -248,24 +255,30 @@ func (h *Handler) ListIdentities(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	cfg, err := h.configService.GetConfig(userID, "user-preferences")
+	cfgs, err := h.configService.ListConfigs(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(cfg)
+	_ = json.NewEncoder(w).Encode(cfgs)
 }
 
 func (h *Handler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value(AuthSubKey).(string)
-	var body interface{}
+	var body struct {
+		Key   string          `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	val, _ := json.Marshal(body)
-	if err := h.configService.SaveConfig(userID, "user-preferences", json.RawMessage(val)); err != nil {
+	if body.Key == "" {
+		http.Error(w, "key is required", http.StatusBadRequest)
+		return
+	}
+	if err := h.configService.SaveConfig(userID, body.Key, body.Value); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

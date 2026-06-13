@@ -26,60 +26,124 @@ const currentMilestoneIndex = escrow.currentMilestoneIndex || 0;
 const milestones = escrow.milestones || [];
 ---
 
-<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
-	<div class="p-5">
+<div class="glass-card interactive-card rounded-3xl overflow-hidden group flex flex-col justify-between h-full">
+	<div class="p-6">
+		<!-- Card Top Info -->
 		<div class="flex justify-between items-start mb-4">
 			<div>
-				<h3 class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center group/tooltip">
+				<h4 class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
 					Escrow ID
-					<svg class="w-3 h-3 ml-1 cursor-help text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-					<span class="absolute z-10 hidden group-hover/tooltip:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl max-w-[200px] -mt-12">The unique ledger address for this tripartite agreement.</span>
-				</h3>
-				<code class="text-xs text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded select-all transition-colors">{escrow.id.substring(0, 24)}...</code>
+					<span class="relative inline-block group/tooltip cursor-help">
+						<svg class="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+						<span class="absolute z-[200] pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity bg-slate-950/95 dark:bg-slate-900 border border-slate-800 text-white text-[10px] p-2.5 rounded-xl shadow-xl w-48 -left-20 -mt-24 leading-relaxed normal-case font-normal">The unique ledger contract identifier for this Escrow instance.</span>
+					</span>
+				</h4>
+				<code class="text-[10px] text-brand-500 font-mono bg-brand-500/5 dark:bg-brand-500/10 px-2.5 py-1.5 rounded-xl border border-brand-500/10 select-all transition-colors font-bold">{escrow.id.substring(0, 16)}...</code>
 			</div>
-			<span class={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider group/state relative ${statusColors[state] || 'bg-slate-100'}`}>
-				{state}
-				<span class="absolute z-10 hidden group-hover/state:block bg-slate-800 text-white text-[10px] p-2 rounded shadow-xl w-48 -left-20 mt-6 normal-case font-normal">
-					{state === 'ACTIVE' && "Funds are locked. Mediator validates completion."}
-					{state === 'PROPOSED' && "Settlement offered. Both parties must ratify."}
-					{state === 'DISPUTED' && "Adjudication phase. Mediator is investigating."}
+			
+			<div class="relative group/state">
+				<span class={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${statusColors[state] || 'bg-slate-100 border-slate-200'}`}>
+					{state}
 				</span>
-			</span>
+				<span class="absolute z-[200] pointer-events-none opacity-0 group-hover/state:opacity-100 transition-opacity bg-slate-950/95 dark:bg-slate-900 border border-slate-800 text-white text-[10px] p-2.5 rounded-xl shadow-xl w-48 -left-20 mt-3 normal-case font-normal leading-relaxed text-center">
+					{state === 'DRAFT' && "Agreement terms are being negotiated between parties."}
+					{state === 'FUNDED' && "Depositor has locked the required stablecoins on-chain."}
+					{state === 'ACTIVE' && "Escrow activated. Milestones are ready for verification."}
+					{state === 'PROPOSED' && "Settlement proposal offered. Requires bilateral signature."}
+					{state === 'DISPUTED' && "Dispute raised. A mediator is investigating details."}
+					{state === 'SETTLED' && "Settlement reached and approved. Awaiting final disbursement."}
+				</span>
+			</div>
 		</div>
 
-		<div class="grid grid-cols-2 gap-4 mb-6">
+		<!-- Amount Details -->
+		<div class="grid grid-cols-2 gap-4 my-5 py-3 border-y border-slate-100/50 dark:border-slate-800/40">
 			<div>
-				<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Amount</p>
-				<p class="text-xl font-black text-slate-800 dark:text-white">{amount} <span class="text-xs font-medium text-slate-400">{currency}</span></p>
+				<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Contract Amount</p>
+				<p class="text-xl font-black text-slate-900 dark:text-white leading-none tracking-tight">{amount.toLocaleString()} <span class="text-xs font-black text-brand-500">{currency}</span></p>
 			</div>
 			<div class="text-right">
-				<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Milestones</p>
-				<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+				<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Active Milestones</p>
+				<p class="text-sm font-black text-slate-700 dark:text-slate-300">
 					{milestones.length > 0 ? (currentMilestoneIndex + 1) : 0} 
-					<span class="text-slate-400">/</span> {milestones.length}
+					<span class="text-slate-300 dark:text-slate-700">/</span> {milestones.length}
 				</p>
 			</div>
 		</div>
 
-		<div class="space-y-2.5">
+		<!-- Visual Stepper Timeline -->
+		<div class="my-6 px-1">
+			<div class="flex items-center justify-between relative">
+				<!-- Background Connector Bar -->
+				<div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-slate-200 dark:bg-slate-800 -z-10 rounded-full">
+					<div 
+						class="h-full bg-brand-500 rounded-full transition-all duration-700" 
+						style={`width: ${(currentStepIndex / (steps.length - 1)) * 100}%`}
+					></div>
+				</div>
+				
+				{steps.map((s, idx) => {
+					const isCompleted = idx < currentStepIndex;
+					const isActive = idx === currentStepIndex;
+					
+					let circleClass = "bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-400";
+					let textClass = "text-slate-400 dark:text-slate-600";
+					
+					if (isCompleted) {
+						circleClass = "bg-brand-500 border-brand-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]";
+						textClass = "text-brand-500 font-bold";
+					} else if (isActive) {
+						if (state === 'DISPUTED') {
+							circleClass = "bg-rose-500 border-rose-500 text-white animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.4)]";
+							textClass = "text-rose-500 font-black";
+						} else if (state === 'PROPOSED') {
+							circleClass = "bg-amber-500 border-amber-500 text-white animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.4)]";
+							textClass = "text-amber-500 font-black";
+						} else {
+							circleClass = "bg-brand-500 border-brand-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)]";
+							textClass = "text-brand-500 font-black";
+						}
+					}
+					
+					return (
+						<div class="flex flex-col items-center relative z-10">
+							<div class={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-black transition-all duration-500 ${circleClass}`}>
+								{isCompleted ? (
+									<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+									</svg>
+								) : (idx + 1)}
+							</div>
+							<span class={`text-[8px] font-black uppercase tracking-wider mt-2.5 ${textClass}`}>
+								{s.label}
+							</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+
+		<!-- Milestones List -->
+		<div class="space-y-2 mt-4 max-h-48 overflow-y-auto pr-1">
 			{milestones.map((m, i) => (
-				<div class="flex items-center space-x-3 text-xs">
-					<div class={`w-2 h-2 rounded-full transition-all duration-500 ${m.completed ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : (i === currentMilestoneIndex && state === 'ACTIVE' ? 'bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-700')}`}></div>
-					<span class={`font-medium ${m.completed ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-600 dark:text-slate-300'}`}>{m.label}</span>
-					<span class="ml-auto font-mono text-[10px] text-slate-400">{m.amount}</span>
+				<div class="flex items-center space-x-3 text-xs bg-slate-50/50 dark:bg-slate-800/10 p-2.5 rounded-xl border border-slate-100/50 dark:border-slate-800/20">
+					<div class={`w-2.5 h-2.5 rounded-full transition-all duration-500 flex-shrink-0 ${m.completed ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : (i === currentMilestoneIndex && state === 'ACTIVE' ? 'bg-brand-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-800')}`}></div>
+					<span class={`font-bold tracking-tight truncate ${m.completed ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-700 dark:text-slate-300'}`}>{m.label}</span>
+					<span class="ml-auto font-mono text-[10px] text-brand-500 font-black">{m.amount.toLocaleString()} <span class="text-[9px] text-slate-400">{currency}</span></span>
 				</div>
 			))}
-			{milestones.length === 0 && <p class="text-[10px] italic text-slate-400">No milestones defined</p>}
+			{milestones.length === 0 && <p class="text-[10px] italic text-slate-400 text-center py-2">No contract milestones defined</p>}
 		</div>
 	</div>
 
-	<div class="bg-slate-50 dark:bg-slate-800/50 px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-3 transition-colors">
-		<div class="flex w-full gap-2">
+	<!-- Action Footer -->
+	<div class="bg-slate-50/80 dark:bg-slate-950/20 px-6 py-4 border-t border-slate-100/50 dark:border-slate-800/50 flex justify-between gap-3 transition-colors mt-auto">
+		<div class="flex w-full gap-2.5">
 			{state === 'DRAFT' && userRole === 'Depositor' && (
 				<button 
 					data-action="fund" 
 					data-id={escrow.id}
-					class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+					class="flex-1 bg-brand-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-brand-500/20 cursor-pointer border-none"
 				>
 					Fund Contract
 				</button>
@@ -89,9 +153,9 @@ const milestones = escrow.milestones || [];
 				<button 
 					data-action="activate" 
 					data-id={escrow.id}
-					class="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-500/20"
+					class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer border-none"
 				>
-					Activate
+					Activate Contract
 				</button>
 			)}
 
@@ -101,18 +165,18 @@ const milestones = escrow.milestones || [];
 						<button 
 							data-action="confirm" 
 							data-id={escrow.id}
-							class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-all active:scale-95"
+							class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer border-none"
 						>
-							Approve
+							Approve Release
 						</button>
 					)}
 					{(userRole === 'Depositor' || userRole === 'Beneficiary') && (
 						<button 
 							data-action="dispute" 
 							data-id={escrow.id}
-							class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all active:scale-95"
+							class="flex-1 bg-rose-50/80 dark:bg-rose-950/10 border border-rose-200 dark:border-rose-900/30 text-rose-600 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-rose-600 hover:text-white hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
 						>
-							Dispute
+							Raise Dispute
 						</button>
 					)}
 				</>
@@ -122,7 +186,7 @@ const milestones = escrow.milestones || [];
 				<button 
 					data-action="ratify" 
 					data-id={escrow.id}
-					class="flex-1 bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-700 transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+					class="flex-1 bg-amber-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-amber-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer border-none"
 				>
 					Ratify Settlement
 				</button>
@@ -132,20 +196,20 @@ const milestones = escrow.milestones || [];
 				<button 
 					data-action="disburse" 
 					data-id={escrow.id}
-					class="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-700 transition-all active:scale-95 shadow-lg shadow-purple-500/20"
+					class="flex-1 bg-purple-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-purple-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-purple-500/20 cursor-pointer border-none"
 				>
-					Disburse Funds
+					Disburse stablecoins
 				</button>
 			)}
 
 			{state === 'SETTLED' && userRole !== 'Issuer' && (
-				<div class="w-full text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-lg">
-					Awaiting Disbursement
+				<div class="w-full text-center py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+					Awaiting stablecoin Disbursement
 				</div>
 			)}
 			
 			{!isAdmin && userRole === 'Guest' && (
-				<div class="w-full text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-800">
+				<div class="w-full text-center py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-slate-200/50 dark:border-slate-800/30">
 					View-Only Perspective
 				</div>
 			)}

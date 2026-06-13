@@ -124,7 +124,9 @@ providers:
 	h := NewHandler(logger, nil, nil, nil, nil, idSvc, nil, nil, nil)
 
 	t.Run("Successful Discovery", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/api/v1/auth/discover?email=user@test.com", nil)
+		body := map[string]string{"email": "user@test.com"}
+		jsonBody, _ := json.Marshal(body)
+		req, _ := http.NewRequest("POST", "/api/v1/auth/discover", bytes.NewBuffer(jsonBody))
 		rr := httptest.NewRecorder()
 
 		h.DiscoverAuth(rr, req)

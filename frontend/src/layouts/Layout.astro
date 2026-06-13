@@ -19,21 +19,23 @@ const { title } = Astro.props;
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
-	<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
-		<nav class="bg-white border-b border-slate-200 p-4 shadow-sm dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-50">
+	<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+		<nav class="glass-nav p-4 sticky top-0 z-50 transition-colors duration-300">
 			<div class="container mx-auto flex justify-between items-center">
 				<div class="flex items-center space-x-3">
-					<a href="/" class="flex items-center space-x-3">
-						<img src="/favicon.svg" alt="Logo" class="w-10 h-10" />
-						<h1 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">Stablecoin Escrow</h1>
+					<a href="/" class="flex items-center space-x-3 group">
+						<div class="w-10 h-10 bg-brand-500/10 rounded-2xl flex items-center justify-center text-brand-500 shadow-sm border border-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+							<img src="/favicon.svg" alt="Logo" class="w-7 h-7" />
+						</div>
+						<h1 class="text-sm font-black tracking-tight text-slate-800 dark:text-white uppercase">Stablecoin Escrow</h1>
 					</a>
 				</div>
-				<div id="main-nav" class="flex items-center space-x-6 text-sm font-semibold">
-					<a href="/" class="hover:text-blue-600 transition-colors">Home</a>
+				<div id="main-nav" class="flex items-center space-x-6 text-xs font-black uppercase tracking-wider">
+					<a href="/" class="hover:text-brand-500 transition-colors">Home</a>
 					<!-- Authenticated links will be injected here -->
-					<div id="auth-nav" class="flex items-center space-x-6">
-						<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-						<a href="/login" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">Sign In</a>
+					<div id="auth-nav" class="flex items-center space-x-4">
+						<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+						<a href="/login" class="bg-brand-600 text-white px-5 py-2.5 rounded-2xl hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all shadow-md shadow-brand-600/20 font-black">Sign In</a>
 					</div>
 				</div>
 			</div>
@@ -71,76 +73,76 @@ const { title } = Astro.props;
 				
 				// Inject Protected Links
 				authNav.insertAdjacentHTML('beforebegin', `
-					<a href="/" class="hover:text-blue-600 transition-colors">${isAdmin ? 'Total Escrows' : 'My Escrows'}</a>
-					<a href="/settlements" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Settlements</a>
-					<a href="/metrics" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Metrics</a>
+					<a href="/" class="hover:text-brand-500 transition-colors">${isAdmin ? 'Total Escrows' : 'My Escrows'}</a>
+					<a href="/settlements" class="text-slate-600 dark:text-slate-400 hover:text-brand-500 transition-colors">Settlements</a>
+					<a href="/metrics" class="text-slate-600 dark:text-slate-400 hover:text-brand-500 transition-colors">Metrics</a>
 				`);
 
 				authNav.innerHTML = `
 					<div class="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
 					${canWrite ? `
 						<div class="relative">
-							<button id="compose-btn" class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-100 transition-all font-bold border-none cursor-pointer flex items-center space-x-1">
+							<button id="compose-btn" class="bg-brand-500/10 dark:bg-brand-500/20 text-brand-500 px-4 py-2 rounded-2xl hover:bg-brand-500/20 transition-all font-black border-none cursor-pointer flex items-center space-x-1 text-[11px] tracking-wider uppercase">
 								<span>Compose +</span>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
 							</button>
-							<div id="compose-menu" class="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-[150] hidden overflow-hidden animate-slideIn">
-								<a href="/compose" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 transition-colors group">
-									<p class="mb-1 uppercase tracking-widest text-blue-600">Manual Entry</p>
-									<p class="text-[10px] text-slate-400 font-medium normal-case leading-relaxed">Authoritatively define terms and milestones from scratch.</p>
+							<div id="compose-menu" class="absolute right-0 mt-3 w-64 glass-card rounded-3xl shadow-2xl z-[150] hidden overflow-hidden animate-slideIn">
+								<a href="/compose" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-brand-500/10 border-b border-slate-100 dark:border-slate-800 transition-colors group">
+									<p class="mb-1 uppercase tracking-widest text-brand-500">Manual Entry</p>
+									<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium normal-case leading-relaxed">Define terms, milestones, and metadata from scratch.</p>
 								</a>
-								<a href="/ingest" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
-									<p class="mb-1 uppercase tracking-widest text-purple-600">AI Ingest (PDF/IMG)</p>
-									<p class="text-[10px] text-slate-400 font-medium normal-case leading-relaxed">Upload an existing agreement and let Gemini extract the terms.</p>
+								<a href="/ingest" class="block px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-brand-500/10 transition-colors group">
+									<p class="mb-1 uppercase tracking-widest text-purple-500">AI Ingest (PDF/IMG)</p>
+									<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium normal-case leading-relaxed">Upload an agreement and let Gemini extract the structured terms.</p>
 								</a>
 							</div>
 						</div>
 					` : ''}
-					<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">Vault Registry</a>
+					<a href="/wallets" class="text-slate-600 dark:text-slate-400 hover:text-brand-500 transition-colors">Vault Registry</a>
 					
 					<!-- User Identity Pill & Dropdown -->
 					<div class="relative ml-6 pl-6 border-l border-slate-200 dark:border-slate-800 flex items-center">
-						<button id="user-pill" class="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 rounded-2xl transition-all cursor-pointer group border-none bg-transparent outline-none">
+						<button id="user-pill" class="flex items-center space-x-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 p-1.5 rounded-2xl transition-all cursor-pointer group border-none bg-transparent outline-none">
 							<div class="flex flex-col items-end">
-								<span class="text-xs font-bold text-slate-900 dark:text-white">${identity.email}</span>
-								<span class="text-[10px] text-slate-500 uppercase tracking-tighter">${identity.damlPartyId.split('::')[0]}</span>
+								<span class="text-[11px] font-black text-slate-900 dark:text-white tracking-tight">${identity.email}</span>
+								<span class="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">${identity.damlPartyId.split('::')[0]}</span>
 							</div>
-							<div class="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold group-hover:bg-blue-200 transition-colors shadow-sm">
+							<div class="w-9 h-9 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-500 font-black group-hover:bg-brand-500/20 transition-colors shadow-sm">
 								${identity.email.charAt(0).toUpperCase()}
 							</div>
 						</button>
 
 						<!-- Dropdown Menu -->
-						<div id="user-menu" class="user-dropdown absolute top-full right-0 mt-3 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-[100] overflow-hidden text-left">
-							<div class="p-6 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-left">
-								<p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Sovereign Identity</p>
+						<div id="user-menu" class="user-dropdown absolute top-full right-0 mt-3 w-80 glass-card rounded-3xl shadow-2xl z-[100] overflow-hidden text-left">
+							<div class="p-6 border-b border-slate-100 dark:border-slate-800/60 text-left">
+								<p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Sovereign Identity</p>
 								<div class="space-y-4">
 									<div>
-										<label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 text-left">DAML User ID</label>
-										<code class="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-100 dark:border-slate-800 block truncate font-mono text-blue-600 dark:text-blue-400">${identity.damlUserId}</code>
+										<label class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase block mb-1 text-left">DAML User ID</label>
+										<code class="text-[10px] bg-slate-50/50 dark:bg-slate-950/50 px-2.5 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 block truncate font-mono text-brand-500 font-bold">${identity.damlUserId}</code>
 									</div>
 									<div>
-										<label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 text-left">Canton Party ID</label>
-										<code class="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-100 dark:border-slate-800 block truncate font-mono text-slate-600 dark:text-slate-300">${identity.damlPartyId}</code>
+										<label class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase block mb-1 text-left">Canton Party ID</label>
+										<code class="text-[10px] bg-slate-50/50 dark:bg-slate-950/50 px-2.5 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 block truncate font-mono text-slate-600 dark:text-slate-400">${identity.damlPartyId}</code>
 									</div>
 								</div>
 							</div>
 							
 							<div class="p-2 space-y-1">
-								<div class="px-4 py-3 flex items-center justify-between border-b border-slate-50 dark:border-slate-800 mb-1">
-									<span class="text-xs font-bold text-slate-700 dark:text-slate-300">Affiliation</span>
-									<span class="text-[10px] font-black text-blue-500 uppercase tracking-widest">${identity.email.split('@')[1]}</span>
+								<div class="px-4 py-3 flex items-center justify-between border-b border-slate-100/50 dark:border-slate-800/50 mb-1">
+									<span class="text-xs font-black text-slate-500 uppercase tracking-wider">Affiliation</span>
+									<span class="text-[10px] font-black text-brand-500 uppercase tracking-widest">${identity.email.split('@')[1]}</span>
 								</div>
 								
 								<!-- Dynamic Actions -->
 								${!identity.email.endsWith('@gmail.com') && !identity.email.endsWith('@icloud.com') && !session.isBypass ? `
-									<a href="https://integrator-6277421.okta.com/enduser/settings" target="_blank" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors">
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+									<a href="https://integrator-6277421.okta.com/enduser/settings" target="_blank" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-brand-500/10 rounded-2xl transition-colors">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
 										<span>Change Password</span>
 									</a>
 								` : ''}
 
-								<button id="logout-btn" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-colors cursor-pointer border-none bg-transparent outline-none">
+								<button id="logout-btn" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-2xl transition-colors cursor-pointer border-none bg-transparent outline-none">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
 									<span>Sign Out</span>
 								</button>

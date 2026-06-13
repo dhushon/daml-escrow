@@ -239,7 +239,7 @@ func runServer() {
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handler.GetHealth)
 		r.Get("/auth/me", handler.GetIdentity)
-		r.Get("/auth/discover", handler.DiscoverAuth)
+		r.Post("/auth/discover", handler.DiscoverAuth)
 		r.Get("/auth/nonce", handler.GetNonce)
 		r.Post("/auth/wallet/verify", handler.VerifyWallet)
 		r.Get("/identities", handler.ListIdentities)

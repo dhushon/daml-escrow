@@ -106,6 +106,11 @@ codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR file
 		--go_package generated
 	@echo "Codegen Complete: Go bindings synchronized with institutional vocabulary."
 
+.PHONY: swagger-gen
+swagger-gen: ## Regenerate Swagger/OpenAPI documentation
+	@echo "Generating API Swagger docs..."
+	@swag init -g cmd/escrow-api/main.go -o docs
+
 .PHONY: pilot-release
 pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
 	@echo "Releasing GKE Pilot API (Arch: $(ARCH))..."
