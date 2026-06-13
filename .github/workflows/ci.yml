@@ -154,6 +154,14 @@ jobs:
         env:
           CI: true
 
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "=== Standalone API Log ==="
+          cat log/standalone-api.log || true
+          echo "=== Standalone Frontend Log ==="
+          cat log/standalone-frontend.log || true
+
       - name: Clean up stack
         if: always()
         run: |
