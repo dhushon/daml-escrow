@@ -146,6 +146,9 @@ jobs:
           export PATH="/home/runner/.dpm/bin:$PATH"
           make standalone-up
           
+          # Wait for Go API backend and Astro dev server to start
+          npx wait-on -t 120000 http-get://localhost:8081/api/v1/health http-get://localhost:4321/login
+          
           cd frontend
           npx playwright test
         env:
