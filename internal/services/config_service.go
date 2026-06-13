@@ -64,6 +64,26 @@ func (s *ConfigService) GetConfig(userID, key string) (json.RawMessage, error) {
 	return val, nil
 }
 
+func (s *ConfigService) ListConfigs(userID string) (map[string]json.RawMessage, error) {
+	query := "SELECT config_key, config_value FROM configs WHERE user_id = $1"
+	rows, err := s.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	configs := make(map[string]json.RawMessage)
+	for rows.Next() {
+		var key string
+		var val json.RawMessage
+		if err := rows.Scan(&key, &val); err != nil {
+			return nil, err
+		}
+		configs[key] = val
+	}
+	return configs, nil
+}
+
 // --- Auth Nonce Management (Phase 17.1) ---
 
 func (s *ConfigService) CreateNonce(ctx context.Context, nonce string) error {

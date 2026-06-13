@@ -130,7 +130,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				.map((id: any) => {
 					const emailPrefix = id.email.split('@')[0];
 					const shortId = id.damlUserId.substring(0, 12);
-					return `<option value="${id.damlUserId}">${id.role}: ${emailPrefix} (${shortId}...)</option>`;
+					return `<option value="${id.email}">${id.role}: ${emailPrefix} (${shortId}...)</option>`;
 				}).join('');
 			
 			// Filter mediators
@@ -203,9 +203,16 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 			return;
 		}
 
+		const schemaUrl = formData.get('schemaUrl')?.toString();
+		let contractType = 'Corporate';
+		if (schemaUrl?.includes('grants')) contractType = 'Corporate';
+		else if (schemaUrl?.includes('leasing')) contractType = 'RealEstate';
+		else if (schemaUrl?.includes('supply-chain')) contractType = 'ImportExport';
+
 		const req = {
-			counterpartyEmail: formData.get('counterparty'),
+			beneficiaryEmail: formData.get('counterparty'),
 			mediator: formData.get('mediator'),
+			contractType: contractType,
 			amount: totalAmount,
 			currency: formData.get('currency'),
 			terms: {

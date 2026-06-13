@@ -192,7 +192,11 @@ export async function ingestContract(files: File[]) {
 }
 
 export async function discoverAuth(email: string) {
-    const response = await fetch(resolveApiPath(`/auth/discover?email=${encodeURIComponent(email)}`));
+    const response = await fetch(resolveApiPath('/auth/discover'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
     if (!response.ok) throw new Error('Failed to discover auth provider');
     return response.json();
 }
@@ -267,13 +271,21 @@ export async function createInvitation(email: string, role: string, inviteeType:
     const response = await fetch(resolveApiPath('/invites'), {
         method: 'POST',
         headers: getAuthHeaders(),
-		body: JSON.stringify({
-			inviteeEmail: email,
-			inviteeRole: role,
-			inviteeType,
-			asset,
-			terms
-		})
+        body: JSON.stringify({
+            inviteeEmail: email,
+            inviteeRole: role,
+            inviteeType,
+            assetType: asset.assetType,
+            assetId: asset.assetId,
+            amount: asset.amount,
+            currency: asset.currency,
+            conditionDescription: terms.conditionDescription,
+            conditionType: terms.conditionType || 'Default',
+            evidenceRequired: terms.evidenceRequired || 'Default',
+            expiryDate: terms.expiryDate,
+            gracePeriodDays: terms.gracePeriodDays || 0,
+            disputeWindowDays: terms.disputeWindowDays || 0
+        })
     });
     if (!response.ok) {
         const err = await response.json();
@@ -304,19 +316,20 @@ export async function fetchHealth() {
 }
 
 export async function fetchConfig(user: string, key: string) {
-    const response = await fetch(resolveApiPath(`/config?user=${encodeURIComponent(user)}&key=${encodeURIComponent(key)}`), {
+    const response = await fetch(resolveApiPath('/config'), {
         headers: getAuthHeaders()
     });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error('Failed to fetch config');
-    return response.json();
+    const configs = await response.json();
+    return configs ? configs[key] : null;
 }
 
 export async function saveConfig(user: string, key: string, value: any) {
-    const response = await fetch(resolveApiPath(`/config?user=${encodeURIComponent(user)}&key=${encodeURIComponent(key)}`), {
+    const response = await fetch(resolveApiPath('/config'), {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(value)
+        body: JSON.stringify({ key, value })
     });
     if (!response.ok) throw new Error('Failed to save config');
 }

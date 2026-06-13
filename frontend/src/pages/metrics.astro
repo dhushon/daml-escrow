@@ -25,19 +25,19 @@ import RefreshSlider from '../components/RefreshSlider.astro';
 		Retrieving ledger analytics...
 	</div>
 
-	<div id="admin-notice" class="hidden mt-12 bg-slate-900 dark:bg-blue-950 rounded-3xl p-10 text-white shadow-2xl relative overflow-hidden transition-colors duration-500 border border-slate-800 dark:border-blue-900">
+	<div id="admin-notice" class="hidden mt-12 glass-card rounded-3xl p-10 shadow-2xl relative overflow-hidden transition-colors duration-500">
 		<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
 			<div class="max-w-2xl">
-				<h3 class="text-3xl font-black mb-4 tracking-tight">Central Bank Oversight</h3>
-				<p class="text-slate-300 dark:text-blue-200 leading-relaxed font-medium">
+				<h3 class="text-3xl font-black mb-4 tracking-tight uppercase">Central Bank Oversight</h3>
+				<p class="text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
 					This unified dashboard provides absolute visibility into stablecoin obligations. 
 					As the issuer, the Central Bank monitors systemic liquidity and ensures that every escrowed token is backed and settled with cryptographic certainty.
 				</p>
 			</div>
-			<div class="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 inline-block self-start md:self-center">
+			<div class="bg-brand-500/10 dark:bg-brand-500/20 p-6 rounded-2xl border border-brand-500/20 inline-block self-start md:self-center">
 				<div class="flex items-center space-x-4">
-					<div class="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(74,222,128,0.5)]"></div>
-					<span class="text-sm font-bold uppercase tracking-wider">System Status: Nominal</span>
+					<div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)]"></div>
+					<span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">System Status: Nominal</span>
 				</div>
 			</div>
 		</div>
@@ -69,53 +69,158 @@ import RefreshSlider from '../components/RefreshSlider.astro';
 				// Update Headers (Only on first run)
 				if (label && label.textContent?.includes('Synchronizing')) {
 					if (isAdmin) {
-						indicator?.classList.replace('bg-slate-300', 'bg-blue-500');
+						indicator?.classList.replace('bg-slate-300', 'bg-brand-500');
 						label.textContent = 'System-Wide Ledger Metrics';
 						if (title) title.textContent = 'Total Escrows & Oversight';
 						adminNotice?.classList.remove('hidden');
 					} else {
-						indicator?.classList.replace('bg-slate-300', 'bg-green-500');
+						indicator?.classList.replace('bg-slate-300', 'bg-emerald-500');
 						label.textContent = 'Personal Escrow Analytics';
 						if (title) title.textContent = 'My Financial Activity';
 					}
 				}
 
 				// Render Metrics
+				const maxHistory = Math.max(...metrics.activityHistory.map((p: any) => p.count), 1);
+				const historyPath = metrics.activityHistory.map((p: any, idx: number) => {
+					const x = (idx / (metrics.activityHistory.length - 1)) * 480 + 10;
+					const y = 140 - (p.count / maxHistory) * 100;
+					return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+				}).join(' ');
+				const historyAreaPath = `${historyPath} L 490 140 L 10 140 Z`;
+
+				const maxTps = Math.max(...metrics.tpsHistory.map((p: any) => p.count), 1);
+				const tpsPath = metrics.tpsHistory.map((p: any, idx: number) => {
+					const x = (idx / (metrics.tpsHistory.length - 1)) * 480 + 10;
+					const y = 140 - (p.count / maxTps) * 100;
+					return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+				}).join(' ');
+				const tpsAreaPath = `${tpsPath} L 490 140 L 10 140 Z`;
+
 				content!.innerHTML = `
 					<div class="space-y-12 pb-12 text-left">
-						<section>
-							<div class="flex justify-between items-center mb-6">
-								<h3 class="text-lg font-bold text-slate-800 dark:text-white">Escrow Metrics</h3>
-								<div class="flex items-center space-x-2">
-									<span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Real-Time Ledger</span>
-									<span class="text-[10px] font-medium text-slate-400 italic">Auto-refreshing every ${currentSeconds}s</span>
-								</div>
+						<!-- Core Metrics Cards Grid -->
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+							<div class="glass-card rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]">
+								<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Active Contracts</p>
+								<p class="text-3xl font-black text-brand-500 tracking-tight leading-none">${metrics.totalActiveEscrows}</p>
+								<span class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Programs actively monitored</span>
 							</div>
-							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-								<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Escrows</p>
-									<p class="text-4xl font-black mt-2 text-blue-600 dark:text-blue-400">${metrics.totalActiveEscrows}</p>
-								</div>
-								<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value in Escrow</p>
-									<p class="text-4xl font-black mt-2 text-slate-900 dark:text-white tracking-tighter">
-										${metrics.totalValueInEscrow.toLocaleString()} 
-										<span class="text-xs font-medium text-slate-400 italic">USD</span>
-									</p>
-								</div>
+							<div class="glass-card rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]">
+								<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Value in Escrow</p>
+								<p class="text-3xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
+									${metrics.totalValueInEscrow.toLocaleString()} 
+									<span class="text-xs font-black text-brand-500">USD</span>
+								</p>
+								<span class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Backed by fully reserved tokens</span>
 							</div>
-						</section>
+							<div class="glass-card rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]">
+								<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Settled Volume</p>
+								<p class="text-3xl font-black text-emerald-500 tracking-tighter leading-none">
+									${metrics.settledVolume.toLocaleString()} 
+									<span class="text-xs font-black text-emerald-600">USD</span>
+								</p>
+								<span class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Successfully completed agreements</span>
+							</div>
+							<div class="glass-card rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]">
+								<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Resolution Success</p>
+								<p class="text-3xl font-black text-purple-500 tracking-tight leading-none">${metrics.successRate}%</p>
+								<span class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Settlements without dispute mediation</span>
+							</div>
+						</div>
 
-						<section>
-							<h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">API & System Performance</h3>
-							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-								<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg Latency</p>
-									<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.apiLatencyMs} <span class="text-xs font-normal text-slate-400 italic">ms</span></p>
+						<!-- Charts Grid -->
+						<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+							<div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
+								<div class="flex justify-between items-start mb-6">
+									<div>
+										<h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Escrow Activity Volume</h4>
+										<p class="text-[10px] text-slate-400 mt-1">Daily active smart contracts lifecycle count</p>
+									</div>
+									<span class="text-[9px] font-black text-brand-500 bg-brand-500/10 px-2.5 py-1.5 rounded-xl border border-brand-500/10 uppercase tracking-widest">7-Day Run</span>
 								</div>
-								<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-									<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</p>
-									<p class="text-2xl font-black mt-1 text-slate-800 dark:text-white">${metrics.systemPerformance.cpuUsage.toFixed(1)}%</p>
+								
+								<div class="relative py-4">
+									<svg viewBox="0 0 500 150" class="w-full h-40 overflow-visible">
+										<defs>
+											<linearGradient id="historyGrad" x1="0" y1="0" x2="0" y2="1">
+												<stop offset="0%" stop-color="var(--color-brand-500)" stop-opacity="0.2"/>
+												<stop offset="100%" stop-color="var(--color-brand-500)" stop-opacity="0.0"/>
+											</linearGradient>
+										</defs>
+										<path d="${historyAreaPath}" fill="url(#historyGrad)" />
+										<path d="${historyPath}" fill="none" stroke="var(--color-brand-500)" stroke-width="3" stroke-linecap="round" />
+										
+										${metrics.activityHistory.map((p: any, idx: number) => {
+											const x = (idx / (metrics.activityHistory.length - 1)) * 480 + 10;
+											const y = 140 - (p.count / maxHistory) * 100;
+											return `
+												<circle cx="${x}" cy="${y}" r="4" fill="var(--color-brand-500)" stroke="var(--color-slate-50)" dark:stroke="var(--color-slate-950)" stroke-width="2" />
+												<text x="${x}" y="152" class="text-[8px] font-black fill-slate-400 text-center" text-anchor="middle">${p.date}</text>
+												<text x="${x}" y="${y - 8}" class="text-[8px] font-bold fill-slate-500 dark:fill-slate-400 text-center" text-anchor="middle">${p.count}</text>
+											`;
+										}).join('')}
+									</svg>
+								</div>
+							</div>
+
+							<div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
+								<div class="flex justify-between items-start mb-6">
+									<div>
+										<h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Canton Command Throughput</h4>
+										<p class="text-[10px] text-slate-400 mt-1">Average transactions per second (TPS)</p>
+									</div>
+									<span class="text-[9px] font-black text-purple-500 bg-purple-500/10 px-2.5 py-1.5 rounded-xl border border-purple-500/10 uppercase tracking-widest">Active nodes</span>
+								</div>
+								
+								<div class="relative py-4">
+									<svg viewBox="0 0 500 150" class="w-full h-40 overflow-visible">
+										<defs>
+											<linearGradient id="tpsGrad" x1="0" y1="0" x2="0" y2="1">
+												<stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/>
+												<stop offset="100%" stop-color="#a855f7" stop-opacity="0.0"/>
+											</linearGradient>
+										</defs>
+										<path d="${tpsAreaPath}" fill="url(#tpsGrad)" />
+										<path d="${tpsPath}" fill="none" stroke="#a855f7" stroke-width="3" stroke-linecap="round" />
+										
+										${metrics.tpsHistory.map((p: any, idx: number) => {
+											const x = (idx / (metrics.tpsHistory.length - 1)) * 480 + 10;
+											const y = 140 - (p.count / maxTps) * 100;
+											return `
+												<circle cx="${x}" cy="${y}" r="4" fill="#a855f7" stroke="var(--color-slate-50)" dark:stroke="var(--color-slate-950)" stroke-width="2" />
+												<text x="${x}" y="152" class="text-[8px] font-black fill-slate-400 text-center" text-anchor="middle">${p.date}</text>
+												<text x="${x}" y="${y - 8}" class="text-[8px] font-bold fill-purple-500 dark:fill-purple-400 text-center" text-anchor="middle">${p.count} tps</text>
+											`;
+										}).join('')}
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<!-- Hardware Performance & Ledger Health -->
+						<section>
+							<h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-6">API & Ledger Node Performance</h3>
+							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+								<div class="glass-card rounded-3xl p-6">
+									<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Avg API Latency</p>
+									<p class="text-2xl font-black text-slate-800 dark:text-white leading-none">${metrics.systemPerformance.apiLatencyMs} <span class="text-xs font-black text-brand-500">ms</span></p>
+									<span class="text-[8px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">95th percentile: ${metrics.systemPerformance.p95LatencyMs}ms</span>
+								</div>
+								<div class="glass-card rounded-3xl p-6">
+									<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">System CPU Load</p>
+									<p class="text-2xl font-black text-slate-800 dark:text-white leading-none">${metrics.systemPerformance.cpuUsage.toFixed(1)}%</p>
+									<span class="text-[8px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Optimized single-threaded executor</span>
+								</div>
+								<div class="glass-card rounded-3xl p-6">
+									<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Memory Usage</p>
+									<p class="text-2xl font-black text-slate-800 dark:text-white leading-none">${metrics.systemPerformance.memoryUsage.toFixed(0)} <span class="text-xs font-black text-slate-500">MB</span></p>
+									<span class="text-[8px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Uptime duration: ${metrics.systemPerformance.uptime}</span>
+								</div>
+								<div class="glass-card rounded-3xl p-6">
+									<p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Oracle Success Rate</p>
+									<p class="text-2xl font-black text-emerald-500 leading-none">${metrics.ledgerHealth.commandSuccessRate}%</p>
+									<span class="text-[8px] text-slate-400 dark:text-slate-500 mt-2 block font-medium">Zero transaction failures recorded</span>
 								</div>
 							</div>
 						</section>
