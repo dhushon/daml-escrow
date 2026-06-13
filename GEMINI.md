@@ -55,6 +55,8 @@ External triggers must be validated using:
 - Always run `go test -v ./...` before pushing code to ensure all unit and integration tests are passing.
 - Always use specific Request/Response DTOs (Data Transfer Objects) at the Go API handler level to separate HTTP parsing/validation logic from core business logic and ledger structures. Use `.Validate()` methods on DTOs to catch bad data early.
 - MANDATORY: Daml SDK >= 3.0 syntax requires that interface implementation methods use the lowercase name of the choice (e.g., choice 'Transfer' implements as 'transfer'). Always use the 'Method + Choice' pattern in interface definitions to allow template-specific logic. Explicitly use `coerceContractId @Interface` for type-safe interface casting.
+- Always keep the Swagger/OpenAPI annotations in Go handlers up to date whenever modifying or creating API routes, and execute `make swagger-gen && ./scripts/codegen-api-types.sh` to synchronize backend specs with frontend types.
+
 
 ## AI Persona & Operational Rules
 

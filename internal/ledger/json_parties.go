@@ -43,6 +43,10 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 }
 
 func (c *JsonLedgerClient) GetParty(user string) string {
+	if strings.Contains(user, "::") {
+		return user
+	}
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -77,15 +81,59 @@ func (c *JsonLedgerClient) ListIdentities(ctx context.Context) ([]*UserIdentity,
 		
 		email := u.Metadata.Annotations["email"]
 		role := u.Metadata.Annotations["role"]
-		if email == "" { email = u.ID + "@devlocal" }
-		if role == "" { role = "Depositor" }
+		if email == "" {
+			switch u.ID {
+			case "Depositor":
+				email = "joey@depositor.devlocal"
+			case "Beneficiary":
+				email = "jimmy@beneficiary.devlocal"
+			case "EscrowMediator":
+				email = "sally@mediator.devlocal"
+			case "CentralBank":
+				email = "bob@banker.devlocal"
+			default:
+				email = strings.ToLower(u.ID) + "@devlocal"
+			}
+		}
+		if role == "" {
+			idLower := strings.ToLower(u.ID)
+			if strings.Contains(idLower, "beneficiary") || strings.Contains(idLower, "seller") || strings.Contains(idLower, "pledgee") {
+				role = "Beneficiary"
+			} else if strings.Contains(idLower, "mediator") || strings.Contains(idLower, "banker") {
+				role = "Mediator"
+			} else {
+				role = "Depositor"
+			}
+		}
+
+		displayName := u.ID
+		switch u.ID {
+		case "Depositor", "u-joey-depositor-devlocal":
+			displayName = "Joey"
+		case "Beneficiary", "u-jimmy-beneficiary-devlocal":
+			displayName = "Jimmy"
+		case "EscrowMediator", "u-sally-mediator-devlocal":
+			displayName = "Sally"
+		case "CentralBank", "u-bob-banker-devlocal":
+			displayName = "Bob"
+		default:
+			if strings.Contains(strings.ToLower(u.ID), "joey") {
+				displayName = "Joey"
+			} else if strings.Contains(strings.ToLower(u.ID), "jimmy") {
+				displayName = "Jimmy"
+			} else if strings.Contains(strings.ToLower(u.ID), "sally") {
+				displayName = "Sally"
+			} else if strings.Contains(strings.ToLower(u.ID), "bob") {
+				displayName = "Bob"
+			}
+		}
 
 		identities = append(identities, &UserIdentity{
 			DamlUserID:  u.ID,
 			DamlPartyID: u.PrimaryParty,
 			Email:       email,
 			Role:        role,
-			DisplayName: u.ID,
+			DisplayName: displayName,
 		})
 	}
 
@@ -114,12 +162,62 @@ func (c *JsonLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 	}
 	_ = json.Unmarshal(body, &resp)
 
+	email := resp.User.Metadata.Annotations["email"]
+	role := resp.User.Metadata.Annotations["role"]
+	if email == "" {
+		switch resp.User.ID {
+		case "Depositor":
+			email = "joey@depositor.devlocal"
+		case "Beneficiary":
+			email = "jimmy@beneficiary.devlocal"
+		case "EscrowMediator":
+			email = "sally@mediator.devlocal"
+		case "CentralBank":
+			email = "bob@banker.devlocal"
+		default:
+			email = strings.ToLower(resp.User.ID) + "@devlocal"
+		}
+	}
+	if role == "" {
+		idLower := strings.ToLower(resp.User.ID)
+		if strings.Contains(idLower, "beneficiary") || strings.Contains(idLower, "seller") || strings.Contains(idLower, "pledgee") {
+			role = "Beneficiary"
+		} else if strings.Contains(idLower, "mediator") || strings.Contains(idLower, "banker") {
+			role = "Mediator"
+		} else {
+			role = "Depositor"
+		}
+	}
+
+	displayName := resp.User.ID
+	switch resp.User.ID {
+	case "Depositor", "u-joey-depositor-devlocal":
+		displayName = "Joey"
+	case "Beneficiary", "u-jimmy-beneficiary-devlocal":
+		displayName = "Jimmy"
+	case "EscrowMediator", "u-sally-mediator-devlocal":
+		displayName = "Sally"
+	case "CentralBank", "u-bob-banker-devlocal":
+		displayName = "Bob"
+	default:
+		if strings.Contains(strings.ToLower(resp.User.ID), "joey") {
+			displayName = "Joey"
+		} else if strings.Contains(strings.ToLower(resp.User.ID), "jimmy") {
+			displayName = "Jimmy"
+		} else if strings.Contains(strings.ToLower(resp.User.ID), "sally") {
+			displayName = "Sally"
+		} else if strings.Contains(strings.ToLower(resp.User.ID), "bob") {
+			displayName = "Bob"
+		}
+	}
+
 	return &UserIdentity{
 		OktaSub:     oktaSub,
 		DamlUserID:  damlUserID,
 		DamlPartyID: resp.User.PrimaryParty,
-		Email:       resp.User.Metadata.Annotations["email"],
-		Role:        resp.User.Metadata.Annotations["role"],
+		Email:       email,
+		Role:        role,
+		DisplayName: displayName,
 	}, nil
 }
 
@@ -214,12 +312,35 @@ func (c *JsonLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, em
 		return nil, fmt.Errorf("failed to create user after retries: %w", provisionErr)
 	}
 
+	displayName := damlUserID
+	switch damlUserID {
+	case "Depositor", "u-joey-depositor-devlocal":
+		displayName = "Joey"
+	case "Beneficiary", "u-jimmy-beneficiary-devlocal":
+		displayName = "Jimmy"
+	case "EscrowMediator", "u-sally-mediator-devlocal":
+		displayName = "Sally"
+	case "CentralBank", "u-bob-banker-devlocal":
+		displayName = "Bob"
+	default:
+		if strings.Contains(strings.ToLower(damlUserID), "joey") {
+			displayName = "Joey"
+		} else if strings.Contains(strings.ToLower(damlUserID), "jimmy") {
+			displayName = "Jimmy"
+		} else if strings.Contains(strings.ToLower(damlUserID), "sally") {
+			displayName = "Sally"
+		} else if strings.Contains(strings.ToLower(damlUserID), "bob") {
+			displayName = "Bob"
+		}
+	}
+
 	return &UserIdentity{
 		OktaSub:     oktaSub,
 		DamlUserID:  damlUserID,
 		DamlPartyID: partyID,
 		Email:       email,
 		Role:        role,
+		DisplayName: displayName,
 	}, nil
 }
 

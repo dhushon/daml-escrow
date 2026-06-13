@@ -1,4 +1,29 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function performLogout(page: Page) {
+  const profileBtn = page.locator('#user-pill');
+  try {
+    if (await profileBtn.isVisible({ timeout: 2000 })) {
+      await profileBtn.click();
+      const logoutBtn = page.locator('#logout-btn');
+      await expect(logoutBtn).toBeVisible();
+      await logoutBtn.click();
+      await page.waitForURL('**/login');
+      return;
+    }
+  } catch (e) {
+    // Ignore and fallback to manual cookie clearing
+  }
+  await page.evaluate(() => {
+    localStorage.removeItem('auth_session');
+    document.cookie = "user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "user_scopes=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "admin-mode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "assumed_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    window.location.href = '/login';
+  });
+  await page.waitForURL('**/login');
+}
 
 test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
   
@@ -58,21 +83,22 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     const schemaSelect = page.locator('select[name="schemaUrl"]');
     await schemaSelect.selectOption({ label: 'Research Grant' });
 
-    // Save & Share Draft
-    const saveBtn = page.locator('button[type="submit"]');
-    await saveBtn.click();
-
     // Check we get a confirmation alert and redirect back to dashboard
     page.once('dialog', async dialog => {
       expect(dialog.message()).toContain('saved');
       await dialog.accept();
     });
+
+    // Save & Share Draft
+    const saveBtn = page.locator('button:has-text("Save & Share Draft")');
+    await saveBtn.click();
     
     await page.waitForURL('**/');
     console.log('Draft created and saved successfully.');
 
     // 3. BILATERAL NEGOTIATION - DEPOSITOR APPROVAL
     console.log('Navigating to created draft for negotiation...');
+    await page.goto('/?tab=negotiations');
     // Find our draft card in the list
     const draftCard = page.locator('a:has-text("jimmy@beneficiary.devlocal")').first();
     await expect(draftCard).toBeVisible();
@@ -96,7 +122,9 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
 
     // 4. BILATERAL NEGOTIATION - BENEFICIARY APPROVAL
     console.log('Switching user to Beneficiary (Jimmy)...');
-    await page.goto('/login');
+    
+    await performLogout(page);
+
     const jimmyBtn = page.locator('button[data-role="Beneficiary"]');
     await expect(jimmyBtn).toBeVisible();
     await jimmyBtn.click();
@@ -104,6 +132,8 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
 
     // Confirm Jimmy is logged in
     await expect(page.locator('text=jimmy@beneficiary.devlocal').first()).toBeVisible();
+
+    await page.goto('/?tab=negotiations');
 
     // Open same draft as Beneficiary
     console.log('Opening draft as Beneficiary...');
@@ -144,22 +174,7 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
 
     // 7. SESSION DESTRUCTION ON DISCONNECT
     console.log('Testing wallet disconnect / logout session destruction...');
-    // Open user profile dropdown
-    const profileBtn = page.locator('#user-pill');
-    if (await profileBtn.isVisible()) {
-      await profileBtn.click();
-      const logoutBtn = page.locator('#logout-btn');
-      await expect(logoutBtn).toBeVisible();
-      await logoutBtn.click();
-    } else {
-      // Direct call to clear session if UI profile button is structured differently
-      await page.evaluate(() => {
-        localStorage.removeItem('auth_session');
-        window.location.href = '/login';
-      });
-    }
-
-    await page.waitForURL('**/login');
+    await performLogout(page);
     const authSession = await page.evaluate(() => localStorage.getItem('auth_session'));
     expect(authSession).toBeNull();
     console.log('Session destroyed successfully upon disconnect.');

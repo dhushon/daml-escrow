@@ -1,234 +1,1498 @@
-swagger: "2.0"
-info:
-  title: Stablecoin Escrow API
-  description: API for managing privacy-preserving stablecoin escrows on DAML.
-  version: "1.0"
-host: localhost:8081
 basePath: /api/v1
-schemes:
-  - http
-consumes:
-  - application/json
-produces:
-  - application/json
-
+definitions:
+  api.AmendDraftRequest:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+      metadata:
+        type: object
+      summary:
+        type: string
+      terms:
+        type: object
+    type: object
+  api.CreateInvitationRequest:
+    properties:
+      amount:
+        type: number
+      assetId:
+        type: string
+      assetType:
+        type: string
+      conditionDescription:
+        type: string
+      conditionType:
+        type: string
+      contractType:
+        description: ImportExport, RealEstate, etc.
+        type: string
+      currency:
+        type: string
+      disputeWindowDays:
+        type: integer
+      evidenceRequired:
+        type: string
+      expiryDate:
+        type: string
+      gracePeriodDays:
+        type: integer
+      inviteeEmail:
+        type: string
+      inviteeRole:
+        description: Depositor or Beneficiary
+        type: string
+      inviteeType:
+        type: string
+    type: object
+  api.DiscoverAuthRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  api.FundEscrowRequest:
+    properties:
+      custodyRef:
+        type: string
+      holdingCid:
+        type: string
+    type: object
+  api.OracleWebhookRequest:
+    properties:
+      asymmetric:
+        type: boolean
+      escrowId:
+        type: string
+      event:
+        type: string
+      milestoneIndex:
+        type: integer
+      oracleProvider:
+        type: string
+      signature:
+        type: string
+    type: object
+  api.ProposeEscrowRequest:
+    properties:
+      amount:
+        type: number
+      assetId:
+        type: string
+      assetType:
+        type: string
+      beneficiary:
+        type: string
+      conditionDescription:
+        type: string
+      conditionType:
+        type: string
+      currency:
+        type: string
+      disputeWindowDays:
+        type: integer
+      evidenceRequired:
+        type: string
+      expiryDate:
+        type: string
+      gracePeriodDays:
+        type: integer
+      mediator:
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+      schemaUrl:
+        type: string
+    type: object
+  api.ProposeSettlementRequest:
+    properties:
+      beneficiaryPayment:
+        type: number
+      depositorReturn:
+        type: number
+      mediatorFee:
+        type: number
+      settlementType:
+        type: string
+    type: object
+  api.SaveConfigRequest:
+    properties:
+      key:
+        type: string
+      value:
+        type: object
+    type: object
+  api.SaveDraftRequest:
+    properties:
+      amount:
+        type: number
+      beneficiaryEmail:
+        type: string
+      contractType:
+        type: string
+      currency:
+        type: string
+      metadata:
+        type: object
+      terms:
+        type: object
+    type: object
+  api.VerifyWalletRequest:
+    properties:
+      assumedRole:
+        type: string
+      damlPartyId:
+        type: string
+      nonce:
+        type: string
+      publicKey:
+        type: string
+      signature:
+        type: string
+    type: object
+  ledger.ActivityPoint:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+    type: object
+  ledger.Asset:
+    properties:
+      amount:
+        example: "0"
+        type: string
+      assetId:
+        type: string
+      assetType:
+        type: string
+      currency:
+        type: string
+      custodyRef:
+        type: string
+      holdingCid:
+        type: string
+    type: object
+  ledger.EscrowContract:
+    properties:
+      agreementUrl:
+        type: string
+      asset:
+        $ref: '#/definitions/ledger.Asset'
+      beneficiary:
+        type: string
+      beneficiaryAccepted:
+        type: boolean
+      currentMilestoneIndex:
+        type: integer
+      depositor:
+        type: string
+      depositorAccepted:
+        type: boolean
+      id:
+        type: string
+      issuer:
+        type: string
+      mediator:
+        type: string
+      metadata:
+        type: string
+      state:
+        type: string
+      terms:
+        $ref: '#/definitions/ledger.EscrowTerms'
+    type: object
+  ledger.EscrowInvitation:
+    properties:
+      asset:
+        $ref: '#/definitions/ledger.Asset'
+      contractType:
+        type: string
+      id:
+        type: string
+      inviteeEmail:
+        type: string
+      inviteeRole:
+        description: Depositor or Beneficiary
+        type: string
+      inviter:
+        type: string
+      issuer:
+        type: string
+      mediator:
+        type: string
+      terms:
+        $ref: '#/definitions/ledger.EscrowTerms'
+      tokenHash:
+        type: string
+    type: object
+  ledger.EscrowProposal:
+    properties:
+      asset:
+        $ref: '#/definitions/ledger.Asset'
+      beneficiary:
+        type: string
+      depositor:
+        type: string
+      id:
+        type: string
+      issuer:
+        type: string
+      mediator:
+        type: string
+      metadata:
+        type: string
+      terms:
+        $ref: '#/definitions/ledger.EscrowTerms'
+    type: object
+  ledger.EscrowSettlement:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+      escrowId:
+        type: string
+      id:
+        type: string
+      issuer:
+        type: string
+      recipient:
+        type: string
+      settlement:
+        $ref: '#/definitions/ledger.SettlementTerms'
+      state:
+        type: string
+      status:
+        type: string
+    type: object
+  ledger.EscrowTerms:
+    properties:
+      conditionDescription:
+        type: string
+      conditionType:
+        type: string
+      disputeWindowDays:
+        example: "0"
+        type: string
+      evidenceRequired:
+        type: string
+      expiryDate:
+        type: string
+      gracePeriodDays:
+        example: "0"
+        type: string
+      maxAmount:
+        example: "0"
+        type: string
+      minAmount:
+        example: "0"
+        type: string
+      partialSchedule:
+        description: Simplified for JSON
+        items:
+          type: string
+        type: array
+    type: object
+  ledger.HealthResponse:
+    properties:
+      cpuUsage:
+        type: number
+      goroutines:
+        type: integer
+      memoryUsage:
+        type: number
+      services:
+        additionalProperties:
+          $ref: '#/definitions/ledger.ServiceHealth'
+        type: object
+      startTime:
+        type: string
+      status:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+  ledger.LedgerHealth:
+    properties:
+      activeContracts:
+        type: integer
+      commandSuccessRate:
+        type: number
+      identitiesAllocated:
+        type: integer
+      tps:
+        type: number
+    type: object
+  ledger.LedgerMetrics:
+    properties:
+      activeEscrows:
+        type: integer
+      activityHistory:
+        items:
+          $ref: '#/definitions/ledger.ActivityPoint'
+        type: array
+      avgTimeToSettle:
+        type: string
+      bottleneckStage:
+        type: string
+      disputedEscrows:
+        type: integer
+      ledgerHealth:
+        $ref: '#/definitions/ledger.LedgerHealth'
+      settledVolume:
+        type: number
+      stageLatencies:
+        additionalProperties:
+          type: integer
+        description: ms
+        type: object
+      successRate:
+        description: percentage
+        type: number
+      systemPerformance:
+        $ref: '#/definitions/ledger.SystemPerformance'
+      totalActiveEscrows:
+        type: integer
+      totalEscrows:
+        type: integer
+      totalValueInEscrow:
+        type: number
+      tpsHistory:
+        items:
+          $ref: '#/definitions/ledger.ActivityPoint'
+        type: array
+    type: object
+  ledger.ServiceHealth:
+    properties:
+      latencyMs:
+        type: integer
+      message:
+        type: string
+      status:
+        description: UP, DOWN, DEGRADED
+        type: string
+    type: object
+  ledger.SettlementTerms:
+    properties:
+      beneficiaryPayment:
+        example: "0"
+        type: string
+      depositorReturn:
+        example: "0"
+        type: string
+      mediatorFee:
+        example: "0"
+        type: string
+      settlementType:
+        type: string
+    type: object
+  ledger.SystemPerformance:
+    properties:
+      apiLatencyMs:
+        type: integer
+      cpuUsage:
+        type: number
+      memoryUsage:
+        type: number
+      p95LatencyMs:
+        type: integer
+      p99LatencyMs:
+        type: integer
+      uptime:
+        type: string
+    type: object
+  ledger.UserIdentity:
+    properties:
+      affiliation:
+        type: string
+      damlPartyId:
+        type: string
+      damlUserId:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      kycStatus:
+        description: PENDING, VERIFIED, REJECTED
+        type: string
+      oktaSub:
+        type: string
+      organization:
+        type: string
+      physicalAddress:
+        type: string
+      role:
+        description: Depositor, Beneficiary, Mediator
+        type: string
+      title:
+        type: string
+    type: object
+  ledger.Wallet:
+    properties:
+      balance:
+        type: number
+      currency:
+        type: string
+      id:
+        type: string
+      owner:
+        type: string
+    type: object
+  services.DraftEscrow:
+    properties:
+      amount:
+        type: number
+      approvals:
+        items:
+          type: string
+        type: array
+      beneficiaryEmail:
+        type: string
+      beneficiaryId:
+        type: string
+      changeSummary:
+        type: string
+      contractType:
+        description: ImportExport, RealEstate, Grants, Corporate
+        type: string
+      createdAt:
+        type: string
+      currency:
+        type: string
+      depositorId:
+        type: string
+      id:
+        type: string
+      initiatorId:
+        type: string
+      initiatorRole:
+        type: string
+      invitationCode:
+        type: string
+      mediatorId:
+        type: string
+      metadata:
+        type: object
+      proposerId:
+        type: string
+      rootId:
+        type: string
+      status:
+        description: DRAFT, CLAIMED, NEGOTIATION, RATIFIED, PROMOTED
+        type: string
+      terms:
+        type: object
+      version:
+        type: integer
+    type: object
+  services.EscrowLifecycleMetadata:
+    properties:
+      avgTimeToComplete:
+        type: string
+      currentState:
+        type: string
+      escrowId:
+        type: string
+      steps:
+        items:
+          $ref: '#/definitions/services.LifecycleStep'
+        type: array
+      timeInCurrent:
+        type: string
+    type: object
+  services.IngestResult:
+    properties:
+      contentHash:
+        type: string
+      contractType:
+        type: string
+      extracted:
+        type: object
+      storageUri:
+        type: string
+      suggested:
+        description: Merged and validated draft
+        type: object
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  services.LifecycleStep:
+    properties:
+      actionBy:
+        type: string
+      description:
+        type: string
+      state:
+        type: string
+      status:
+        description: COMPLETED, CURRENT, PENDING
+        type: string
+      timestamp:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: API for managing privacy-preserving stablecoin escrows on DAML.
+  title: Stablecoin Escrow API
+  version: "1.0"
 paths:
-  /health:
-    get:
-      summary: Get system health and uptime
-      tags:
-        - system
+  /auth/discover:
+    post:
+      consumes:
+      - application/json
+      description: Return the configured Identity Provider (IdP) or bypass settings
+        for a given email address
+      parameters:
+      - description: Discover Auth Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.DiscoverAuthRequest'
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.HealthResponse'
-
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "404":
+          description: provider not found
+          schema:
+            type: string
+      summary: Discover auth settings for an email
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Retrieve the authenticated user's profile and resolved Canton Party
+        ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.UserIdentity'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get current user identity
+      tags:
+      - auth
+  /auth/nonce:
+    get:
+      description: Generate and persist a single-use UUID challenge string for wallet
+        authentication handshakes (replays prevented)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Get cryptographic challenge nonce
+      tags:
+      - auth
+  /auth/wallet/verify:
+    post:
+      consumes:
+      - application/json
+      description: Authoritatively validates the cryptographic signature of the nonce
+        and returns a secure JWT platform session token
+      parameters:
+      - description: Verify Wallet Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.VerifyWalletRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "401":
+          description: invalid signature or nonce
+          schema:
+            type: string
+        "500":
+          description: token generation failed
+          schema:
+            type: string
+      summary: Verify wallet signature and obtain token
+      tags:
+      - auth
+  /config:
+    get:
+      description: Retrieve all persistent database configurations for the authenticated
+        user context
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Get application config settings
+      tags:
+      - config
+    post:
+      consumes:
+      - application/json
+      description: Set or update a persistent database configuration key-value pair
+        for the current authenticated user context
+      parameters:
+      - description: Save Config Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.SaveConfigRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Save config settings
+      tags:
+      - config
+  /drafts:
+    get:
+      description: Get all active or completed draft versions where the user is an
+        initiator or invitee counterparty
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.DraftEscrow'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List drafts for user
+      tags:
+      - drafts
+    post:
+      consumes:
+      - application/json
+      description: Create a new persistent contract proposal draft in the Postgres
+        database, initialized as DRAFT state
+      parameters:
+      - description: Save Draft Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.SaveDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DraftEscrow'
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Save new draft agreement
+      tags:
+      - drafts
+  /drafts/{draftID}:
+    get:
+      description: Retrieve the latest version details of a specific contract draft
+        by its ID
+      parameters:
+      - description: Draft ID
+        in: path
+        name: draftID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DraftEscrow'
+        "404":
+          description: draft not found
+          schema:
+            type: string
+      summary: Get draft by ID
+      tags:
+      - drafts
+  /drafts/{draftID}/amend:
+    post:
+      consumes:
+      - application/json
+      description: Propose a modified version of a contract draft, creating a new
+        history item in Postgres and bumping the version
+      parameters:
+      - description: Draft ID
+        in: path
+        name: draftID
+        required: true
+        type: string
+      - description: Amend Draft Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.AmendDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DraftEscrow'
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Propose draft amendment
+      tags:
+      - drafts
+  /drafts/{draftID}/approve:
+    post:
+      description: Approve the current latest version of a contract draft. If both
+        counterparty roles approve, state shifts to RATIFIED.
+      parameters:
+      - description: Draft ID
+        in: path
+        name: draftID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: failed to approve
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      summary: Approve contract draft
+      tags:
+      - drafts
+  /drafts/{draftID}/promote:
+    post:
+      description: Bilateral promote a RATIFIED contract draft onto the Canton ledger
+        as a proposed or active Escrow contract
+      parameters:
+      - description: Draft ID
+        in: path
+        name: draftID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: returns status and ledgerId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "404":
+          description: draft not found
+          schema:
+            type: string
+        "500":
+          description: promotion failed
+          schema:
+            type: string
+      summary: Promote draft to active ledger escrow
+      tags:
+      - drafts
   /escrows:
     get:
+      description: Get a list of active Escrow contracts from the Canton ledger associated
+        with the user's role/party
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.EscrowContract'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
       summary: List active escrows
-      parameters:
-        - name: user
-          in: query
-          description: User ID context
-          type: string
       tags:
-        - escrows
+      - escrows
+    post:
+      consumes:
+      - application/json
+      description: Create a draft agreement on the Canton ledger awaiting counterparty
+        acceptance
+      parameters:
+      - description: Propose Escrow Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.ProposeEscrowRequest'
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/api.EscrowResponse'
-    post:
-      summary: Create a new active escrow
-      tags:
-        - escrows
-      parameters:
-        - in: body
-          name: request
+            $ref: '#/definitions/ledger.EscrowProposal'
+        "400":
+          description: invalid request
           schema:
-            $ref: '#/definitions/api.CreateEscrowRequest'
-      responses:
-        201:
-          description: Created
+            type: string
+        "401":
+          description: unauthorized
           schema:
-            $ref: '#/definitions/api.EscrowResponse'
-
-  /escrows/propose:
-    post:
+            type: string
+        "500":
+          description: proposal failed
+          schema:
+            type: string
       summary: Propose a new escrow agreement
-      description: Create a draft agreement awaiting counterparty signature.
       tags:
-        - escrows
+      - escrows
+  /escrows/{escrowID}/activate:
+    post:
+      description: Acknowledge funding and activate the escrow contract for condition
+        validation
       parameters:
-        - in: body
-          name: request
-          schema:
-            $ref: '#/definitions/api.CreateEscrowRequest'
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
       responses:
-        201:
-          description: Created
+        "200":
+          description: activated contract ID
           schema:
-            $ref: '#/definitions/api.EscrowProposal'
-
-  /escrows/proposals:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: activation failed
+          schema:
+            type: string
+      summary: Activate funded escrow
+      tags:
+      - escrows
+  /escrows/{escrowID}/confirm:
+    post:
+      description: Bilateral or mediator counter-signing confirming conditions of
+        the active escrow are met
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: confirmation failed
+          schema:
+            type: string
+      summary: Confirm escrow conditions
+      tags:
+      - escrows
+  /escrows/{escrowID}/disburse:
+    post:
+      description: Release funds for the active milestone to the beneficiary upon
+        successful condition confirmation
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: disbursement failed
+          schema:
+            type: string
+      summary: Disburse active milestone funds
+      tags:
+      - escrows
+  /escrows/{escrowID}/dispute:
+    post:
+      description: Initiates dispute state on the active escrow, halting normal milestone
+        disbursement and routing to the mediator
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: dispute failed
+          schema:
+            type: string
+      summary: Raise escrow dispute
+      tags:
+      - escrows
+  /escrows/{escrowID}/finalize:
+    post:
+      description: Finalize a ratified dispute settlement split on the ledger
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: finalized contract ID
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: finalization failed
+          schema:
+            type: string
+      summary: Finalize dispute settlement
+      tags:
+      - escrows
+  /escrows/{escrowID}/fund:
+    post:
+      consumes:
+      - application/json
+      description: Approve and authorize transfer of stablecoins from depositor custody
+        vault holding into the escrow contract
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      - description: Fund Escrow Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.FundEscrowRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: funding failed
+          schema:
+            type: string
+      summary: Fund active escrow
+      tags:
+      - escrows
+  /escrows/{escrowID}/propose-settlement:
+    post:
+      consumes:
+      - application/json
+      description: Create a settlement payout distribution proposal (buyer refund
+        amount vs seller disburse amount)
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      - description: Propose Settlement Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.ProposeSettlementRequest'
+      responses:
+        "200":
+          description: proposed settlement ID
+          schema:
+            type: string
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: proposal failed
+          schema:
+            type: string
+      summary: Propose dispute settlement split
+      tags:
+      - escrows
+  /escrows/{escrowID}/ratify:
+    post:
+      description: Bilateral ratify the proposed dispute payout split
+      parameters:
+      - description: Escrow ID
+        in: path
+        name: escrowID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ratified contract ID
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: ratification failed
+          schema:
+            type: string
+      summary: Ratify dispute settlement split
+      tags:
+      - escrows
+  /escrows/{id}:
     get:
-      summary: List pending agreement proposals
-      tags:
-        - escrows
+      description: Retrieve the full contract state details of a specific escrow by
+        its ledger ID
       parameters:
-        - name: user
-          in: query
-          type: string
+      - description: Escrow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/api.EscrowProposal'
-
-  /escrows/{escrowID}:
-    get:
+            $ref: '#/definitions/ledger.EscrowContract'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "404":
+          description: escrow not found
+          schema:
+            type: string
       summary: Get escrow details
       tags:
-        - escrows
+      - escrows
+  /escrows/{id}/lifecycle:
+    get:
+      description: Retrieve structured audit log events (creation, funding, activate,
+        confirm, etc.) for a specific escrow contract
       parameters:
-        - name: escrowID
-          in: path
-          required: true
-          type: string
-        - name: user
-          in: query
-          type: string
+      - description: Escrow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.EscrowResponse'
-
-  /escrows/{escrowID}/accept:
-    post:
-      summary: Accept and sign a proposed agreement
+            $ref: '#/definitions/services.EscrowLifecycleMetadata'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Get escrow event history
       tags:
-        - escrows
-      parameters:
-        - name: escrowID
-          in: path
-          required: true
-          type: string
-        - name: user
-          in: query
-          type: string
+      - escrows
+  /health:
+    get:
+      description: Check uptime, CPU/Memory stats and status of internal services
+      produces:
+      - application/json
       responses:
-        200:
-          description: Accepted
-
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.HealthResponse'
+      summary: Get system health and uptime
+      tags:
+      - system
+  /identities:
+    get:
+      description: Get a directory of all Canton identities enriched with displays
+        names, affiliation, titles, and emails from Postgres database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.UserIdentity'
+            type: array
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: List enriched participant identities
+      tags:
+      - identities
+  /ingest:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Accept uploaded PDF/images, perform AI extraction of escrow terms
+        and amount, and return structured metadata
+      parameters:
+      - description: Agreement contract PDF or image files
+        in: formData
+        name: agreement
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.IngestResult'
+        "400":
+          description: missing or invalid files
+          schema:
+            type: string
+        "500":
+          description: ingestion failed
+          schema:
+            type: string
+        "503":
+          description: ingest service unavailable
+          schema:
+            type: string
+      summary: Ingest agreement documents via AI
+      tags:
+      - system
+  /invites:
+    get:
+      description: Fetch a list of active invitations awaiting claimant countersignatures
+        from the Canton ledger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.EscrowInvitation'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List ledger invitations
+      tags:
+      - invitations
+    post:
+      consumes:
+      - application/json
+      description: Propose an off-chain contract draft for a counterparty email invite,
+        establishing a zero-latency initiation tunnel
+      parameters:
+      - description: Create Invitation Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DraftEscrow'
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Create off-chain invitation
+      tags:
+      - invitations
+  /invites/token/{token}:
+    get:
+      description: Resolve a specific Canton ledger invitation details by token hash
+      parameters:
+      - description: Invitation Token Hash
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ledger.EscrowInvitation'
+        "404":
+          description: invitation not found
+          schema:
+            type: string
+      summary: Get invitation by token
+      tags:
+      - invitations
+  /invites/token/{token}/claim:
+    post:
+      description: Claim an invitation token hash, linking the off-chain draft with
+        the claimant user and initiating verification
+      parameters:
+      - description: Invitation Token Hash
+        in: path
+        name: token
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: invalid or expired token
+          schema:
+            type: string
+      summary: Claim invitation token
+      tags:
+      - invitations
   /metrics:
     get:
-      summary: Fetch platform and system performance metrics
-      tags:
-        - system
-      parameters:
-        - name: user
-          in: query
-          type: string
+      description: Retrieve real-time metrics including total volume in escrow, active
+        counts, API latency, and CPU/Memory usage
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.LedgerMetrics'
-
+            $ref: '#/definitions/ledger.LedgerMetrics'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Get system performance metrics
+      tags:
+      - system
+  /settlements:
+    get:
+      description: Retrieve all active settlement payment instructions awaiting Central
+        Bank stablecoin release execution
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ledger.EscrowSettlement'
+            type: array
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List pending settlements
+      tags:
+      - settlements
+  /settlements/{settlementID}/settle:
+    post:
+      description: Central Bank settles the payout instruction, releasing stablecoins
+        to the target recipient and marking it completed
+      parameters:
+      - description: Settlement ID
+        in: path
+        name: settlementID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: settlement failed
+          schema:
+            type: string
+      summary: Settle pending payment
+      tags:
+      - settlements
   /wallets:
     get:
-      summary: List mocked stablecoin accounts
-      tags:
-        - wallets
-      parameters:
-        - name: user
-          in: query
-          type: string
+      description: Retrieve mock/simulated wallet balances for Central Bank, Depositor,
+        Beneficiary, and Mediator in dev perimeters
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
           schema:
-            type: array
             items:
-              $ref: '#/definitions/api.Wallet'
-
-definitions:
-  api.HealthResponse:
-    type: object
-    properties:
-      status: { type: string }
-      version: { type: string }
-      uptime: { type: string }
-      startTime: { type: string }
-      cpuUsage: { type: number }
-      memoryUsage: { type: number }
-
-  api.CreateEscrowRequest:
-    type: object
-    properties:
-      buyer: { type: string, example: "Buyer" }
-      seller: { type: string, example: "Seller" }
-      amount: { type: number, example: 500.0 }
-      currency: { type: string, example: "USD" }
-      description: { type: string }
-      milestones:
-        type: array
-        items: { $ref: '#/definitions/ledger.Milestone' }
-
-  api.EscrowResponse:
-    type: object
-    properties:
-      id: { type: string }
-      buyer: { type: string }
-      seller: { type: string }
-      amount: { type: number }
-      currency: { type: string }      state: { type: string }
-      currentMilestoneIndex: { type: integer }
-      milestones:
-        type: array
-        items: { $ref: '#/definitions/ledger.Milestone' }
-
-  api.EscrowProposal:
-    type: object
-    properties:
-      id: { type: string }
-      buyer: { type: string }
-      seller: { type: string }
-      amount: { type: number }
-      currency: { type: string }
-      description: { type: string }
-
-  api.LedgerMetrics:
-    type: object
-    properties:
-      totalActiveEscrows: { type: integer }
-      totalValueInEscrow: { type: number }
-      systemPerformance: { $ref: '#/definitions/api.SystemPerformance' }
-
-  api.SystemPerformance:
-    type: object
-    properties:
-      apiLatencyMs: { type: integer }
-      requestCount: { type: integer }
-      errorRate: { type: number }
-
-  api.Wallet:
-    type: object
-    properties:
-      id: { type: string }
-      owner: { type: string }
-      currency: { type: string }
-      balance: { type: number }
-
-  ledger.Milestone:
-    type: object
-    properties:
-      label: { type: string }
-      amount: { type: number }
-      completed: { type: boolean }
+              $ref: '#/definitions/ledger.Wallet'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: List simulated wallets
+      tags:
+      - wallets
+  /webhooks/milestone:
+    post:
+      consumes:
+      - application/json
+      description: External webhook receiver for oracle providers to sign off milestone
+        target conditions
+      parameters:
+      - description: Oracle Webhook Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.OracleWebhookRequest'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "403":
+          description: trigger rejected
+          schema:
+            type: string
+      summary: Oracle webhook callback
+      tags:
+      - system
+swagger: "2.0"

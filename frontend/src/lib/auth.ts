@@ -10,8 +10,10 @@ export interface AuthSession {
         damlPartyId: string;
         email: string;
         displayName: string;
+        role?: string;
     };
     scopes: string[];
+    assumedRole?: string;
 }
 
 export function setSession(session: AuthSession) {
@@ -34,6 +36,7 @@ export function clearSession() {
     document.cookie = "user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "user_scopes=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "admin-mode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "assumed_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
 }
 
 export function hasScope(scope: string): boolean {
@@ -89,7 +92,7 @@ export async function loginAsRole(role: string) {
     const partialSession = {
         token: devToken,
         isBypass: true,
-        identity: { displayName: role, email: email }
+        identity: { displayName: role, email: email, role: role }
     };
     localStorage.setItem('auth_session', JSON.stringify(partialSession));
 
@@ -101,12 +104,14 @@ export async function loginAsRole(role: string) {
             email: identity.email,
             isBypass: true,
             identity,
-            scopes: ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin']
+            scopes: ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin'],
+            assumedRole: identity.role
         };
 
         setSession(session);
         document.cookie = `user_email=${identity.email}; path=/; max-age=3600`;
         document.cookie = `user_scopes=${session.scopes.join(',')}; path=/; max-age=3600`;
+        document.cookie = `assumed_role=${identity.role || 'Depositor'}; path=/; max-age=3600`;
         
         return session;
     } catch (err) {
@@ -133,11 +138,15 @@ export async function finalizeAuthentication(token: string) {
         scopes = ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin'];
     }
 
+    const assumedRole = localStorage.getItem('pending_assumed_role') || identity.role || 'Depositor';
+    localStorage.removeItem('pending_assumed_role');
+
     const session: AuthSession = {
         token,
         email: identity.email,
         identity,
-        scopes
+        scopes,
+        assumedRole
     };
 
     setSession(session);
@@ -145,6 +154,7 @@ export async function finalizeAuthentication(token: string) {
     // Set cookies for Astro SSR compatibility
     document.cookie = `user_email=${identity.email}; path=/; max-age=3600`;
     document.cookie = `user_scopes=${scopes.join(',')}; path=/; max-age=3600`;
+    document.cookie = `assumed_role=${assumedRole}; path=/; max-age=3600`;
     
     return session;
 }
@@ -154,7 +164,8 @@ export async function finalizeWalletAuthentication(token: string, identity: any)
         token,
         email: identity.email,
         identity,
-        scopes: ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin']
+        scopes: ['escrow:read', 'escrow:write', 'escrow:accept', 'system:admin'],
+        assumedRole: identity.role
     };
 
     setSession(session);
@@ -162,6 +173,7 @@ export async function finalizeWalletAuthentication(token: string, identity: any)
     // Set cookies for Astro SSR compatibility
     document.cookie = `user_email=${identity.email}; path=/; max-age=3600`;
     document.cookie = `user_scopes=${session.scopes.join(',')}; path=/; max-age=3600`;
+    document.cookie = `assumed_role=${identity.role || 'Depositor'}; path=/; max-age=3600`;
     
     return session;
 }

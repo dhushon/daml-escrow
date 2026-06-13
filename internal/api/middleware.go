@@ -23,6 +23,7 @@ const (
 	ScopesKey       contextKey = "scopes"
 	OriginDomainKey contextKey = "origin_domain"
 	AuthMethodKey   contextKey = "auth_method"
+	AssumedRoleKey  contextKey = "assumed_role"
 )
 
 // Permission Scopes
@@ -88,6 +89,7 @@ type TokenClaims struct {
 	Scopes       []string `json:"scp"`
 	OriginDomain string   `json:"origin_domain"`
 	AuthMethod   string   `json:"auth_method"` // "oidc" or "wallet"
+	Role         string   `json:"role"`
 }
 
 // TokenVerifier defines the interface for OIDC or Platform JWT token verification.
@@ -109,6 +111,7 @@ func (v *RealVerifier) Verify(ctx context.Context, token string) (*TokenClaims, 
 		Email        string   `json:"email"`
 		Scopes       []string `json:"scp"`
 		OriginDomain string   `json:"origin_domain"`
+		Role         string   `json:"role"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return nil, err
@@ -119,6 +122,7 @@ func (v *RealVerifier) Verify(ctx context.Context, token string) (*TokenClaims, 
 		Scopes:       claims.Scopes,
 		OriginDomain: claims.OriginDomain,
 		AuthMethod:   "oidc",
+		Role:         claims.Role,
 	}, nil
 }
 
@@ -157,6 +161,7 @@ func (v *PlatformJWTVerifier) Verify(ctx context.Context, token string) (*TokenC
 		email, _ := claims["email"].(string)
 		originDomain, _ := claims["origin_domain"].(string)
 		authMethod, _ := claims["auth_method"].(string)
+		role, _ := claims["role"].(string)
 		if authMethod == "" {
 			authMethod = "wallet"
 		}
@@ -178,6 +183,7 @@ func (v *PlatformJWTVerifier) Verify(ctx context.Context, token string) (*TokenC
 			Scopes:       scopes,
 			OriginDomain: originDomain,
 			AuthMethod:   authMethod,
+			Role:         role,
 		}, nil
 	}
 
@@ -227,6 +233,7 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 				strings.HasPrefix(r.URL.Path, "/api/v1/auth/discover") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/auth/nonce") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/auth/wallet/verify") ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/identities") ||
 				strings.HasPrefix(r.URL.Path, "/swagger") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/invites/token/") {
 
@@ -242,9 +249,22 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 							email = devUser + "@dev.local"
 						}
 
+						assumedRole := r.Header.Get("X-Assumed-Role")
+						if assumedRole == "" {
+							assumedRole = "Depositor"
+							if strings.Contains(strings.ToLower(devUser), "beneficiary") {
+								assumedRole = "Beneficiary"
+							} else if strings.Contains(strings.ToLower(devUser), "mediator") {
+								assumedRole = "EscrowMediator"
+							} else if strings.Contains(strings.ToLower(devUser), "bank") {
+								assumedRole = "CentralBank"
+							}
+						}
+
 						ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
 						ctx = context.WithValue(ctx, EmailKey, email)
 						ctx = context.WithValue(ctx, ScopesKey, scopes)
+						ctx = context.WithValue(ctx, AssumedRoleKey, assumedRole)
 						next.ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
@@ -269,9 +289,22 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 					email = devUser + "@dev.local"
 				}
 
+				assumedRole := r.Header.Get("X-Assumed-Role")
+				if assumedRole == "" {
+					assumedRole = "Depositor"
+					if strings.Contains(strings.ToLower(devUser), "beneficiary") {
+						assumedRole = "Beneficiary"
+					} else if strings.Contains(strings.ToLower(devUser), "mediator") {
+						assumedRole = "EscrowMediator"
+					} else if strings.Contains(strings.ToLower(devUser), "bank") {
+						assumedRole = "CentralBank"
+					}
+				}
+
 				ctx := context.WithValue(r.Context(), AuthSubKey, devUser)
 				ctx = context.WithValue(ctx, EmailKey, email)
 				ctx = context.WithValue(ctx, ScopesKey, scopes)
+				ctx = context.WithValue(ctx, AssumedRoleKey, assumedRole)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -296,10 +329,16 @@ func AuthMiddleware(authConfig config.AuthConfig, verifier TokenVerifier, logger
 				return
 			}
 
+			assumedRole := r.Header.Get("X-Assumed-Role")
+			if assumedRole == "" && claims != nil {
+				assumedRole = claims.Role
+			}
+
 			ctx := context.WithValue(r.Context(), AuthSubKey, claims.Subject)
 			ctx = context.WithValue(ctx, EmailKey, claims.Email)
 			ctx = context.WithValue(ctx, ScopesKey, claims.Scopes)
 			ctx = context.WithValue(ctx, AuthMethodKey, claims.AuthMethod)
+			ctx = context.WithValue(ctx, AssumedRoleKey, assumedRole)
 
 			// Determine origin domain with fallback for IdPs that don't support custom claims
 			originDomain := claims.OriginDomain

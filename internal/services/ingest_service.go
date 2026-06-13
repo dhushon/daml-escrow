@@ -31,8 +31,8 @@ type IngestResult struct {
 	ContractType string          `json:"contractType"`
 	StorageURI   string          `json:"storageUri"`
 	ContentHash  string          `json:"contentHash"`
-	Extracted    json.RawMessage `json:"extracted"`
-	Suggested    json.RawMessage `json:"suggested"` // Merged and validated draft
+	Extracted    json.RawMessage `json:"extracted" swaggertype:"object"`
+	Suggested    json.RawMessage `json:"suggested" swaggertype:"object"` // Merged and validated draft
 	Warnings     []string        `json:"warnings"`
 }
 

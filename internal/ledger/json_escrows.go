@@ -486,6 +486,29 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 				continue
 			}
 
+			termsData, hasTerms := args["terms"].(map[string]interface{})
+			var terms EscrowTerms
+			if hasTerms {
+				terms.ConditionDescription = fmt.Sprintf("%v", termsData["conditionDescription"])
+				terms.ConditionType = fmt.Sprintf("%v", termsData["conditionType"])
+				terms.EvidenceRequired = fmt.Sprintf("%v", termsData["evidenceRequired"])
+				if expiryStr, ok := termsData["expiryDate"].(string); ok {
+					if t, err := time.Parse(time.RFC3339, expiryStr); err == nil {
+						terms.ExpiryDate = t
+					} else if t, err := time.Parse("2006-01-02T15:04:05Z", expiryStr); err == nil {
+						terms.ExpiryDate = t
+					} else if t, err := time.Parse("2006-01-02T15:04:05.000Z", expiryStr); err == nil {
+						terms.ExpiryDate = t
+					}
+				}
+				if gpVal, ok := termsData["gracePeriodDays"]; ok {
+					terms.GracePeriodDays = int(c.parseFloat(gpVal))
+				}
+				if dwVal, ok := termsData["disputeWindowDays"]; ok {
+					terms.DisputeWindowDays = int(c.parseFloat(dwVal))
+				}
+			}
+
 			// Capture acceptance flags if present (for SettlementRecord)
 			depositorAccepted, _ := args["depositorAccepted"].(bool)
 			beneficiaryAccepted, _ := args["beneficiaryAccepted"].(bool)
@@ -502,6 +525,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 					CustodyRef: fmt.Sprintf("%v", assetData["custodyRef"]),
 					HoldingCid: fmt.Sprintf("%v", assetData["holdingCid"]),
 				},
+				Terms:               terms,
 				State:               state,
 				DepositorAccepted:   depositorAccepted,
 				BeneficiaryAccepted: beneficiaryAccepted,
@@ -565,8 +589,8 @@ func (c *JsonLedgerClient) CreateInvitation(ctx context.Context, inviterID strin
 	body := map[string]interface{}{
 		"commands": map[string]interface{}{
 			"commandId": fmt.Sprintf("invite-%d", time.Now().UnixNano()),
-			"actAs":     []string{inviterParty, mediatorParty, issuerParty},
-			"userId":    inviterID,
+			"actAs":     []string{issuerParty},
+			"userId":    CentralBankUser,
 			"commands": []interface{}{
 				map[string]interface{}{
 					"CreateCommand": map[string]interface{}{
@@ -844,6 +868,29 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 			if !ok {
 				continue
 			}
+			termsData, hasTerms := args["terms"].(map[string]interface{})
+			var terms EscrowTerms
+			if hasTerms {
+				terms.ConditionDescription = fmt.Sprintf("%v", termsData["conditionDescription"])
+				terms.ConditionType = fmt.Sprintf("%v", termsData["conditionType"])
+				terms.EvidenceRequired = fmt.Sprintf("%v", termsData["evidenceRequired"])
+				if expiryStr, ok := termsData["expiryDate"].(string); ok {
+					if t, err := time.Parse(time.RFC3339, expiryStr); err == nil {
+						terms.ExpiryDate = t
+					} else if t, err := time.Parse("2006-01-02T15:04:05Z", expiryStr); err == nil {
+						terms.ExpiryDate = t
+					} else if t, err := time.Parse("2006-01-02T15:04:05.000Z", expiryStr); err == nil {
+						terms.ExpiryDate = t
+					}
+				}
+				if gpVal, ok := termsData["gracePeriodDays"]; ok {
+					terms.GracePeriodDays = int(c.parseFloat(gpVal))
+				}
+				if dwVal, ok := termsData["disputeWindowDays"]; ok {
+					terms.DisputeWindowDays = int(c.parseFloat(dwVal))
+				}
+			}
+
 			asset := args["asset"].(map[string]interface{})
 			proposals = append(proposals, &EscrowProposal{
 				ID:          created["contractId"].(string),
@@ -853,6 +900,7 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 					Amount:   c.parseFloat(asset["amount"]),
 					Currency: fmt.Sprintf("%v", asset["currency"]),
 				},
+				Terms: terms,
 			})
 		}
 	}
@@ -987,15 +1035,15 @@ func toDamlTerms(t EscrowTerms) map[string]interface{} {
 	}
 
 	if t.MinAmount > 0 {
-		m["minAmount"] = map[string]interface{}{"tag": "Some", "value": strconv.FormatFloat(t.MinAmount, 'f', 2, 64)}
+		m["minAmount"] = strconv.FormatFloat(t.MinAmount, 'f', 2, 64)
 	} else {
-		m["minAmount"] = map[string]interface{}{"tag": "None", "value": map[string]interface{}{}}
+		m["minAmount"] = nil
 	}
 
 	if t.MaxAmount > 0 {
-		m["maxAmount"] = map[string]interface{}{"tag": "Some", "value": strconv.FormatFloat(t.MaxAmount, 'f', 2, 64)}
+		m["maxAmount"] = strconv.FormatFloat(t.MaxAmount, 'f', 2, 64)
 	} else {
-		m["maxAmount"] = map[string]interface{}{"tag": "None", "value": map[string]interface{}{}}
+		m["maxAmount"] = nil
 	}
 
 	return m

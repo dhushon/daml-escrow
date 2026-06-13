@@ -109,7 +109,7 @@ codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR file
 .PHONY: swagger-gen
 swagger-gen: ## Regenerate Swagger/OpenAPI documentation
 	@echo "Generating API Swagger docs..."
-	@swag init -g cmd/escrow-api/main.go -o docs
+	@swag init -g main.go --dir cmd/escrow-api,internal/api,internal/ledger,internal/services -o docs
 
 .PHONY: pilot-release
 pilot-release: ## Authoritatively build and push image to GCP Artifact Registry (Defaults to ARCH or TARGETARCH)
@@ -124,6 +124,7 @@ pilot-release: ## Authoritatively build and push image to GCP Artifact Registry 
 
 .PHONY: bootstrap-local
 bootstrap-local: ## Synchronize DAR packages and allocate Parties on localhost
+	@rm -f ledger-state.json
 	@GOARCH=$(ARCH) ./bin/ledger-sync -host localhost -port 7575 \
 		-impl stablecoin-escrow \
 		-iface stablecoin-escrow-interfaces \
@@ -172,5 +173,5 @@ test-e2e: ## Run Playwright E2E integration tests locally (boots, tests, and tea
 	@cd frontend && npx playwright test; \
 	status=$$?; \
 	echo "Tearing down baseline stack..."; \
-	make standalone-down; \
+	make -C .. standalone-down; \
 	exit $$status

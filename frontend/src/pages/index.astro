@@ -9,16 +9,20 @@ const userScopes = (Astro.cookies.get('user_scopes')?.value || '').split(',');
 const isAuthenticated = !!userEmail;
 
 const adminCookie = Astro.cookies.get('admin-mode');
-const isAdmin = adminCookie?.value === 'true' || userScopes.includes('system:admin');
+const hasAdminScope = userScopes.includes('system:admin');
+const assumedRole = Astro.cookies.get('assumed_role')?.value || 'Depositor';
+const view = assumedRole;
 
-const view = Astro.url.searchParams.get('view') || 'Depositor';
+// Only act as Admin/System-Wide Oversight if they have the scope AND assumed CentralBank or EscrowMediator role
+const isAdmin = (adminCookie?.value === 'true' || hasAdminScope) && (view === 'CentralBank' || view === 'EscrowMediator');
+
 const tab = Astro.url.searchParams.get('tab') || 'active';
 
 // Determine Effective Role for UI
 let effectiveRole = 'Guest';
-if (userScopes.includes('system:admin')) {
-        effectiveRole = view === 'Depositor' ? 'Issuer' : 'Mediator';
-} else if (userScopes.includes('escrow:write')) {
+if (isAdmin) {
+        effectiveRole = view === 'CentralBank' ? 'Issuer' : 'Mediator';
+} else {
         effectiveRole = view;
 }
 
@@ -29,9 +33,9 @@ let error = null;
 
 if (isAuthenticated) {
     try {
-        escrows = await fetchEscrows();
-        proposals = await fetchProposals();
-        drafts = await fetchDrafts();
+        escrows = await fetchEscrows(userEmail, assumedRole);
+        proposals = await fetchProposals(userEmail, assumedRole);
+        drafts = await fetchDrafts(userEmail, assumedRole);
     } catch (err) {
         error = err.message;
     }
@@ -103,29 +107,23 @@ if (isAuthenticated) {
 					<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Escrow Dashboard</h2>
 				</div>
 				
-				<div class="flex items-center space-x-4">
-					<div id="view-toggle" class={`inline-flex glass-card rounded-2xl p-1.5 shadow-sm transition-colors text-[9px] font-black uppercase tracking-widest ${isAdmin ? 'hidden' : ''}`}>
-						<a href={`/?view=Depositor&tab=${tab}`} class={`px-4 py-2 rounded-xl transition-all ${view === 'Depositor' ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Depositor</a>
-						<a href={`/?view=Beneficiary&tab=${tab}`} class={`px-4 py-2 rounded-xl transition-all ${view === 'Beneficiary' ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Beneficiary</a>
-					</div>
-				</div>
 			</div>
 
 			<div class="flex border-b border-slate-200 dark:border-slate-800/80 mb-8 overflow-x-auto gap-2">
 				<a 
-					href={`/?view=${view}&tab=active`} 
+					href={`/?tab=active`} 
 					class={`pb-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'active' ? 'border-brand-500 text-brand-500' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
 				>
 					Active Contracts
 				</a>
 				<a
-					href={`/?view=${view}&tab=proposals`}
+					href={`/?tab=proposals`}
 					class={`pb-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'proposals' ? 'border-brand-500 text-brand-500' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
 				>
 					Pending Proposals
 				</a>
 				<a
-					href={`/?view=${view}&tab=negotiations`}
+					href={`/?tab=negotiations`}
 					class={`pb-4 px-6 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'negotiations' ? 'border-brand-500 text-brand-500' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
 				>
 					Negotiations
@@ -287,8 +285,8 @@ if (isAuthenticated) {
 			const id = target.getAttribute('data-id');
 			if (!id) return;
 
-			const urlParams = new URLSearchParams(window.location.search);
-			const user = urlParams.get('view') || 'Depositor';
+			const session = getSession();
+			const user = session?.assumedRole || 'Depositor';
 
 			const originalText = target.textContent;
 			target.disabled = true;

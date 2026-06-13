@@ -143,7 +143,7 @@ func (m *MockLedgerClient) GetIdentity(ctx context.Context, oktaSub string) (*Us
 }
 
 func (m *MockLedgerClient) ProvisionUser(ctx context.Context, oktaSub string, email string, role string, scopes []string) (*UserIdentity, error) {
-	args := m.Called(ctx, oktaSub, email, scopes)
+	args := m.Called(ctx, oktaSub, email, role, scopes)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
