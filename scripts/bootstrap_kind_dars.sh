@@ -3,8 +3,8 @@
 set -e
 
 INTERFACE_DAR="contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
-ESCROW_DAR="contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
-TEST_DAR="contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
+ESCROW_DAR="contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.4.dar"
+TEST_DAR="contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.1.dar"
 
 function upload_dars_to_pod() {
   local pod=$1

@@ -9,12 +9,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
 	"daml-escrow/internal/services"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -169,5 +171,98 @@ func TestHandler_OracleMilestoneTrigger(t *testing.T) {
 		h.OracleMilestoneTrigger(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
+func TestHandler_WithdrawDraft(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	mockLedger := new(ledger.MockLedgerClient)
+	mockStablecoin := new(ledger.MockStablecoinProvider)
+	compliance := services.NewMockCompliance()
+	signer, _ := crypto.NewLocalSigner()
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
+
+	configContent := "providers:\n  test.com:\n    type: OIDC\n    issuer: https://oidc.test.com\n"
+	tmpFile, _ := os.CreateTemp("", "idp*.yaml")
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_, _ = tmpFile.Write([]byte(configContent))
+	_ = tmpFile.Close()
+
+	db, smock, _ := sqlmock.New()
+	defer func() { _ = db.Close() }()
+
+	idSvc, _ := services.NewIdentityService(tmpFile.Name(), db)
+	configSvc := services.NewMockConfigService(db)
+
+	h := NewHandler(logger, svc, nil, configSvc, nil, idSvc, nil, nil, nil)
+
+	t.Run("WithdrawDraft - Success", func(t *testing.T) {
+		smock.ExpectQuery("SELECT okta_sub, daml_user_id, daml_party_id, email, display_name, role, title, affiliation, organization, physical_address, kyc_status FROM identities").
+			WithArgs("user-123").
+			WillReturnRows(sqlmock.NewRows([]string{"okta_sub", "daml_user_id", "daml_party_id", "email", "display_name", "role", "title", "affiliation", "organization", "physical_address", "kyc_status"}).
+				AddRow("user-123", "user_party", "p-123", "user@test.com", "Depositor", "Depositor", "", "", "", "", "APPROVED"))
+
+		mockRows := sqlmock.NewRows([]string{
+			"id", "root_id", "version", "proposer_id", "invitation_code", "contract_type", "initiator_id",
+			"initiator_role", "depositor_id", "beneficiary_email", "beneficiary_id", "mediator_id",
+			"amount", "currency", "terms", "metadata", "change_summary", "approvals", "status", "created_at",
+		}).AddRow(
+			"draft-id-123", "root-id-456", 1, "user1", "code", "Corporate", "user1",
+			"Depositor", "user1", "user2@email.com", "user2", "mediator",
+			100.0, "USD", []byte(`{}`), []byte(`{"ledgerId": "old-ledger-id"}`), "summary", []byte(`["user1"]`), "PROMOTED", time.Now(),
+		)
+		smock.ExpectQuery("SELECT id, root_id, version, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, approvals, status, created_at FROM draft_escrows WHERE root_id = \\$1").
+			WithArgs("root-id-456").
+			WillReturnRows(mockRows)
+
+		mockLedger.On("WithdrawProposal", mock.Anything, "old-ledger-id", "p-123").Return(nil)
+
+		mockRowsAgain := sqlmock.NewRows([]string{
+			"id", "root_id", "version", "proposer_id", "invitation_code", "contract_type", "initiator_id",
+			"initiator_role", "depositor_id", "beneficiary_email", "beneficiary_id", "mediator_id",
+			"amount", "currency", "terms", "metadata", "change_summary", "approvals", "status", "created_at",
+		}).AddRow(
+			"draft-id-123", "root-id-456", 1, "user1", "code", "Corporate", "user1",
+			"Depositor", "user1", "user2@email.com", "user2", "mediator",
+			100.0, "USD", []byte(`{}`), []byte(`{"ledgerId": "old-ledger-id"}`), "summary", []byte(`["user1"]`), "PROMOTED", time.Now(),
+		)
+		smock.ExpectQuery("SELECT id, root_id, version, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, approvals, status, created_at FROM draft_escrows WHERE root_id = \\$1").
+			WithArgs("root-id-456").
+			WillReturnRows(mockRowsAgain)
+
+		smock.ExpectExec("UPDATE draft_escrows SET status = 'DRAFT'").
+			WithArgs(sqlmock.AnyArg(), "draft-id-123").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		mockRowsFinal := sqlmock.NewRows([]string{
+			"id", "root_id", "version", "proposer_id", "invitation_code", "contract_type", "initiator_id",
+			"initiator_role", "depositor_id", "beneficiary_email", "beneficiary_id", "mediator_id",
+			"amount", "currency", "terms", "metadata", "change_summary", "approvals", "status", "created_at",
+		}).AddRow(
+			"draft-id-123", "root-id-456", 1, "user1", "code", "Corporate", "user1",
+			"Depositor", "user1", "user2@email.com", "user2", "mediator",
+			100.0, "USD", []byte(`{}`), []byte(`{"previousProposalId": "old-ledger-id"}`), "summary", []byte(`[]`), "DRAFT", time.Now(),
+		)
+		smock.ExpectQuery("SELECT id, root_id, version, proposer_id, invitation_code, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, change_summary, approvals, status, created_at FROM draft_escrows WHERE root_id = \\$1").
+			WithArgs("root-id-456").
+			WillReturnRows(mockRowsFinal)
+
+		ctx := context.WithValue(context.Background(), AuthSubKey, "user-123")
+		ctx = context.WithValue(ctx, EmailKey, "user@test.com")
+		req, _ := http.NewRequestWithContext(ctx, "POST", "/api/v1/drafts/root-id-456/withdraw", nil)
+		
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("draftID", "root-id-456")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		h.WithdrawDraft(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var resp services.DraftEscrow
+		err := json.Unmarshal(rr.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, "DRAFT", resp.Status)
+		mockLedger.AssertExpectations(t)
 	})
 }

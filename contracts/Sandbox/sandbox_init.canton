@@ -46,8 +46,8 @@ val syncId = participant.synchronizers.list_connected().head.physicalSynchronize
 // 4. Upload DARs (Authoritative: Latest versions, no ignore)
 println("Uploading authoritative DARs...")
 participant.dars.upload("/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar")
-participant.dars.upload("/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar")
-participant.dars.upload("/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar")
+participant.dars.upload("/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.4.dar")
+participant.dars.upload("/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.1.dar")
 
 // 5. Allocate Parties
 println("Allocating parties...")

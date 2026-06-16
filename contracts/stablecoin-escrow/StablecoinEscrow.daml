@@ -64,6 +64,10 @@ template EscrowProposal
       controller depositor, beneficiary
       do return ()
 
+    choice WithdrawProposal : ()
+      controller initiator
+      do return ()
+
 -- ---------------------------------------------------------------------------
 -- DRAFT State (BeneficiaryAcceptedProposal) - Step 2: Beneficiary authorises
 -- ---------------------------------------------------------------------------

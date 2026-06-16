@@ -128,6 +128,11 @@ CHOICE: Cancel
   GUARD       : state ∈ [DRAFT, FUNDED, ACTIVE]
   EFFECT      : state → CANCELLED, full return to Depositor
 
+CHOICE: WithdrawProposal
+  CONTROLLER  : Initiator (unilateral proposer)
+  GUARD       : state == DRAFT (pre-agreement)
+  EFFECT      : archives the EscrowProposal, resetting off-chain draft status to DRAFT with lineage
+
 CHOICE: ExpireEscrow
   CONTROLLER  : Issuer | any party (time-triggered)
   GUARD       : state ∈ [FUNDED, ACTIVE, DISPUTED], currentDate > ExpiryDate

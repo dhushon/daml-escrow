@@ -44,8 +44,8 @@ val syncId = bank.synchronizers.list_connected().head.physicalSynchronizerId
 // 5. Upload DARs
 println("Uploading authoritative DARs...")
 val interfaceDar = "/etc/canton/contracts/stablecoin-escrow-interfaces/.daml/dist/stablecoin-escrow-interfaces-1.0.0.dar"
-val escrowDar    = "/etc/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar"
-val testDar      = "/etc/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.0.dar"
+val escrowDar    = "/etc/canton/contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.4.dar"
+val testDar      = "/etc/canton/contracts/stablecoin-escrow-tests/.daml/dist/stablecoin-escrow-tests-1.0.1.dar"
 
 Seq(bank, depositor, beneficiary).foreach { p =>
   println(s"Provisioning ${p.name} with templates...")

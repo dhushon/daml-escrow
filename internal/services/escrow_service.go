@@ -88,6 +88,11 @@ func (s *EscrowService) CancelEscrow(ctx context.Context, id string, userID stri
 	return s.ledger.Cancel(ctx, id, userID)
 }
 
+func (s *EscrowService) WithdrawProposal(ctx context.Context, id string, userID string) error {
+	s.logger.Info("withdrawing proposal", zap.String("id", id), zap.String("userID", userID))
+	return s.ledger.WithdrawProposal(ctx, id, userID)
+}
+
 func (s *EscrowService) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	s.logger.Info("expiring escrow", zap.String("id", id), zap.String("userID", userID))
 	return s.ledger.ExpireEscrow(ctx, id, userID)

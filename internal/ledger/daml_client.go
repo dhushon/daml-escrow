@@ -62,6 +62,10 @@ func (c *DamlClient) Cancel(ctx context.Context, id string, userID string) error
 	return fmt.Errorf("gRPC not implemented")
 }
 
+func (c *DamlClient) WithdrawProposal(ctx context.Context, id string, userID string) error {
+	return fmt.Errorf("gRPC not implemented")
+}
+
 func (c *DamlClient) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	return "", fmt.Errorf("gRPC not implemented")
 }

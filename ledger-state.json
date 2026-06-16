@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-13T13:27:40.400449-04:00",
-  "packageId": "62e8a4a6a4155653f7a9de7a9a2a7b5291ce9a841f208848a0ca2126057c8511",
+  "generatedAt": "2026-06-16T15:11:07.704913-04:00",
+  "packageId": "e40073ba574f8a8532388dae368fcd1458dd7a7bc5a2384ddbed9f097879f50b",
   "interfacePackageId": "93f82c900a508591868dfbe177d7a1d01ba56daa1817e843de0ea60344a8f925",
   "parties": {
-    "Beneficiary": "Beneficiary::1220d580269d9933a86816f1e8e4b79d19a89a50496b643f212bd08915804d5e1f37",
-    "CentralBank": "CentralBank::1220d580269d9933a86816f1e8e4b79d19a89a50496b643f212bd08915804d5e1f37",
-    "Depositor": "Depositor::1220d580269d9933a86816f1e8e4b79d19a89a50496b643f212bd08915804d5e1f37",
-    "EscrowMediator": "EscrowMediator::1220d580269d9933a86816f1e8e4b79d19a89a50496b643f212bd08915804d5e1f37",
-    "sandbox": "sandbox::1220d580269d9933a86816f1e8e4b79d19a89a50496b643f212bd08915804d5e1f37"
+    "Beneficiary": "Beneficiary::1220a1c82bb9d33a35e651f23a9bdbfc7ff3ed27ae7fe62b6ab224aa2c6469bcf0d5",
+    "CentralBank": "CentralBank::1220a1c82bb9d33a35e651f23a9bdbfc7ff3ed27ae7fe62b6ab224aa2c6469bcf0d5",
+    "Depositor": "Depositor::1220a1c82bb9d33a35e651f23a9bdbfc7ff3ed27ae7fe62b6ab224aa2c6469bcf0d5",
+    "EscrowMediator": "EscrowMediator::1220a1c82bb9d33a35e651f23a9bdbfc7ff3ed27ae7fe62b6ab224aa2c6469bcf0d5",
+    "sandbox": "sandbox::1220a1c82bb9d33a35e651f23a9bdbfc7ff3ed27ae7fe62b6ab224aa2c6469bcf0d5"
   }
 }

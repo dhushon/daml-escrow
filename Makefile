@@ -18,7 +18,7 @@ standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081
 	@docker compose up -d
 	@echo "Awaiting ledger (60s)..." && sleep 60
 	@make bootstrap-local
-	@nohup env LEDGER_HOST=localhost \
+	@nohup env -u GOROOT LEDGER_HOST=localhost \
 		STORAGE_ENDPOINT=http://localhost:9000 \
 		STORAGE_ACCESS_KEY=escrow \
 		STORAGE_SECRET_KEY=escrow-secret \
@@ -44,7 +44,7 @@ tri-up: ## Authoritatively launch distributed tripartite stack
 	@echo "Awaiting distributed ledger (60s)..." && sleep 60
 	@./scripts/setup_users.sh localhost 7575
 	@make bootstrap-local
-	@nohup env LEDGER_HOST=localhost \
+	@nohup env -u GOROOT LEDGER_HOST=localhost \
 		STORAGE_ENDPOINT=http://localhost:9000 \
 		STORAGE_ACCESS_KEY=escrow \
 		STORAGE_SECRET_KEY=escrow-secret \
@@ -149,7 +149,7 @@ pilot-status: ## Tier 2: Audit pod health and mTLS certificate status
 .PHONY: pilot-local
 pilot-local: ## Authoritatively launch local services pointing to GKE (api.vdatacloudai.com)
 	@echo "Launching local services in GCP-Proxy mode..."
-	@nohup go run ./cmd/escrow-api serve --notls --bypass --port 8081 --config config/config-gke.yaml > log/pilot-local-api.log 2>&1 &
+	@nohup env -u GOROOT go run ./cmd/escrow-api serve --notls --bypass --port 8081 --config config/config-gke.yaml > log/pilot-local-api.log 2>&1 &
 	@cd frontend && PUBLIC_API_URL=http://localhost:8081 npm run dev -- --port 4321 > ../log/pilot-local-frontend.log 2>&1 &
 	@echo "SUCCESS: Local UX pointing to GKE LIVE on http://localhost:4321"
 
@@ -169,7 +169,7 @@ codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR file
 	@cd third_party/go-daml && make build
 	@echo "Generating institutional bindings..."
 	@./third_party/go-daml/bin/godaml \
-		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar \
+		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.4.dar \
 		--output ./internal/ledger/generated \
 		--go_package generated
 	@echo "Codegen Complete: Go bindings synchronized with institutional vocabulary."

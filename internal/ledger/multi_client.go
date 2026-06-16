@@ -192,6 +192,10 @@ func (m *MultiLedgerClient) Cancel(ctx context.Context, id string, userID string
 	return m.getClientForUser(userID).Cancel(ctx, id, userID)
 }
 
+func (m *MultiLedgerClient) WithdrawProposal(ctx context.Context, id string, userID string) error {
+	return m.getClientForUser(userID).WithdrawProposal(ctx, id, userID)
+}
+
 func (m *MultiLedgerClient) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	return m.getClientForUser(userID).ExpireEscrow(ctx, id, userID)
 }

@@ -186,4 +186,144 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     expect(authSession).toBeNull();
     console.log('Session destroyed successfully upon disconnect.');
   });
+
+  test('should execute proposal withdrawal and database reset to DRAFT', async ({ page }) => {
+    // 1. LOGIN BYPASS AS DEPOSITOR (Joey)
+    console.log('Logging in as Depositor (Joey) for withdrawal test...');
+    await page.goto('/login');
+    const joeyBtn = page.locator('button[data-role="Depositor"]');
+    await expect(joeyBtn).toBeVisible();
+    await joeyBtn.click();
+    await page.waitForURL('**/');
+    console.log('Logged in. Dashboard loaded.');
+
+    // 2. CREATE A NEW OFF-CHAIN DRAFT AGREEMENT
+    console.log('Creating draft for withdrawal testing...');
+    await page.goto('/compose');
+    const counterpartySelect = page.locator('#counterparty-select');
+    await expect(counterpartySelect).toBeVisible();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('counterparty-select') as HTMLSelectElement;
+      return el && el.options.length > 0 && !el.options[0].text.includes('Searching');
+    });
+    await counterpartySelect.selectOption({ index: 0 });
+
+    const mediatorSelect = page.locator('#mediator-select');
+    await expect(mediatorSelect).toBeVisible();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('mediator-select') as HTMLSelectElement;
+      return el && el.options.length > 0 && !el.options[0].text.includes('Searching');
+    });
+    await mediatorSelect.selectOption({ index: 0 });
+
+    const currencySelect = page.locator('select[name="currency"]');
+    await currencySelect.selectOption('USD');
+
+    const labelInput = page.locator('input[name="m-label"]').first();
+    const amountInput = page.locator('input[name="m-amount"]').first();
+    await labelInput.fill('Phase 2 Milestone Withdrawal Test');
+    await amountInput.fill('75000');
+
+    const schemaSelect = page.locator('select[name="schemaUrl"]');
+    await schemaSelect.selectOption({ label: 'Research Grant' });
+
+    page.once('dialog', async dialog => {
+      expect(dialog.message()).toContain('saved');
+      await dialog.accept();
+    });
+
+    const saveBtn = page.locator('button:has-text("Save & Share Draft")');
+    await saveBtn.click();
+    await page.waitForURL('**/');
+    console.log('Draft saved.');
+
+    // 3. BILATERAL NEGOTIATION - DEPOSITOR APPROVAL
+    console.log('Navigating to draft page...');
+    await page.goto('/?tab=negotiations');
+    const draftCard = page.locator('a:has-text("75,000")').first();
+    await expect(draftCard).toBeVisible();
+    await draftCard.click();
+    await page.waitForURL(/\/negotiate\/.+/);
+
+    const approveBtn = page.locator('#btn-approve');
+    await expect(approveBtn).toBeVisible();
+    await approveBtn.click();
+    await expect(page.locator('#approvals-list')).toContainText('Joey Authorized');
+    console.log('Depositor (Joey) approved.');
+
+    // 4. SWITCH USER TO BENEFICIARY (Jimmy) AND APPROVE TO RATIFY
+    console.log('Switching to Beneficiary (Jimmy)...');
+    await performLogout(page);
+    const jimmyBtn = page.locator('button[data-role="Beneficiary"]');
+    await expect(jimmyBtn).toBeVisible();
+    await jimmyBtn.click();
+    await page.waitForURL('**/');
+
+    await page.goto('/?tab=negotiations');
+    const draftCardJimmy = page.locator('a:has-text("75,000")').first();
+    await expect(draftCardJimmy).toBeVisible();
+    await draftCardJimmy.click();
+    await page.waitForURL(/\/negotiate\/.+/);
+
+    const approveBtnJimmy = page.locator('#btn-approve');
+    await expect(approveBtnJimmy).toBeVisible();
+    await approveBtnJimmy.click();
+    await expect(page.locator('#draft-status')).toHaveText('RATIFIED');
+    console.log('Beneficiary approved. Draft is now RATIFIED.');
+
+    // 5. LEDGER PROMOTION BY BENEFICIARY
+    console.log('Promoting to Ledger...');
+    const promoteBtn = page.locator('#btn-promote');
+    await expect(promoteBtn).toBeVisible();
+    page.once('dialog', async dialog => {
+      expect(dialog.message()).toContain('promoted');
+      await dialog.accept();
+    });
+    await promoteBtn.click();
+    await page.waitForURL('**/');
+    console.log('Draft promoted to ledger. Status is now PROMOTED.');
+
+    // 6. DEPOSITOR (Joey) LOGS IN AND WITHDRAWS PROPOSAL
+    console.log('Switching to Depositor (Joey) to withdraw...');
+    await performLogout(page);
+    const joeyBtn2 = page.locator('button[data-role="Depositor"]');
+    await expect(joeyBtn2).toBeVisible();
+    await joeyBtn2.click();
+    await page.waitForURL('**/');
+
+    await page.goto('/?tab=negotiations');
+    const draftCardJoey = page.locator('a:has-text("75,000")').first();
+    await expect(draftCardJoey).toBeVisible();
+    await draftCardJoey.click();
+    await page.waitForURL(/\/negotiate\/.+/);
+
+    // Verify status is PROMOTED
+    await expect(page.locator('#draft-status')).toHaveText('PROMOTED');
+
+    // Withdraw button should be visible
+    const withdrawBtn = page.locator('#btn-withdraw');
+    await expect(withdrawBtn).toBeVisible();
+
+    // Intercept both confirmation and success dialogs
+    page.on('dialog', async dialog => {
+      if (dialog.message().includes('withdraw this proposal')) {
+        await dialog.accept();
+      } else if (dialog.message().includes('withdrawn successfully')) {
+        await dialog.accept();
+      } else {
+        await dialog.dismiss();
+      }
+    });
+
+    await withdrawBtn.click();
+
+    // Verify status returns to DRAFT
+    await expect(page.locator('#draft-status')).toHaveText('DRAFT');
+
+    // Verify approvals list is reset
+    await expect(page.locator('#approvals-list')).toContainText('Bilateral authorization pending');
+    console.log('Proposal successfully withdrawn and reset to DRAFT.');
+
+    await performLogout(page);
+  });
 });
