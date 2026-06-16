@@ -55,7 +55,7 @@ func TestConfigService_Unit(t *testing.T) {
 			WithArgs("draft-id-123").
 			WillReturnRows(sqlmock.NewRows([]string{"root_id", "metadata"}).AddRow("root-id-456", []byte(`{"existing": "data"}`)))
 
-		mock.ExpectExec("UPDATE draft_escrows SET status = \\$1, metadata = \\$2, updated_at = CURRENT_TIMESTAMP WHERE id = \\$3").
+		mock.ExpectExec("UPDATE draft_escrows SET status = \\$1, metadata = \\$2 WHERE id = \\$3").
 			WithArgs("PROMOTED", sqlmock.AnyArg(), "draft-id-123").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 

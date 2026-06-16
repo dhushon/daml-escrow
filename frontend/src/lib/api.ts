@@ -207,6 +207,15 @@ export async function promoteDraftToLedger(draftID: string) {
     if (!response.ok) throw new Error('Failed to promote draft to ledger');
 }
 
+export async function withdrawDraft(draftID: string) {
+    const response = await fetch(resolveApiPath(`/drafts/${draftID}/withdraw`), {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to withdraw draft');
+    return response.json();
+}
+
 export async function ingestContract(files: File[]) {
     const formData = new FormData();
     files.forEach(file => {

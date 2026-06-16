@@ -335,7 +335,7 @@ func (s *ConfigService) WithdrawDraft(rootID, withdrawnContractID string) (*Draf
 
 	query := `
 		UPDATE draft_escrows 
-		SET status = 'DRAFT', approvals = '[]'::jsonb, metadata = $1, updated_at = CURRENT_TIMESTAMP
+		SET status = 'DRAFT', approvals = '[]'::jsonb, metadata = $1
 		WHERE id = $2
 	`
 	_, err = s.db.Exec(query, json.RawMessage(newMeta), draft.ID)
@@ -368,7 +368,7 @@ func (s *ConfigService) UpdateDraftStatusAndLedgerID(id, status, ledgerID string
 		return err
 	}
 
-	query := "UPDATE draft_escrows SET status = $1, metadata = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3"
+	query := "UPDATE draft_escrows SET status = $1, metadata = $2 WHERE id = $3"
 	_, err = s.db.Exec(query, status, json.RawMessage(newMeta), id)
 	return err
 }

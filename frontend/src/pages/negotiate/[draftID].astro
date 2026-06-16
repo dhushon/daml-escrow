@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../../lib/api';
+import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger, withdrawDraft } from '../../lib/api';
 
 const { draftID } = Astro.params;
 ---
@@ -96,6 +96,9 @@ const { draftID } = Astro.params;
 							<button id="btn-promote" class="hidden w-full bg-brand-600 hover:bg-brand-700 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-brand-500/20 cursor-pointer border-none">
 								Promote to Ledger
 							</button>
+							<button id="btn-withdraw" class="hidden w-full bg-rose-600 hover:bg-rose-700 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-rose-500/20 cursor-pointer border-none">
+								Withdraw Proposal
+							</button>
 						</div>
 					</div>
 				</div>
@@ -132,7 +135,7 @@ const { draftID } = Astro.params;
 </Layout>
 
 <script>
-	import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger } from '../../lib/api';
+	import { fetchDraft, amendDraft, approveDraft, promoteDraftToLedger, withdrawDraft } from '../../lib/api';
 	import { getSession } from '../../lib/auth';
 
 	const pathParts = window.location.pathname.split('/');
@@ -211,11 +214,22 @@ const { draftID } = Astro.params;
 			}
 		}
 
-		// Promotion Logic
+		// Promotion & Withdrawal UI Logic
 		if (currentDraft.status === 'RATIFIED') {
 			document.getElementById('btn-promote').classList.remove('hidden');
+			document.getElementById('btn-withdraw').classList.add('hidden');
+			document.getElementById('btn-approve').classList.remove('hidden');
+			document.getElementById('btn-amend').classList.remove('hidden');
+		} else if (currentDraft.status === 'PROMOTED') {
+			document.getElementById('btn-promote').classList.add('hidden');
+			document.getElementById('btn-withdraw').classList.remove('hidden');
+			document.getElementById('btn-approve').classList.add('hidden');
+			document.getElementById('btn-amend').classList.add('hidden');
 		} else {
 			document.getElementById('btn-promote').classList.add('hidden');
+			document.getElementById('btn-withdraw').classList.add('hidden');
+			document.getElementById('btn-approve').classList.remove('hidden');
+			document.getElementById('btn-amend').classList.remove('hidden');
 		}
 	}
 
@@ -262,6 +276,18 @@ const { draftID } = Astro.params;
 			window.location.href = '/';
 		} catch (err) {
 			alert(err.message);
+		}
+	};
+
+	document.getElementById('btn-withdraw').onclick = async () => {
+		if (confirm('Are you sure you want to withdraw this proposal? It will reset the draft back to DRAFT state and clear all approvals.')) {
+			try {
+				await withdrawDraft(draftID);
+				alert('Proposal withdrawn successfully!');
+				window.location.reload();
+			} catch (err) {
+				alert(err.message);
+			}
 		}
 	};
 
