@@ -23,7 +23,7 @@ var (
 
 const (
 	PackageName = "stablecoin-escrow"
-	PackageID   = "62e8a4a6a4155653f7a9de7a9a2a7b5291ce9a841f208848a0ca2126057c8511"
+	PackageID   = "e40073ba574f8a8532388dae368fcd1458dd7a7bc5a2384ddbed9f097879f50b"
 	SDKVersion  = "3.4.11"
 )
 
@@ -1493,6 +1493,27 @@ func (t EscrowProposal) CancelProposalWithPackageID(contractID string, packageID
 	}
 }
 
+// WithdrawProposal exercises the WithdrawProposal choice on this EscrowProposal contract
+// This method uses the package name in the template ID
+func (t EscrowProposal) WithdrawProposal(contractID string, args WithdrawProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "WithdrawProposal",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// WithdrawProposalWithPackageID exercises the WithdrawProposal choice using the provided package ID instead of package name
+func (t EscrowProposal) WithdrawProposalWithPackageID(contractID string, packageID string, args WithdrawProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "WithdrawProposal",
+		Arguments:  argsToMap(args),
+	}
+}
+
 // Archive exercises the Archive choice on this EscrowProposal contract
 // This method uses the package name in the template ID
 func (t EscrowProposal) Archive(contractID string) *model.ExerciseCommand {
@@ -2035,3 +2056,23 @@ func (t SettlementRecord) ActivateWithPackageID(contractID string, packageID str
 // Verify interface implementations for SettlementRecord
 
 var _ IEscrow = (*SettlementRecord)(nil)
+
+// WithdrawProposal is a Record type
+type WithdrawProposal struct {
+}
+
+// ToMap converts WithdrawProposal to a map for DAML arguments
+func (t WithdrawProposal) ToMap() map[string]any {
+	m := make(map[string]any)
+	return m
+}
+
+func (t WithdrawProposal) MarshalJSON() ([]byte, error) {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Marshal(t)
+}
+
+func (t *WithdrawProposal) UnmarshalJSON(data []byte) error {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Unmarshal(data, t)
+}

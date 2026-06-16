@@ -209,6 +209,7 @@ type Client interface {
 	FinalizeSettlement(ctx context.Context, id string, userID string) (string, error)
 	Disburse(ctx context.Context, id string, actAs []string) error
 	Cancel(ctx context.Context, id string, userID string) error
+	WithdrawProposal(ctx context.Context, id string, userID string) error
 	ExpireEscrow(ctx context.Context, id string, userID string) (string, error)
 
 	// Queries

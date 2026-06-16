@@ -595,8 +595,8 @@ func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.configService.UpdateDraftStatus(draft.ID, "PROMOTED"); err != nil {
-		h.logger.Error("failed to update draft status", zap.Error(err))
+	if err := h.configService.UpdateDraftStatusAndLedgerID(draft.ID, "PROMOTED", ledgerID); err != nil {
+		h.logger.Error("failed to update draft status and ledgerId", zap.Error(err))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -604,6 +604,64 @@ func (h *Handler) PromoteToLedger(w http.ResponseWriter, r *http.Request) {
 		"status":   "PROMOTED",
 		"ledgerId": ledgerID,
 	})
+}
+
+// WithdrawDraft godoc
+// @Summary      Withdraw and reset contract draft
+// @Description  Unilaterally withdraw a promoted on-chain contract proposal, resetting the local draft status back to DRAFT and clearing all approvals.
+// @Tags         drafts
+// @Produce      json
+// @Param        draftID  path      string  true  "Draft ID (Root ID)"
+// @Success      200      {object}  services.DraftEscrow
+// @Failure      400      {string}  string  "failed to withdraw"
+// @Failure      401      {string}  string  "unauthorized"
+// @Failure      404      {string}  string  "draft not found"
+// @Router       /drafts/{draftID}/withdraw [post]
+func (h *Handler) WithdrawDraft(w http.ResponseWriter, r *http.Request) {
+	rootID := chi.URLParam(r, "draftID")
+	identity, err := h.getIdentity(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	draft, err := h.configService.GetLatestDraft(rootID)
+	if err != nil {
+		http.Error(w, "draft not found", http.StatusNotFound)
+		return
+	}
+
+	var metaMap map[string]interface{}
+	if len(draft.Metadata) > 0 && string(draft.Metadata) != "null" {
+		_ = json.Unmarshal(draft.Metadata, &metaMap)
+	}
+
+	var ledgerID string
+	if metaMap != nil {
+		if lid, ok := metaMap["ledgerId"].(string); ok {
+			ledgerID = lid
+		}
+	}
+
+	if ledgerID != "" {
+		err = h.escrowService.WithdrawProposal(r.Context(), ledgerID, identity.DamlPartyID)
+		if err != nil {
+			h.logger.Warn("failed to withdraw on-chain proposal, proceeding with off-chain reset", zap.String("ledgerId", ledgerID), zap.Error(err))
+		}
+	} else {
+		h.logger.Info("no active ledgerId found in draft metadata, proceeding with off-chain reset only", zap.String("rootID", rootID))
+		ledgerID = "UNKNOWN"
+	}
+
+	updatedDraft, err := h.configService.WithdrawDraft(rootID, ledgerID)
+	if err != nil {
+		h.logger.Error("failed to reset draft locally", zap.Error(err))
+		http.Error(w, "failed to reset draft: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(updatedDraft)
 }
 
 // ListInvitations godoc

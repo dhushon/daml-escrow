@@ -367,6 +367,30 @@ func (c *JsonLedgerClient) Cancel(ctx context.Context, id string, userID string)
 	return err
 }
 
+func (c *JsonLedgerClient) WithdrawProposal(ctx context.Context, id string, userID string) error {
+	party := c.GetParty(userID)
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("withdraw-%s", id),
+			"actAs":     []string{party},
+			"userId":    userID,
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
+						"contractId":     id,
+						"choice":         "WithdrawProposal",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	return err
+}
+
 func (c *JsonLedgerClient) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	party := c.GetParty(userID)
 	body := map[string]interface{}{

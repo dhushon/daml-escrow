@@ -169,7 +169,7 @@ codegen: build-contracts ## Authoritatively regenerate Go bindings from DAR file
 	@cd third_party/go-daml && make build
 	@echo "Generating institutional bindings..."
 	@./third_party/go-daml/bin/godaml \
-		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.3.dar \
+		--dar ./contracts/stablecoin-escrow/.daml/dist/stablecoin-escrow-0.0.4.dar \
 		--output ./internal/ledger/generated \
 		--go_package generated
 	@echo "Codegen Complete: Go bindings synchronized with institutional vocabulary."

@@ -73,6 +73,11 @@ func (m *MockLedgerClient) Cancel(ctx context.Context, id string, userID string)
 	return args.Error(0)
 }
 
+func (m *MockLedgerClient) WithdrawProposal(ctx context.Context, id string, userID string) error {
+	args := m.Called(ctx, id, userID)
+	return args.Error(0)
+}
+
 func (m *MockLedgerClient) ExpireEscrow(ctx context.Context, id string, userID string) (string, error) {
 	args := m.Called(ctx, id, userID)
 	return args.String(0), args.Error(1)

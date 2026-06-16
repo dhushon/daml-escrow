@@ -312,6 +312,67 @@ func (s *ConfigService) UpdateDraftStatus(id, status string) error {
 	return err
 }
 
+func (s *ConfigService) WithdrawDraft(rootID, withdrawnContractID string) (*DraftEscrow, error) {
+	draft, err := s.GetLatestDraft(rootID)
+	if err != nil {
+		return nil, fmt.Errorf("negotiation draft not found: %w", err)
+	}
+
+	var metaMap map[string]interface{}
+	if len(draft.Metadata) > 0 && string(draft.Metadata) != "null" {
+		if err := json.Unmarshal(draft.Metadata, &metaMap); err != nil {
+			metaMap = make(map[string]interface{})
+		}
+	} else {
+		metaMap = make(map[string]interface{})
+	}
+	metaMap["previousProposalId"] = withdrawnContractID
+
+	newMeta, err := json.Marshal(metaMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal draft metadata: %w", err)
+	}
+
+	query := `
+		UPDATE draft_escrows 
+		SET status = 'DRAFT', approvals = '[]'::jsonb, metadata = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+	_, err = s.db.Exec(query, json.RawMessage(newMeta), draft.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update draft for withdrawal: %w", err)
+	}
+
+	return s.GetLatestDraft(rootID)
+}
+
+func (s *ConfigService) UpdateDraftStatusAndLedgerID(id, status, ledgerID string) error {
+	var metadataJSON []byte
+	var rootID string
+	err := s.db.QueryRow("SELECT root_id, metadata FROM draft_escrows WHERE id = $1", id).Scan(&rootID, &metadataJSON)
+	if err != nil {
+		return err
+	}
+
+	var metaMap map[string]interface{}
+	if len(metadataJSON) > 0 && string(metadataJSON) != "null" {
+		_ = json.Unmarshal(metadataJSON, &metaMap)
+	}
+	if metaMap == nil {
+		metaMap = make(map[string]interface{})
+	}
+	metaMap["ledgerId"] = ledgerID
+
+	newMeta, err := json.Marshal(metaMap)
+	if err != nil {
+		return err
+	}
+
+	query := "UPDATE draft_escrows SET status = $1, metadata = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3"
+	_, err = s.db.Exec(query, status, json.RawMessage(newMeta), id)
+	return err
+}
+
 func (s *ConfigService) UpdateDraftBeneficiary(id, beneficiaryID string) error {
 	query := "UPDATE draft_escrows SET beneficiary_id = $1 WHERE id = $2"
 	_, err := s.db.Exec(query, beneficiaryID, id)

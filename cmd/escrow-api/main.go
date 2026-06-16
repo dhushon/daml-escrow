@@ -261,6 +261,7 @@ func runServer() {
 		r.Post("/drafts/{draftID}/amend", handler.AmendDraft)
 		r.Post("/drafts/{draftID}/approve", handler.ApproveDraft)
 		r.Post("/drafts/{draftID}/promote", handler.PromoteToLedger)
+		r.Post("/drafts/{draftID}/withdraw", handler.WithdrawDraft)
 
 		// --- Invitations ---
 		r.Post("/invites", handler.CreateInvitation)
