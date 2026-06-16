@@ -48,6 +48,8 @@ spec:
         - "daemon"
         - "--config"
         - "/canton/config/beneficiary.conf"
+        - "--bootstrap"
+        - "/canton/config/beneficiary_init.canton"
         volumeMounts:
         - name: config-volume
           mountPath: /canton/config

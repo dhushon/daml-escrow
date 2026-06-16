@@ -207,22 +207,29 @@ func (s *ConfigService) ProposeAmendment(rootID, proposerID, summary string, amo
 
 // AddApproval appends an identity to the approvals array of the LATEST version.
 func (s *ConfigService) AddApproval(rootID, approverID string) error {
+	// Fetch latest version of the draft first
+	draft, err := s.GetLatestDraft(rootID)
+	if err != nil {
+		return fmt.Errorf("negotiation draft not found: %w", err)
+	}
+
+	// Idempotency: If the user has already approved this version, succeed silently
+	for _, a := range draft.Approvals {
+		if a == approverID {
+			return nil
+		}
+	}
+
 	query := `
 		UPDATE draft_escrows 
 		SET approvals = approvals || jsonb_build_array($1::text)
-		WHERE id = (SELECT id FROM draft_escrows WHERE root_id = $2 ORDER BY version DESC LIMIT 1)
-		AND NOT (approvals ? $1) -- Prevent double signature on same version
+		WHERE id = $2
 	`
-	res, err := s.db.Exec(query, approverID, rootID)
+	_, err = s.db.Exec(query, approverID, draft.ID)
 	if err != nil {
-		return err
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("version already approved or negotiation not found")
+		return fmt.Errorf("failed to append approval: %w", err)
 	}
 
-	// Logic for transition to RATIFIED could go here
 	return nil
 }
 
@@ -268,11 +275,15 @@ func (s *ConfigService) ClaimDraft(code, beneficiaryID string) error {
 func (s *ConfigService) ListDraftsForUser(userID, email string) ([]*DraftEscrow, error) {
 	// Return latest version for each root_id where user is involved
 	query := `
-		SELECT DISTINCT ON (root_id) 
-			id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
-		FROM draft_escrows 
-		WHERE initiator_id = $1 OR beneficiary_email = $2 OR beneficiary_id = $1 OR mediator_id = $1 OR depositor_id = $1
-		ORDER BY root_id, version DESC
+		SELECT id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
+		FROM (
+			SELECT DISTINCT ON (root_id) 
+				id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
+			FROM draft_escrows 
+			WHERE initiator_id = $1 OR beneficiary_email = $2 OR beneficiary_id = $1 OR mediator_id = $1 OR depositor_id = $1
+			ORDER BY root_id, version DESC
+		) t
+		ORDER BY created_at DESC
 	`
 	rows, err := s.db.Query(query, userID, email)
 	if err != nil {

@@ -12,6 +12,7 @@ WORKDIR /app
 # Dependencies
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
+COPY third_party/ ./third_party/
 RUN go mod download
 
 # Source and Build
@@ -25,6 +26,7 @@ FROM gcr.io/distroless/base-debian12:latest
 WORKDIR /app
 COPY --from=builder /app/escrow-api .
 COPY --from=builder /app/config ./config
+COPY --from=builder /app/architecture ./architecture
 
 EXPOSE 8081
 

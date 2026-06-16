@@ -79,6 +79,15 @@ function resolveApiPath(path: string, email?: string): string {
     return `${API_URL}/${rolePath}/api/v1${path}`;
 }
 
+/**
+ * resolveBankApiPath routes commands that require CentralBank/Issuer submission authority
+ * specifically to the Bank API pod, while respecting standalone local development port overrides.
+ */
+function resolveBankApiPath(path: string): string {
+    const isStandalone = API_URL.includes(':8081');
+    return isStandalone ? `${API_URL}/api/v1${path}` : `${API_URL}/bank/api/v1${path}`;
+}
+
 export interface Milestone {
     label: string;
     amount: number;
@@ -191,7 +200,7 @@ export async function approveDraft(draftID: string) {
 
 export async function promoteDraftToLedger(draftID: string) {
 
-    const response = await fetch(resolveApiPath(`/drafts/${draftID}/promote`), {
+    const response = await fetch(resolveBankApiPath(`/drafts/${draftID}/promote`), {
         method: 'POST',
         headers: getAuthHeaders()
     });
@@ -233,7 +242,7 @@ export async function discoverAuth(email: string) {
 // Lifecycle Actions (Phase 5 High-Assurance)
 
 export async function proposeEscrow(req: any) {
-    const response = await fetch(resolveApiPath('/escrows/propose'), {
+    const response = await fetch(resolveBankApiPath('/escrows/propose'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(req)
@@ -297,7 +306,7 @@ export async function finalizeSettlement(id: string) {
 // Invitation Actions
 
 export async function createInvitation(email: string, role: string, inviteeType: string, asset: any, terms: any) {
-    const response = await fetch(resolveApiPath('/invites'), {
+    const response = await fetch(resolveBankApiPath('/invites'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

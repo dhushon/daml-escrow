@@ -103,7 +103,7 @@ Goals: Authoritative release and live verification under the vdatacloudai.com do
 
 ### Tasks
 
-- [ ] **Internal mTLS Enforcement:** Finalize sidecar certificate injection via GCP CAS.
+- [ ] **Internal mTLS Enforcement (Production Only):** Finalize sidecar certificate injection via GCP CAS.
 - [ ] **Live Health Audit:** Perform deep health verification across all tripartite namespaces.
 - [ ] **Domain Verification:** Confirm authoritative mapping and SSL termination at api.vdatacloudai.com.
 
@@ -163,9 +163,10 @@ Goals: Final security sweep to meet institutional regulatory and auditing standa
 
 ### Task 7.1: Zero-Trust Networking (mTLS)
 
-- [ ] Provision **GCP Certificate Authority Service (CAS)** for internal cluster identity.
-- [ ] Implement **Mutual TLS (mTLS)** enforcement across tripartite namespaces (`bank`, `depositor`, `beneficiary`).
-- [ ] Enforce TLS 1.3 for all external entry points via Ingress.
+- [x] **Local Development PKI:** Provision local self-signed cert-manager CA issuer for Minikube.
+- [ ] **GCP CAS (Production Only):** Provision GCP Certificate Authority Service (CAS) for internal GKE cluster identity.
+- [ ] **mTLS Enforcement (Production Only):** Implement Mutual TLS (mTLS) enforcement across tripartite namespaces (`bank`, `depositor`, `beneficiary`).
+- [ ] **TLS 1.3 Perimeter:** Enforce TLS 1.3 for all external entry points via Ingress.
 
 ### Task 7.2: HSM & Key Management (COMPLETE)
 

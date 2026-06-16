@@ -125,6 +125,31 @@ func (s *IdentityService) GetOrCreateIdentity(ctx context.Context, oktaSub, emai
 }
 
 func (s *IdentityService) ListEnrichedIdentities(ctx context.Context, ledgerClient ledger.Client) ([]*ledger.UserIdentity, error) {
+	// JIT provision standard dev bypass users in development to support multi-node directory discovery
+	if os.Getenv("ENVIRONMENT") == "dev" && os.Getenv("AUTH_BYPASS") == "true" {
+		devEmails := []string{
+			"joey@depositor.devlocal",
+			"jimmy@beneficiary.devlocal",
+			"sally@mediator.devlocal",
+			"bob@banker.devlocal",
+		}
+		rawIdentities, err := ledgerClient.ListIdentities(ctx)
+		if err == nil {
+			for _, email := range devEmails {
+				found := false
+				for _, id := range rawIdentities {
+					if strings.EqualFold(id.Email, email) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					_, _ = s.GetOrCreateIdentity(ctx, email, email, ledgerClient)
+				}
+			}
+		}
+	}
+
 	// 1. Get raw identities from ledger
 	rawIdentities, err := ledgerClient.ListIdentities(ctx)
 	if err != nil {

@@ -18,6 +18,7 @@ spec:
       containers:
       - name: api
         image: us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         env:
@@ -35,13 +36,20 @@ spec:
           value: "vdcai-daml"
         - name: ENVIRONMENT
           value: "dev"
+        - name: AUTH_BYPASS
+          value: "true"
         - name: USER_CONFIG_DSN
           value: "postgres://escrow:escrow@escrow-postgres-dist.default.svc.cluster.local:5432/user_config?sslmode=disable"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/etc/gcp/credentials.json"
         command: ["/app/escrow-api"]
         args: ["serve", "--tls-cert=/etc/escrow/certs/tls.crt", "--tls-key=/etc/escrow/certs/tls.key", "--tls-ca=/etc/escrow/certs/ca.crt"]
         volumeMounts:
         - name: certs
           mountPath: /etc/escrow/certs
+          readOnly: true
+        - name: gcp-creds
+          mountPath: /etc/gcp
           readOnly: true
         resources:
           limits:
@@ -54,6 +62,10 @@ spec:
       - name: certs
         secret:
           secretName: bank-api-mtls-secret
+      - name: gcp-creds
+        secret:
+          secretName: gcp-credentials
+          optional: true
 ---
 apiVersion: v1
 kind: Service

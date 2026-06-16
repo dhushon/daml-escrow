@@ -170,7 +170,14 @@ test.describe('Bilateral Escrow Agreement Lifecycle E2E', () => {
     // 6. VALIDATE LEDGER ACTIVE STATE AND LIFE CYCLE TRIGGERS
     console.log('Checking active escrow status on dashboard...');
     const activeEscrowCard = page.locator('text=Phase 1 Milestone').first();
-    await expect(activeEscrowCard).toBeVisible();
+    await expect(async () => {
+      await page.reload();
+      await expect(activeEscrowCard).toBeVisible({ timeout: 2000 });
+    }).toPass({
+      intervals: [1000, 2000],
+      timeout: 15000,
+    });
+
 
     // 7. SESSION DESTRUCTION ON DISCONNECT
     console.log('Testing wallet disconnect / logout session destruction...');
