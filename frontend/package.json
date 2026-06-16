@@ -26,7 +26,9 @@
     "undici": "6.21.1",
     "micromatch": "4.0.8",
     "braces": "3.0.3",
-    "defu": "6.1.6"
+    "defu": "6.1.6",
+    "esbuild": "0.28.1",
+    "uuid": "11.1.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
