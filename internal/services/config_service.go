@@ -207,22 +207,29 @@ func (s *ConfigService) ProposeAmendment(rootID, proposerID, summary string, amo
 
 // AddApproval appends an identity to the approvals array of the LATEST version.
 func (s *ConfigService) AddApproval(rootID, approverID string) error {
+	// Fetch latest version of the draft first
+	draft, err := s.GetLatestDraft(rootID)
+	if err != nil {
+		return fmt.Errorf("negotiation draft not found: %w", err)
+	}
+
+	// Idempotency: If the user has already approved this version, succeed silently
+	for _, a := range draft.Approvals {
+		if a == approverID {
+			return nil
+		}
+	}
+
 	query := `
 		UPDATE draft_escrows 
 		SET approvals = approvals || jsonb_build_array($1::text)
-		WHERE id = (SELECT id FROM draft_escrows WHERE root_id = $2 ORDER BY version DESC LIMIT 1)
-		AND NOT (approvals ? $1) -- Prevent double signature on same version
+		WHERE id = $2
 	`
-	res, err := s.db.Exec(query, approverID, rootID)
+	_, err = s.db.Exec(query, approverID, draft.ID)
 	if err != nil {
-		return err
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("version already approved or negotiation not found")
+		return fmt.Errorf("failed to append approval: %w", err)
 	}
 
-	// Logic for transition to RATIFIED could go here
 	return nil
 }
 
