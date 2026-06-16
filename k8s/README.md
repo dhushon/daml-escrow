@@ -3,7 +3,7 @@
 This directory contains the high-assurance Kubernetes manifests for deploying the Stablecoin Escrow platform in a participant-sovereign configuration.
 
 ## Deployment Topology
-Each participant (**Bank**, **Buyer**, **Seller**) is deployed into a dedicated, isolated Kubernetes namespace.
+Each participant (**Bank**, **Depositor**, **Beneficiary**) is deployed into a dedicated, isolated Kubernetes namespace.
 
 - **Canton Nodes**: Deployed as `StatefulSets` to ensure persistent identity and high-availability.
 - **Go APIs**: Deployed as isolated `Deployments` authoritatively locked to their respective Canton node via `PARTICIPANT_ID`.
@@ -32,6 +32,15 @@ kubectl apply -f k8s/namespaces.yaml
 
 ### 2. High-Assurance Identity (TLS & mTLS)
 Apply the authoritative trust anchors and issuers:
+
+#### Local Development Option (Zero-Cost Local cert-manager CA)
+Apply the local self-signed CA and internal cluster certificates:
+```bash
+kubectl apply -f k8s/local-cas-issuer.yaml
+```
+
+#### Production Deployment Option (Google CAS mTLS)
+Apply the public Let's Encrypt issuer and internal Google CAS issuer:
 ```bash
 # Public Let's Encrypt Identity
 kubectl apply -f k8s/tls-issuer.yaml
@@ -52,11 +61,11 @@ kubectl apply -f k8s/ingress.yaml
 kubectl apply -f k8s/bank-ledger.yaml
 kubectl apply -f k8s/bank-api.yaml
 
-# Buyer & Seller
-kubectl apply -f k8s/buyer-ledger.yaml
-kubectl apply -f k8s/buyer-api.yaml
-kubectl apply -f k8s/seller-ledger.yaml
-kubectl apply -f k8s/seller-api.yaml
+# Depositor & Beneficiary
+kubectl apply -f k8s/depositor-ledger.yaml
+kubectl apply -f k8s/depositor-api.yaml
+kubectl apply -f k8s/beneficiary-ledger.yaml
+kubectl apply -f k8s/beneficiary-api.yaml
 ```
 
 ### 5. Pilot Verification (vdatacloudai.com)

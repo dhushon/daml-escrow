@@ -27,6 +27,56 @@ data:
           http-ledger-api.port = 7575
         }
       }
+      sequencers {
+        escrow_sequencer {
+          storage.type = memory
+          public-api.port = 6868
+          public-api.address = 0.0.0.0
+          admin-api.port = 6867
+          admin-api.address = 0.0.0.0
+        }
+      }
+      mediators {
+        escrow_mediator {
+          storage.type = memory
+          admin-api.port = 6869
+          admin-api.address = 0.0.0.0
+        }
+      }
+      parameters {
+        non-standard-config = true
+      }
+    }
+  bank_init.canton: |
+    val bank = participants.all.find(_.name == "bank").get
+    val seqNode = sequencers.all.find(_.name == "escrow_sequencer").get
+    val medNode = mediators.all.find(_.name == "escrow_mediator").get
+
+    def waitReady(label: String, check: => Unit): Unit = {
+      var ready = false
+      for (i <- 1 to 20 if !ready) {
+        try { check; ready = true }
+        catch { case _: Throwable =>
+          Thread.sleep(3000)
+        }
+      }
+    }
+    waitReady("bank", bank.health.status)
+    waitReady("sequencer", seqNode.health.status)
+    waitReady("mediator", medNode.health.status)
+
+    println("Setting up domain...")
+    try {
+      bootstrap.synchronizer_local("escrow-domain")
+    } catch {
+      case _: Throwable => println("Synchronizer already initialized")
+    }
+
+    println("Connecting bank to domain...")
+    try {
+      bank.synchronizers.connect_local(seqNode, "escrow-domain")
+    } catch {
+      case _: Throwable => println("Already connected")
     }
 ---
 apiVersion: v1
@@ -58,6 +108,34 @@ data:
           http-ledger-api.port = 7575
         }
       }
+      parameters {
+        non-standard-config = true
+      }
+    }
+  depositor_init.canton: |
+    val depositor = participants.all.find(_.name == "depositor").get
+
+    def waitReady(label: String, check: => Unit): Unit = {
+      var ready = false
+      for (i <- 1 to 20 if !ready) {
+        try { check; ready = true }
+        catch { case _: Throwable =>
+          Thread.sleep(3000)
+        }
+      }
+    }
+    waitReady("depositor", depositor.health.status)
+
+    println("Connecting depositor to domain...")
+    var connected = false
+    for (i <- 1 to 30 if !connected) {
+      try {
+        depositor.synchronizers.connect("escrow-domain", "http://bank-ledger.bank.svc.cluster.local:6868")
+        connected = true
+      } catch {
+        case _: Throwable =>
+          Thread.sleep(5000)
+      }
     }
 ---
 apiVersion: v1
@@ -88,5 +166,33 @@ data:
           http-ledger-api.address = 0.0.0.0
           http-ledger-api.port = 7575
         }
+      }
+      parameters {
+        non-standard-config = true
+      }
+    }
+  beneficiary_init.canton: |
+    val beneficiary = participants.all.find(_.name == "beneficiary").get
+
+    def waitReady(label: String, check: => Unit): Unit = {
+      var ready = false
+      for (i <- 1 to 20 if !ready) {
+        try { check; ready = true }
+        catch { case _: Throwable =>
+          Thread.sleep(3000)
+        }
+      }
+    }
+    waitReady("beneficiary", beneficiary.health.status)
+
+    println("Connecting beneficiary to domain...")
+    var connected = false
+    for (i <- 1 to 30 if !connected) {
+      try {
+        beneficiary.synchronizers.connect("escrow-domain", "http://bank-ledger.bank.svc.cluster.local:6868")
+        connected = true
+      } catch {
+        case _: Throwable =>
+          Thread.sleep(5000)
       }
     }

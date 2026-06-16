@@ -24,6 +24,8 @@ spec:
           name: ledger-api
         - containerPort: 7575
           name: http-api
+        - containerPort: 6868
+          name: sequencer
         env:
         - name: POSTGRES_HOST
           value: "escrow-postgres-dist.default.svc.cluster.local" # Placeholder
@@ -48,6 +50,8 @@ spec:
         - "daemon"
         - "--config"
         - "/canton/config/bank.conf"
+        - "--bootstrap"
+        - "/canton/config/bank_init.canton"
         volumeMounts:
         - name: config-volume
           mountPath: /canton/config
@@ -65,6 +69,9 @@ spec:
   ports:
   - port: 7575
     name: http-api
+  - port: 6868
+    name: sequencer
+    targetPort: 6868
   selector:
     app: bank-ledger
   type: ClusterIP

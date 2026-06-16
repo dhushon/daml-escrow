@@ -985,9 +985,22 @@ func (c *JsonLedgerClient) parseProposalResponse(body []byte) (*EscrowProposal, 
 }
 
 func (c *JsonLedgerClient) getLedgerEnd(ctx context.Context) (json.RawMessage, error) {
+	// Call /v2/state/ledger-end to get the latest offset dynamically
+	body, err := c.DoRawRequest(ctx, "GET", "/v2/state/ledger-end", nil)
+	if err == nil {
+		var resp struct {
+			Offset json.RawMessage `json:"offset"`
+		}
+		if json.Unmarshal(body, &resp) == nil && len(resp.Offset) > 0 {
+			c.mu.Lock()
+			c.lastOffset = resp.Offset
+			c.mu.Unlock()
+			return resp.Offset, nil
+		}
+	}
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
 	if len(c.lastOffset) > 0 {
 		return c.lastOffset, nil
 	}

@@ -16,6 +16,7 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 		PartyDetails []struct {
 			Party       string `json:"party"`
 			DisplayName string `json:"displayName"`
+			IsLocal     bool   `json:"isLocal"`
 		} `json:"partyDetails"`
 	}
 
@@ -29,7 +30,6 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 	}
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	for _, p := range resp.PartyDetails {
 		// High-Assurance: In V3, displayName might be empty, fallback to party handle
 		name := p.DisplayName
@@ -37,6 +37,77 @@ func (c *JsonLedgerClient) refreshPartyMap(ctx context.Context) error {
 			name = strings.Split(p.Party, "::")[0]
 		}
 		c.partyMap[name] = p.Party
+		c.partyMap[strings.ToLower(name)] = p.Party
+	}
+
+	// Dynamic role mappings to support multi-node participant-specific routing aliases
+	if bankParty, ok := c.partyMap["bank"]; ok {
+		c.partyMap["CentralBank"] = bankParty
+		c.partyMap["centralbank"] = bankParty
+	}
+	if depParty, ok := c.partyMap["depositor"]; ok {
+		c.partyMap["Depositor"] = depParty
+		c.partyMap["depositor"] = depParty
+	}
+	if benParty, ok := c.partyMap["beneficiary"]; ok {
+		c.partyMap["Beneficiary"] = benParty
+		c.partyMap["beneficiary"] = benParty
+	}
+	for k, v := range c.partyMap {
+		if strings.Contains(strings.ToLower(k), "mediator") {
+			c.partyMap["EscrowMediator"] = v
+			c.partyMap["escrowmediator"] = v
+			break
+		}
+	}
+	c.mu.Unlock()
+
+	// JIT provision the CentralBank user on the bank ledger participant node
+	if bankParty, ok := c.partyMap["bank"]; ok {
+		isBankLocal := false
+		for _, p := range resp.PartyDetails {
+			if p.Party == bankParty && p.IsLocal {
+				isBankLocal = true
+				break
+			}
+		}
+		if isBankLocal {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				userReq := map[string]interface{}{
+					"user": map[string]interface{}{
+						"id":            "CentralBank",
+						"primaryParty":  bankParty,
+						"isDeactivated": false,
+					},
+					"rights": []map[string]interface{}{
+						{
+							"kind": map[string]interface{}{
+								"CanActAs": map[string]interface{}{
+									"value": map[string]string{"party": bankParty},
+								},
+							},
+						},
+						{
+							"kind": map[string]interface{}{
+								"CanReadAs": map[string]interface{}{
+									"value": map[string]string{"party": bankParty},
+								},
+							},
+						},
+					},
+				}
+				_, err := c.DoRawRequest(ctx, "POST", "/v2/users", userReq)
+				if err != nil {
+					if !strings.Contains(err.Error(), "409") && !strings.Contains(err.Error(), "already exists") {
+						c.logger.Error("failed to JIT provision CentralBank user", zap.Error(err))
+					}
+				} else {
+					c.logger.Info("successfully provisioned CentralBank user linked to bank party")
+				}
+			}()
+		}
 	}
 
 	return nil

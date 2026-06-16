@@ -268,11 +268,15 @@ func (s *ConfigService) ClaimDraft(code, beneficiaryID string) error {
 func (s *ConfigService) ListDraftsForUser(userID, email string) ([]*DraftEscrow, error) {
 	// Return latest version for each root_id where user is involved
 	query := `
-		SELECT DISTINCT ON (root_id) 
-			id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
-		FROM draft_escrows 
-		WHERE initiator_id = $1 OR beneficiary_email = $2 OR beneficiary_id = $1 OR mediator_id = $1 OR depositor_id = $1
-		ORDER BY root_id, version DESC
+		SELECT id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
+		FROM (
+			SELECT DISTINCT ON (root_id) 
+				id, root_id, version, proposer_id, contract_type, initiator_id, initiator_role, depositor_id, beneficiary_email, beneficiary_id, mediator_id, amount, currency, terms, metadata, status, created_at
+			FROM draft_escrows 
+			WHERE initiator_id = $1 OR beneficiary_email = $2 OR beneficiary_id = $1 OR mediator_id = $1 OR depositor_id = $1
+			ORDER BY root_id, version DESC
+		) t
+		ORDER BY created_at DESC
 	`
 	rows, err := s.db.Query(query, userID, email)
 	if err != nil {

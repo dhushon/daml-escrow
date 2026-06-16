@@ -48,6 +48,8 @@ spec:
         - "daemon"
         - "--config"
         - "/canton/config/depositor.conf"
+        - "--bootstrap"
+        - "/canton/config/depositor_init.canton"
         volumeMounts:
         - name: config-volume
           mountPath: /canton/config

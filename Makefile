@@ -60,6 +60,74 @@ tri-down: ## Purge all tripartite processes and containers
 	@docker compose -f docker-compose.distributed.yml down -v
 	@echo "Tripartite environment purged."
 
+## -- Local Kubernetes (Kind / mTLS Simulation) --
+
+.PHONY: kind-up
+kind-up: ## Launch local multi-node Kind cluster and Ingress Controller
+	@echo "Creating escrow-local Kind cluster..."
+	@kind create cluster --config k8s/kind-config.yaml --name escrow-local
+	@echo "Deploying Nginx Ingress Controller..."
+	@kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+	@echo "Waiting for Ingress controller to be ready (this can take up to a minute)..."
+	@kubectl wait --namespace ingress-nginx \
+		--for=condition=ready pod \
+		--selector=app.kubernetes.io/component=controller \
+		--timeout=90s
+	@echo "Kind cluster ready."
+
+.PHONY: kind-down
+kind-down: ## Tear down local Kind cluster
+	@echo "Tearing down escrow-local cluster..."
+	@kind delete cluster --name escrow-local
+
+.PHONY: kind-deploy-mtls
+kind-deploy-mtls: ## Install cert-manager and deploy local CA mTLS stack
+	@echo "Installing cert-manager..."
+	@kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+	@echo "Waiting for cert-manager API to be ready..."
+	@kubectl wait --namespace cert-manager \
+		--for=condition=ready pod \
+		--selector=app.kubernetes.io/instance=cert-manager \
+		--timeout=90s
+	@echo "Applying namespaces..."
+	@kubectl apply -f k8s/namespaces.yaml
+	@echo "Creating db-secrets in each namespace..."
+	@for ns in bank depositor beneficiary; do \
+		kubectl create secret generic db-secrets --namespace $$ns --from-literal=password=escrow --dry-run=client -o yaml | kubectl apply -f -; \
+	done
+	@echo "Importing GCP Application Default Credentials into each namespace..."
+	@for ns in bank depositor beneficiary; do \
+		if [ -f "/Users/dhushon/.config/gcloud/application_default_credentials.json" ]; then \
+			kubectl create secret generic gcp-credentials \
+				--namespace $$ns \
+				--from-file=credentials.json="/Users/dhushon/.config/gcloud/application_default_credentials.json" \
+				--dry-run=client -o yaml | kubectl apply -f -; \
+		else \
+			echo "Warning: ~/.config/gcloud/application_default_credentials.json not found. Run 'gcloud auth application-default login' first."; \
+		fi; \
+	done
+	@echo "Provisioning local CA and mTLS Certificates..."
+	@kubectl apply -f k8s/local-cas-issuer.yaml
+	@echo "Local CA mTLS environment successfully provisioned."
+
+.PHONY: kind-deploy-apps
+kind-deploy-apps: ## Build local image, load into Kind, and deploy tripartite stacks
+	@echo "Building Go API local image (Arch: $(ARCH))..."
+	@docker build --build-arg TARGETARCH=$(ARCH) -t us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest .
+	@echo "Loading image into escrow-local Kind cluster..."
+	@kind load docker-image us-central1-docker.pkg.dev/vdcai-daml/escrow-platform-dev/escrow-api:latest --name escrow-local
+	@echo "Deploying Postgres database..."
+	@kubectl apply -f k8s/postgres.yaml
+	@echo "Deploying Canton configuration maps..."
+	@kubectl apply -f k8s/canton-configs.yaml
+	@echo "Deploying tripartite ledger and API deployments..."
+	@kubectl apply -f k8s/bank-ledger.yaml -f k8s/bank-api.yaml
+	@kubectl apply -f k8s/depositor-ledger.yaml -f k8s/depositor-api.yaml
+	@kubectl apply -f k8s/beneficiary-ledger.yaml -f k8s/beneficiary-api.yaml
+	@echo "Deploying Ingress gateway rules..."
+	@kubectl apply -f k8s/ingress.yaml
+	@echo "Tripartite applications successfully deployed to local Kind cluster."
+
 ## -- GKE Pilot Orchestration (3-Tier Governance) --
 
 .PHONY: admin-up

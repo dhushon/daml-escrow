@@ -36,8 +36,9 @@ if (isAuthenticated) {
         escrows = await fetchEscrows(userEmail, assumedRole);
         proposals = await fetchProposals(userEmail, assumedRole);
         drafts = await fetchDrafts(userEmail, assumedRole);
-    } catch (err) {
-        error = err.message;
+    } catch (err: any) {
+        console.error("Dashboard server-side fetch error:", err, "Cause:", err?.cause);
+        error = err.message + (err?.cause ? ` (cause: ${err.cause.message || err.cause})` : '');
     }
 }
 ---
