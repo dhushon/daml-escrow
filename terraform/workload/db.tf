@@ -26,7 +26,7 @@ resource "google_sql_database_instance" "escrow_db" {
 
     ip_configuration {
       ipv4_enabled    = true # Allow public IP for dev/local access
-      require_ssl     = true
+      ssl_mode        = "ENCRYPTED_ONLY"
       
       # Authoritative Dev Access: Allow the developer's current IP if needed
       # In production, this would be restricted to GKE private IPs via Private Service Connect

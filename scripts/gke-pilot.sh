@@ -4,10 +4,25 @@
 
 set -e
 
-PROJECT_ID="vdcai-daml"
-REGION="us-central1"
-ZONE="us-central1-a"
-CLUSTER_NAME="escrow-cluster-dev"
+# Find project root directory relative to this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load environment variables from project root .env
+if [ -f "$ROOT_DIR/.env" ]; then
+    export $(grep -v '^#' "$ROOT_DIR/.env" | grep -v '^$' | xargs)
+fi
+
+# Set dynamic variables based on environment variables or defaults
+export TF_VAR_project_id="${TF_VAR_project_id:-vdcai-daml}"
+export TF_VAR_region="${TF_VAR_region:-us-central1}"
+export TF_VAR_environment="${TF_VAR_environment:-dev}"
+
+PROJECT_ID="$TF_VAR_project_id"
+REGION="$TF_VAR_region"
+ZONE="${REGION}-a"
+CLUSTER_NAME="escrow-cluster-${TF_VAR_environment}"
+
 
 function log() {
   echo "------------------------------------------------------------------------"
@@ -19,7 +34,7 @@ function up() {
   log "TIER 2: PROVISIONING WORKLOAD INFRASTRUCTURE"
   cd terraform/workload
   terraform init
-  terraform apply -auto-approve -var="project_id=$PROJECT_ID"
+  terraform apply -auto-approve
   cd ../..
 
   log "VERIFYING AUTHORITATIVE CONTEXT: $CLUSTER_NAME"
@@ -64,7 +79,7 @@ function down() {
   # [2/2] Authoritative Terraform destruction
   cd terraform/workload
   terraform init
-  terraform destroy -auto-approve -var="project_id=$PROJECT_ID"
+  terraform destroy -auto-approve
   cd ../..
   
   log "TAKEDOWN COMPLETE: GKE Cluster and node pools definitively purged."
