@@ -4,7 +4,22 @@
 
 set -e
 
-PROJECT_ID=${1:-vdcai-daml}
+# Find project root directory relative to this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load environment variables from project root .env
+if [ -f "$ROOT_DIR/.env" ]; then
+    export $(grep -v '^#' "$ROOT_DIR/.env" | grep -v '^$' | xargs)
+fi
+
+# Override project_id if passed as argument; otherwise fallback to env or default
+if [ -n "$1" ]; then
+    export TF_VAR_project_id="$1"
+fi
+export TF_VAR_project_id="${TF_VAR_project_id:-vdcai-daml}"
+PROJECT_ID="$TF_VAR_project_id"
+
 ACTION=${2:-status}
 
 echo "------------------------------------------------------------------------"
@@ -15,7 +30,7 @@ if [ "$ACTION" == "up" ]; then
     echo "Provisioning Tier 1 infrastructure (CAS, Audit, IP)..."
     cd terraform/admin
     terraform init
-    terraform apply -auto-approve -var="project_id=$PROJECT_ID"
+    terraform apply -auto-approve
     
     echo "Finalizing CAS IAM bindings..."
     # High-Assurance: Bind both Service Account AND the CORRECT Workload Identity member
