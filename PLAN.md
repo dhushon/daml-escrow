@@ -236,4 +236,30 @@ Goals: Bring the Astro frontend up to parity with the reworked contract model, p
 
 ---
 
+## Phase 21 --- Clearing Authority & Recurring Access-Gated Escrow (PLANNED)
+
+Goals: Formalize the clearing function distinct from dispute resolution, and support recurring access-gated escrow, per `ESCROW-PROCESS.md` DIRECTIVES 16-18.
+
+### Phase 21 Tasks
+
+- [ ] **ClearingMode Field:** Add `ClearingMode` (Progressive | AllOrNone) to contract terms, immutable after DRAFT, and implement `ReleaseAll` for the AllOrNone path.
+- [ ] **Effect Abstraction:** Generalize Milestone release from a hardcoded fund transfer into an `Effect` list supporting FundTransfer, AccessGrant, and AccessRevoke, with Custom as a webhook escape hatch.
+- [ ] **Recurring Escrow & Access Gating:** Implement `RecurrencePolicy`, the `OpenPeriod`/`LapsePeriod`/`ResumePeriod` cycle, and the `ACTIVE ⇄ LAPSED` oscillation for subscription-style entitlements.
+- [ ] **External System Integration:** Build the Go-layer connector(s) that execute AccessGrant/AccessRevoke effects against a real license or entitlement system.
+
+---
+
+## Phase 22 --- Geospatial & Customs Event Oracles (PLANNED)
+
+Goals: Support physical and regulatory event-triggered milestones for import/export escrow, per `ESCROW-PROCESS.md` DIRECTIVE 19.
+
+### Phase 22 Tasks
+
+- [ ] **Oracle Principal Support:** Confirm Verifier authority can be granted to an automated service identity, signed via the existing GCP KMS oracle pattern, without a separate authority model.
+- [ ] **AIS Feed Integration:** Build the Go-layer connector that consumes a vessel-tracking feed and emits signed GeofenceEvidence for boundary-crossing events (territorial waters, contiguous zone, port of entry).
+- [ ] **Customs API Integration:** Build the connector for customs authority or licensed broker APIs, emitting signed CustomsEvidence for entry-filed, inspection-passed, and cleared events.
+- [ ] **Stale Feed Handling:** Implement monitoring for SourceFeed gaps so a Milestone stuck in Pending due to a dead feed is distinguishable, in the dashboard, from one genuinely awaiting an event.
+
+---
+
 *End of PLAN.md*
