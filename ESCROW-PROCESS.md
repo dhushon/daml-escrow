@@ -124,6 +124,7 @@ TERMS BLOCK:
   - Milestones            : NonEmpty [MilestoneBlock] (see DIRECTIVE 11;
                             a single-condition escrow is simply one
                             Milestone carrying the full Amount)
+  - ClearingMode          : Progressive | AllOrNone (see DIRECTIVE 16)
   - AccrualPolicy         : None | FixedRate | ReferenceRate (see DIRECTIVE 13)
   - EscalationThreshold   : Int, default 2 (rejected proposals before
                             ARBITRATION becomes reachable)
@@ -446,6 +447,179 @@ A rejected settlement proposal loops back to DISPUTED, but that loop needs
 a forcing function. `EscalateToArbitration` and `RenderArbitrationDecision`
 (DIRECTIVE 05) add a binding exit ramp for disputes mediation cannot
 resolve.
+
+---
+
+## DIRECTIVE 16 — CLEARING AUTHORITY & CLEARING MODE
+
+```
+CLEARING AUTHORITY:
+  - Verifier is the clearing party (DIRECTIVE 01). It evaluates evidence
+    of term fulfillment in the ordinary course and authorizes release.
+    Mediator and Arbitrator do not perform clearing; they only activate
+    when a party contests a clearing decision Verifier already made, or
+    the absence of one.
+
+CLEARING MODE (contract-level policy, DIRECTIVE 04):
+  - Progressive : each Milestone clears and releases independently as it
+                  is Verified, per DIRECTIVE 11. This is the default.
+  - AllOrNone   : no release fires until every Milestone in the contract
+                  reaches Verified. A single ReleaseAll choice replaces
+                  per-milestone ReleaseMilestone for this contract.
+
+CHOICE: ReleaseAll (only valid when ClearingMode == AllOrNone)
+  CONTROLLER  : Issuer
+  GUARD       : every Milestone.Status == Verified
+  EFFECT      : executes the Effect (DIRECTIVE 17) attached to each
+                Milestone in a single atomic transaction; state → SETTLED
+
+RULE: ClearingMode is set at DRAFT and is immutable thereafter, for the
+      same reason AccrualPolicy is immutable (INVARIANT I9) — changing the
+      release model mid-contract is itself a dispute waiting to happen
+```
+
+---
+
+## DIRECTIVE 17 — EFFECT ABSTRACTION
+
+```
+A Milestone's "release" is not always a fund transfer. Generalize what
+fires when a Milestone or ReleaseAll clears:
+
+EFFECT BLOCK (attached to each MilestoneBlock, DIRECTIVE 11):
+  - EffectType  : FundTransfer | AccessGrant | AccessRevoke |
+                  Custom(WebhookRef)
+  - EffectTarget: Party | ExternalSystemRef (e.g. license server,
+                  customs broker system)
+  - EffectPayload: Decimal (FundTransfer) | AccessScopeRef (AccessGrant/
+                  Revoke) | Text (Custom)
+
+RULE: A single Milestone may carry more than one Effect (e.g. a customs
+      clearance Milestone fires a FundTransfer of the remaining balance
+      to Seller and, separately, a Custom effect notifying a freight
+      forwarder system that the shipment is clear)
+RULE: FundTransfer effects still obey DIRECTIVE 14's rail split
+      (Stablecoin vs Fiat); non-fund Effects are not rail-dependent and
+      execute via the Go service layer's external-system integration,
+      not via Disburse
+RULE: Effect execution failure (e.g. the license server is unreachable)
+      does not roll back Milestone.Status; it is logged as a distinct
+      EffectFailed event and retried, since the clearing decision itself
+      already stands
+```
+
+This is the piece that makes the two scenarios below expressible without
+inventing a separate contract type for each.
+
+---
+
+## DIRECTIVE 18 — RECURRING ESCROW & EXTERNAL ACCESS GATING
+
+```
+For cases where escrow governs ongoing access rather than a one-time
+disbursement, e.g. software support subscriptions, SaaS entitlements,
+recurring licensing fees.
+
+RECURRING BLOCK (extends DIRECTIVE 04's TERMS BLOCK):
+  - RecurrencePolicy    : None | Recurring(PeriodDays, PeriodAmount)
+  - CurrentPeriodId     : Text (auto-generated, one per cycle)
+  - GraceWindowDays     : Int (days past PeriodDays before lapse fires)
+
+STATE ADDITION:
+  ACTIVE ⇄ LAPSED
+  (a recurring contract oscillates between ACTIVE and LAPSED; it does not
+  route through DISPUTED for a missed payment, since non-payment is not a
+  disagreement about facts, it's simply a fact)
+
+CHOICE: OpenPeriod
+  CONTROLLER  : Issuer (time-triggered at PeriodDays boundary)
+  GUARD       : RecurrencePolicy == Recurring, state == ACTIVE
+  EFFECT      : creates a new MilestoneBlock scoped to CurrentPeriodId
+                carrying PeriodAmount, Status == Pending
+
+CHOICE: LapsePeriod
+  CONTROLLER  : Issuer (time-triggered)
+  GUARD       : currentDate > period end + GraceWindowDays,
+                CurrentPeriodId Milestone.Status != Released
+  EFFECT      : state → LAPSED, fires an AccessRevoke Effect
+                (DIRECTIVE 17) targeting the external license or
+                entitlement system
+
+CHOICE: ResumePeriod
+  CONTROLLER  : Issuer
+  GUARD       : state == LAPSED, outstanding period Milestone reaches
+                Released (payment caught up)
+  EFFECT      : state → ACTIVE, fires an AccessGrant Effect
+
+RULE: A recurring contract has no single ExpiryDate representing final
+      settlement; ExpiryDate instead represents the term's end date, after
+      which no further OpenPeriod cycles fire and the contract proceeds to
+      SETTLED via its final period's Milestone
+RULE: LAPSED does not return escrowed principal to BuyerSet the way
+      EXPIRED or CANCELLED do; it only suspends the AccessGrant Effect
+      until payment resumes
+RULE: Disputing a specific period's charge uses RaiseDispute scoped to
+      that period's MilestoneId (DIRECTIVE 05), same as any other
+      milestone dispute; LapsePeriod itself is not disputable, only the
+      underlying charge is
+```
+
+---
+
+## DIRECTIVE 19 — GEOSPATIAL & CUSTOMS EVENT TRIGGERS (Import/Export)
+
+```
+For cases where milestone clearing depends on a physical or regulatory
+event, e.g. a vessel crossing territorial waters, entry filed with
+customs, customs clearance granted, rather than a document a Verifier
+reviews by hand.
+
+ORACLE PRINCIPAL:
+  - Verifier (DIRECTIVE 16) may be a Party representing an automated
+    oracle service, not only a human. This does not change its authority
+    grant; VerifyMilestone still requires the Verifier's signature, that
+    signature is simply produced by a signed feed rather than a UI click.
+  - Oracle signatures use the existing asymmetric HSM-backed signing
+    infrastructure (GCP KMS), consistent with the oracle pattern already
+    in place for stablecoin triggers.
+
+GEOFENCE EVIDENCE (extends EvidenceRequired: OracleSignal, DIRECTIVE 11):
+  - BoundaryType   : TerritorialWaters | ContiguousZone | CustomsZone |
+                      PortOfEntry
+  - DistanceNM     : Decimal (e.g. 12, 24, 100), null if PortOfEntry
+  - Direction      : Inbound | Outbound
+  - VesselRef      : IMO number or equivalent tracking identifier
+  - SourceFeed     : AIS provider reference
+
+CUSTOMS EVIDENCE (extends EvidenceRequired: OracleSignal, DIRECTIVE 11):
+  - CustomsEventType : EntryFiled | InspectionPassed | Cleared
+  - Jurisdiction      : ISO country code
+  - DeclarationRef    : customs filing identifier
+  - SourceFeed         : customs authority API or licensed customs broker
+                          integration
+
+EXAMPLE MILESTONE SEQUENCE (Progressive ClearingMode):
+  Milestone 1 : BoundaryType = TerritorialWaters, DistanceNM = 100,
+                Direction = Inbound → releases an agreed partial percentage
+  Milestone 2 : CustomsEventType = EntryFiled → releases a further
+                percentage
+  Milestone 3 : CustomsEventType = Cleared → releases the remainder
+                (or the full balance, if Milestones 1-2 were withheld
+                rather than partially released, per SettlementTerms)
+
+RULE: An oracle-sourced VerifyMilestone still produces a normal
+      MilestoneVerified event (DIRECTIVE 07); it is not a distinct event
+      type, so audit and dispute handling do not need to special-case it
+RULE: If SourceFeed stops reporting (vessel goes dark, customs API is
+      unreachable), the Milestone simply stays Pending; this is not an
+      automatic dispute. A party may still RaiseDispute if it believes an
+      oracle-reported crossing or filing is incorrect, same as disputing
+      any other milestone
+RULE: GeofenceEvidence and CustomsEvidence are evaluated independently;
+      a contract may require both a boundary crossing and a customs event
+      on the same Milestone (AND), or split them across separate
+      Milestones as in the example above (sequential)
+```
 
 ---
 

@@ -145,4 +145,53 @@ REQUIRED ADDITIONS to Operational Velocity dashboard:
 
 ---
 
+## DIRECTIVE F8 — CLEARING MODE, FUNDING THRESHOLD & LAPSED ACCESS UI
+
+```
+COMPONENT: ClearingModeBanner (new)
+
+REQUIRED BEHAVIOR:
+  - When ClearingMode == AllOrNone, the MilestoneBoard (DIRECTIVE F3) must
+    visually communicate that no individual card can release on its own;
+    show one combined progress bar toward ReleaseAll instead of per-card
+    release buttons
+  - When ClearingMode == Progressive, retain the per-card release behavior
+    from DIRECTIVE F3 unchanged
+
+COMPONENT: RecurringEntitlementStatus (new, for DIRECTIVE 18 contracts)
+
+REQUIRED BEHAVIOR:
+  - Render ACTIVE / LAPSED as an access-status indicator ("Access active"
+    / "Access suspended, payment overdue"), not as a contract-health
+    warning; a LAPSED recurring contract is an expected, recoverable
+    state, not an error condition
+  - Show the current period's due date and GraceWindowDays countdown
+  - ResumePeriod availability should be immediately visible once payment
+    clears, so the user isn't left wondering whether access will return
+    automatically or requires a separate action
+```
+
+---
+
+## DIRECTIVE F9 — SHIPMENT TRACKING VISUALIZATION
+
+```
+COMPONENT: ShipmentMilestoneTracker (new, for DIRECTIVE 19 contracts)
+
+REQUIRED BEHAVIOR:
+  - Render geofence-based Milestones with a map or route indicator showing
+    the vessel's position relative to the relevant boundary, not just a
+    text status; distance-to-boundary is more useful to the user than a
+    bare Pending/Verified label
+  - Render customs-based Milestones as a distinct step type from geofence
+    Milestones within the same MilestoneBoard (DIRECTIVE F3), since they
+    represent different evidence sources
+  - A Milestone stuck in Pending due to a stale SourceFeed (DIRECTIVE 19)
+    must render differently from one legitimately awaiting an event still
+    in the future; show last-updated timestamp for the feed itself, not
+    just the Milestone status, so the user can tell the two apart
+```
+
+---
+
 *End of FRONTEND-PROCESS.md*
