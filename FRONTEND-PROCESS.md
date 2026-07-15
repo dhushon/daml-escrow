@@ -194,4 +194,22 @@ REQUIRED BEHAVIOR:
 
 ---
 
+## DIRECTIVE F10 — AI RECOMMENDATION & AUTO-APPROVAL DISPLAY
+
+```
+REQUIRED BEHAVIOR:
+  - An AIRecommendation (ESCROW-PROCESS.md DIRECTIVE 20) renders in a
+    visually distinct panel from the Mediator's or Arbitrator's actual
+    decision; never merge the two into one card, since one is advisory
+    and the other is the binding action
+  - A Milestone cleared via AutoVerifyMilestone shows "auto-cleared,
+    signed by [TrustedSigner]" — never "AI-approved" or any label
+    implying the AI made the clearing decision
+  - Attach the source AttestedNote or DocumentRef inline wherever an
+    AIRecommendation is shown, so the human reviewer sees the underlying
+    evidence next to the summary, not the summary in isolation
+```
+
+---
+
 *End of FRONTEND-PROCESS.md*

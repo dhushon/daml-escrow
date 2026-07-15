@@ -368,7 +368,7 @@ MILESTONE BLOCK:
   - MilestoneId       : Text (unique within contract)
   - Amount            : Decimal
   - ConditionRef      : Text
-  - EvidenceRequired  : DocumentRef | OracleSignal | MediatorAttestation
+  - EvidenceRequired  : DocumentRef | OracleSignal | AttestedNote
   - VerifiedBy        : Party (Verifier, defaults to Mediator)
   - Status            : Pending | Verified | Released | Rejected
 ```
@@ -619,6 +619,67 @@ RULE: GeofenceEvidence and CustomsEvidence are evaluated independently;
       a contract may require both a boundary crossing and a customs event
       on the same Milestone (AND), or split them across separate
       Milestones as in the example above (sequential)
+```
+
+---
+
+## DIRECTIVE 20 — AI ADVISORY ROLE & TRUSTED-SIGNER AUTO-APPROVAL
+
+```
+Two distinct patterns, not to be conflated. Contract authoring and
+translation capabilities live in AI-SERVICES.md; this directive covers
+only the two pieces that touch clearing authority at runtime.
+
+ATTESTED NOTE BLOCK (formalizes AttestedNote, DIRECTIVE 11):
+  - AttestorId    : Party (Verifier, or another party explicitly granted
+                    attestation rights on this Milestone)
+  - NoteText      : Text
+  - AttestedAt    : timestamp
+  - SupportingRef : DocumentRef (optional; a note may reference an
+                    uploaded document without the document itself being
+                    the evidence type)
+
+AI ADVISORY (non-authoritative):
+  - AIRecommendation : record attached to a Milestone, produced by an AI
+                        review service, containing a summary, a
+                        confidence indicator, and a rationale
+  - AIRecommendation NEVER changes Milestone.Status directly and is never
+    itself a signatory or controller on any choice
+  - VerifyMilestone remains a Verifier action; an AIRecommendation may
+    inform that action but the event log records the human or service
+    principal who actually exercised VerifyMilestone, not the AI
+
+RULE: An AIRecommendation is visible to Mediator and Arbitrator during
+      dispute and arbitration review, same as any other evidence artifact,
+      but carries no special evidentiary weight by default; a contract's
+      terms may elevate that weight explicitly, they don't inherit it
+
+TRUSTED-SIGNER AUTO-APPROVAL (extends the oracle-principal pattern,
+DIRECTIVE 16 and DIRECTIVE 19):
+  - TrustedSignerRegistry : [(SignerId, PublicKeyRef, Scope)] pre-registered
+                            external signers (e.g. a licensed customs
+                            broker, a notarization service, a KYC/AML
+                            provider) authorized for auto-clearing within
+                            a declared Scope
+  - A Milestone may set AutoApprove = true only when its EvidenceRequired
+    is OracleSignal AND the signal's signer matches an entry in
+    TrustedSignerRegistry within Scope
+
+CHOICE: AutoVerifyMilestone (system-triggered, not a human or AI decision)
+  CONTROLLER  : the registered TrustedSigner's principal, acting through
+                the same Verifier authority grant as any oracle principal
+  GUARD       : AutoApprove == true, incoming signature validates against
+                TrustedSignerRegistry
+  EFFECT      : identical to VerifyMilestone; this is a fast path to the
+                same choice, not a separate authority
+
+RULE: AutoVerifyMilestone is a signature check, not a judgment call. An AI
+      system may assist in producing the evidence a trusted signer signs
+      (e.g. an AI-generated customs summary a licensed broker reviews and
+      signs), but the AI itself is never a TrustedSignerRegistry entry
+RULE: Any Milestone with AutoApprove == true remains disputable via
+      RaiseDispute after the fact, same as a manually verified Milestone;
+      auto-approval speeds clearing, it does not remove the dispute path
 ```
 
 ---
