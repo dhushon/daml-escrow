@@ -262,4 +262,19 @@ Goals: Support physical and regulatory event-triggered milestones for import/exp
 
 ---
 
+## Phase 23 --- AI-Assisted Authoring & Mediation Advisory (PLANNED)
+
+Goals: Extend the existing intelligent ingest engine (Phase 15) into contract construction, translation, change detection, and mediation advisory, plus trusted-signer auto-approval, per `AI-SERVICES.md` and `ESCROW-PROCESS.md` DIRECTIVE 20.
+
+### Phase 23 Tasks
+
+- [ ] **Novel & Transfer Construction:** Build the drafting service that produces a DRAFT EscrowProposal from a natural-language brief or from an existing contract's structure, always landing in DRAFT for normal ratification.
+- [ ] **Hybrid Extension Guardrails:** Implement amendment-proposal validation that rejects invariant-violating changes (e.g. AccrualPolicy after FUNDED) at the drafting stage, before a party is asked to sign.
+- [ ] **Legal Translation Layer:** Build translated-rendering support with persistent "not the governing text" labeling tied to the source ContractId.
+- [ ] **Change Detection:** Extend the Phase 15 ingest engine to diff a newly uploaded document against current contract terms and flag affected Milestones.
+- [ ] **Mediation Advisory Service:** Build the AIRecommendation generator surfaced to Mediator and Arbitrator, with fresh regeneration on escalation to ARBITRATION.
+- [ ] **TrustedSignerRegistry:** Implement registration and scope management for external trusted signers, and the `AutoVerifyMilestone` fast path.
+
+---
+
 *End of PLAN.md*

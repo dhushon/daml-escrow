@@ -1,0 +1,9 @@
+{
+  "$schema": "https://claude.com",
+  "theme": "dark",
+  "autoUpdate": true,
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:4000/v1",
+    "ANTHROPIC_API_KEY": "sk-litellm-bypass-token"
+  }
+}
