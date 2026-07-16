@@ -9,11 +9,11 @@ interface Props {
 const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement(s) here or click to upload", multiple = true } = Astro.props;
 ---
 
-<div class="upload-zone relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center transition-all hover:border-blue-500 group cursor-pointer bg-white dark:bg-slate-900 shadow-sm">
+<div class="upload-zone relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center transition-all hover:border-brand-500 group cursor-pointer bg-white dark:bg-slate-900 shadow-sm">
 	<input type="file" id={id} accept={accept} multiple={multiple} class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
 	
 	<div class="space-y-4">
-		<div class="mx-auto w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+		<div class="mx-auto w-16 h-16 bg-brand-50 dark:bg-brand-900/30 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400 group-hover:scale-110 transition-transform">
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
 			</svg>
@@ -24,7 +24,7 @@ const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement(s) here or 
 			<p class="text-xs text-slate-500 dark:text-slate-400">Institutional Escrow Agreement (PDF or Scanned Images)</p>
 		</div>
 		
-		<div id={`${id}-filename`} class="hidden text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg inline-block"></div>
+		<div id={`${id}-filename`} class="hidden text-[10px] font-mono text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-lg inline-block"></div>
 	</div>
 </div>
 
@@ -38,7 +38,7 @@ const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement(s) here or 
 		if (files.length > 0) {
 			filenameDisplay.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
 			filenameDisplay.classList.remove('hidden');
-			zone?.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/10');
+			zone?.classList.add('border-brand-500', 'bg-brand-50/50', 'dark:bg-brand-900/10');
 			
 			// Dispatch custom event for parent pages
 			window.dispatchEvent(new CustomEvent('files-selected', { detail: { id, files } }));
@@ -47,10 +47,10 @@ const { id, accept = ".pdf,.png,.tiff,.tif", label = "Drop agreement(s) here or 
 
 	zone?.addEventListener('dragover', (e) => {
 		e.preventDefault();
-		zone.classList.add('border-blue-500', 'scale-[1.01]');
+		zone.classList.add('border-brand-500', 'scale-[1.01]');
 	});
 
 	zone?.addEventListener('dragleave', () => {
-		zone.classList.remove('border-blue-500', 'scale-[1.01]');
+		zone.classList.remove('border-brand-500', 'scale-[1.01]');
 	});
 </script>

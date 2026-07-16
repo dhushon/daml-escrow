@@ -21,8 +21,8 @@ const interval = Math.pow(2, currentVal);
 
 <div class="flex flex-col space-y-2 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
 	<div class="flex justify-between items-center">
-		<span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Refresh Pulse</span>
-		<span id="interval-display" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">
+		<span class="label-eyebrow text-slate-400 dark:text-slate-500">Refresh Pulse</span>
+		<span id="interval-display" class="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded">
 			{interval}s
 		</span>
 	</div>
@@ -33,7 +33,7 @@ const interval = Math.pow(2, currentVal);
 		max="8" 
 		step="1" 
 		value={currentVal}
-		class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+		class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-600"
 	/>
 	<div class="flex justify-between text-[8px] font-bold text-slate-400 uppercase tracking-tight">
 		<span>Fast (1s)</span>

@@ -6,18 +6,28 @@ interface Props {
 const { escrowId } = Astro.props;
 ---
 
-<div class="lifecycle-container" data-escrow-id={escrowId}>
-	<div class="lifecycle-header">
-		<h3>Escrow Lifecycle Tracker</h3>
-		<span class="avg-time">Avg. Cycle: <span id="avg-time-val">...</span></span>
-	</div>
-	
-	<div id="lifecycle-steps" class="steps-list">
-		<div class="loading-spinner">Loading process map...</div>
+<div
+	class="lifecycle-container bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm"
+	data-escrow-id={escrowId}
+>
+	<div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+		<div>
+			<div class="label-eyebrow text-slate-400 dark:text-slate-500 mb-1">Lifecycle</div>
+			<h3 class="text-lg font-black text-slate-900 dark:text-white tracking-tight">Escrow Lifecycle Tracker</h3>
+		</div>
+		<span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+			Avg. Cycle: <span id="avg-time-val" class="font-mono text-slate-700 dark:text-slate-300">...</span>
+		</span>
 	</div>
 
-	<div class="lifecycle-footer">
-		<p>Current Hold: <span id="time-in-current">...</span></p>
+	<div id="lifecycle-steps" class="flex flex-col">
+		<div class="text-xs font-medium text-slate-400 dark:text-slate-500">Loading process map...</div>
+	</div>
+
+	<div class="mt-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+		<p class="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+			Current Hold: <span id="time-in-current" class="font-mono text-slate-700 dark:text-slate-300">...</span>
+		</p>
 	</div>
 </div>
 
@@ -33,19 +43,42 @@ const { escrowId } = Astro.props;
 			const stepsList = container.querySelector('#lifecycle-steps');
 			if (!stepsList) return;
 
-			stepsList.innerHTML = data.steps.map((step: any) => `
-				<div class="step-item ${step.status.toLowerCase()}">
-					<div class="step-indicator">
-						<div class="dot"></div>
-						<div class="line"></div>
+			stepsList.innerHTML = data.steps.map((step: any, idx: number) => {
+				const status = step.status.toLowerCase();
+				const isCompleted = status === 'completed';
+				const isCurrent = status === 'current';
+				const isLast = idx === data.steps.length - 1;
+
+				const dotClasses = isCompleted
+					? 'bg-status-active border-status-active'
+					: isCurrent
+					? 'bg-status-funded border-status-funded shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse-slow'
+					: 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700';
+
+				const titleClasses = isCompleted
+					? 'text-slate-900 dark:text-white'
+					: isCurrent
+					? 'text-brand-600 dark:text-brand-400'
+					: 'text-slate-400 dark:text-slate-500';
+
+				const lineClasses = isCompleted
+					? 'bg-status-active'
+					: 'bg-slate-200 dark:bg-slate-700';
+
+				return `
+					<div class="flex gap-4 relative">
+						<div class="flex flex-col items-center w-4">
+							<div class="w-3 h-3 rounded-full border-2 z-10 ${dotClasses}"></div>
+							${isLast ? '' : `<div class="w-0.5 flex-grow my-1 ${lineClasses}"></div>`}
+						</div>
+						<div class="pb-6">
+							<div class="text-[13px] font-bold ${titleClasses}">${step.state}</div>
+							<div class="text-xs font-medium text-slate-500 dark:text-slate-400">${step.description}</div>
+							${step.timestamp ? `<div class="text-[10px] font-mono text-status-active mt-1">${new Date(step.timestamp).toLocaleString()}</div>` : ''}
+						</div>
 					</div>
-					<div class="step-content">
-						<div class="step-title">${step.state}</div>
-						<div class="step-desc">${step.description}</div>
-						${step.timestamp ? `<div class="step-time">${new Date(step.timestamp).toLocaleString()}</div>` : ''}
-					</div>
-				</div>
-			`).join('');
+				`;
+			}).join('');
 
 			const avgTime = container.querySelector('#avg-time-val');
 			const timeInCurrent = container.querySelector('#time-in-current');
@@ -61,119 +94,3 @@ const { escrowId } = Astro.props;
 	const containers = document.querySelectorAll('.lifecycle-container');
 	containers.forEach(c => updateLifecycle(c as HTMLElement));
 </script>
-
-<style>
-	.lifecycle-container {
-		background: #1a1a1a;
-		border: 1px solid #333;
-		border-radius: 8px;
-		padding: 1.5rem;
-		color: #e0e0e0;
-		font-family: 'Inter', sans-serif;
-	}
-
-	.lifecycle-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.5rem;
-		border-bottom: 1px solid #333;
-		padding-bottom: 0.5rem;
-	}
-
-	.avg-time {
-		font-size: 0.8rem;
-		color: #888;
-	}
-
-	.steps-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0;
-	}
-
-	.step-item {
-		display: flex;
-		gap: 1rem;
-		position: relative;
-	}
-
-	.step-indicator {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		width: 20px;
-	}
-
-	.dot {
-		width: 12px;
-		height: 12px;
-		border-radius: 50%;
-		background: #333;
-		border: 2px solid #444;
-		z-index: 2;
-	}
-
-	.line {
-		width: 2px;
-		flex-grow: 1;
-		background: #333;
-		margin: 4px 0;
-	}
-
-	.step-item:last-child .line {
-		display: none;
-	}
-
-	.step-content {
-		padding-bottom: 1.5rem;
-	}
-
-	.step-title {
-		font-weight: 600;
-		font-size: 0.9rem;
-		color: #888;
-	}
-
-	.step-desc {
-		font-size: 0.8rem;
-		color: #666;
-	}
-
-	.step-time {
-		font-size: 0.7rem;
-		color: #4caf50;
-		margin-top: 4px;
-	}
-
-	/* Status Styles */
-	.completed .dot {
-		background: #4caf50;
-		border-color: #4caf50;
-	}
-	.completed .line {
-		background: #4caf50;
-	}
-	.completed .step-title {
-		color: #e0e0e0;
-	}
-
-	.current .dot {
-		background: #2196f3;
-		border-color: #2196f3;
-		box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
-		animation: pulse 2s infinite;
-	}
-	.current .step-title {
-		color: #2196f3;
-	}
-	.current .step-desc {
-		color: #aaa;
-	}
-
-	@keyframes pulse {
-		0% { transform: scale(1); opacity: 1; }
-		50% { transform: scale(1.2); opacity: 0.7; }
-		100% { transform: scale(1); opacity: 1; }
-	}
-</style>

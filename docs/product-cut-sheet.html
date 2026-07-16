@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tripart — Product Cut Sheet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+        colors: {
+          brand: { 50:'#eff6ff', 100:'#dbeafe', 400:'#60a5fa', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  /* Minimal print-only rules: page size/margins and color accuracy aren't
+     expressible as Tailwind utilities, everything else below is utility classes. */
+  @media print {
+    @page { size: letter; margin: 0.4in; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+<div class="max-w-5xl mx-auto bg-white">
+
+  <!-- NAV -->
+  <div class="flex items-center justify-between px-7 md:px-10 py-3 border-b border-slate-100">
+    <div class="flex items-center gap-3">
+      <svg viewBox="0 0 5588 4480" class="h-8 w-auto" xmlns="http://www.w3.org/2000/svg">
+        <g transform="matrix(4.16667,0,0,4.16667,0,0)">
+          <g transform="matrix(1,0,0,1,870,1410)">
+            <g>
+              <path d="M-307.041,-1287.94C-399.785,-1195.34 -403.24,-1071.95 -327.69,-964C-324.44,-960.85 -307.99,-945.75 -292.89,-960.4C-277.74,-975.25 -295.763,-997.361 -295.763,-997.361C-348.983,-1075.23 -343.163,-1182.82 -274.041,-1251.94C-217.097,-1308.88 -117.75,-1299.3 -62.2,-1256.2C-64.75,-1264.75 -62.75,-1290.75 -59.4,-1301.8C-91.5,-1333.25 -229.816,-1365.05 -307.041,-1287.94Z" style="fill:rgb(58,142,237);fill-rule:nonzero;"/>
+              <path d="M-32,-706C-63.794,-749.67 -80.4,-798.648 -80.4,-850.2C-80.4,-850.2 -80.3,-879.4 -104.8,-879.4C-129.3,-879.4 -130,-850 -130,-850C-130,-773.223 -102.579,-701.579 -44,-643C-40.841,-639.841 -35.262,-636.988 -32,-634L-32,-706ZM384.5,-640.262C499.284,-757.599 498.495,-945.769 382.132,-1062.13C313.356,-1130.91 196.5,-1168.25 99.4,-1140.8C99.4,-1140.8 75.8,-1136.35 81.4,-1112.8C87,-1089.25 104.5,-1094 108.2,-1095C186.79,-1123.4 287.753,-1085.8 346.777,-1026.78C429.582,-943.971 442.157,-817.53 384.5,-721.472L384.5,-640.262Z" style="fill:rgb(58,142,237);fill-rule:nonzero;"/>
+              <path d="M-811.421,-901.421C-889.526,-823.317 -889.526,-696.684 -811.421,-618.579C-733.316,-540.474 -606.684,-540.474 -528.579,-618.579C-516.023,-631.135 -514.6,-635.2 -508.4,-643C-515.1,-648.7 -533.05,-666.2 -541,-677.4C-548.55,-668.95 -552.25,-665 -563.934,-653.934C-622.513,-595.355 -717.487,-595.355 -776.066,-653.934C-834.645,-712.513 -834.645,-807.487 -776.066,-866.066C-728.312,-913.82 -662.5,-926 -613.5,-910.5C-613.5,-923 -613.75,-936.75 -611.5,-949.5C-652,-968.5 -753.678,-959.165 -811.421,-901.421Z" style="fill:rgb(58,142,237);fill-rule:nonzero;"/>
+              <path d="M-497.487,-1147.49C-634.171,-1010.8 -634.171,-789.197 -497.487,-652.513C-374.893,-529.918 -181.079,-522.679 -44.4,-620C-53.75,-628.25 -68.85,-642.45 -76.8,-655.2C-194.119,-569.782 -356.282,-582.018 -462.132,-687.868C-579.289,-805.026 -579.289,-994.975 -462.132,-1112.13C-428.839,-1145.42 -412.8,-1159.4 -382.8,-1179.4C-379.75,-1193.25 -370.9,-1215.1 -363.2,-1228.4C-409.5,-1223 -457.473,-1187.5 -497.487,-1147.49Z" style="fill:rgb(58,142,237);fill-rule:nonzero;"/>
+              <path d="M220.4,-1179.8C250.625,-1230.62 265.645,-1307.49 207.066,-1366.07C148.487,-1424.64 53.513,-1424.64 -5.066,-1366.07C-53.226,-1317.91 -61.792,-1245.15 -30.764,-1188.24C-29,-1185.5 -15.85,-1172.4 2.2,-1186.2C20.25,-1200 9.75,-1220 7.2,-1226C-5.568,-1261.34 1.962,-1302.38 30.289,-1330.71C69.342,-1369.76 132.658,-1369.76 171.711,-1330.71C210.763,-1291.66 210.763,-1228.34 171.711,-1189.29C165.206,-1182.78 151.1,-1170 143,-1164C161,-1166.75 191.677,-1166.12 206.5,-1163C209.875,-1165.5 217.55,-1175.62 220.4,-1179.8Z" style="fill:rgb(58,142,237);fill-rule:nonzero;"/>
+            </g>
+            <g>
+              <path d="M31.845,-530.309C31.845,-530.309 2.949,-540.33 -16.315,-570.391L-16.315,-490.227C-16.315,-460.165 -7.359,-434.041 40.108,-409.35C115.338,-370.217 237.309,-370.217 312.539,-409.35C360.006,-434.041 368.961,-460.165 368.961,-490.227L368.961,-570.391C349.698,-540.33 320.802,-530.309 320.802,-530.309L320.802,-490.227C320.802,-480.206 326.047,-467.904 291.906,-450.144C260.169,-433.635 211.894,-426.412 165.686,-428.476C129.746,-430.081 95.057,-437.304 70.373,-450.144C36.232,-467.904 31.845,-470.185 31.845,-490.227L31.845,-530.309Z" style="fill:rgb(104,188,54);fill-rule:nonzero;"/>
+              <path d="M31.845,-658.585C31.845,-658.585 2.949,-668.606 -16.315,-698.668L-16.315,-618.503C-16.315,-588.441 -7.359,-562.317 40.108,-537.626C115.338,-498.493 237.309,-498.493 312.539,-537.626C360.006,-562.317 368.961,-588.441 368.961,-618.503L368.961,-698.668C349.698,-668.606 320.802,-658.585 320.802,-658.585L320.802,-618.503C320.802,-608.482 326.047,-596.18 291.906,-578.42C260.169,-561.911 211.894,-554.689 165.686,-556.752C129.746,-558.357 95.057,-565.58 70.373,-578.42C36.232,-596.18 31.845,-598.462 31.845,-618.503L31.845,-658.585Z" style="fill:rgb(104,188,54);fill-rule:nonzero;"/>
+              <path d="M-16.512,-738.965C-15.574,-712.696 -2.008,-688.825 40.108,-666.917C115.338,-627.784 237.309,-627.784 312.539,-666.917C354.655,-688.825 366.453,-711.86 368.578,-737.773L368.961,-737.773L368.961,-747.794L368.578,-747.794C366.453,-773.707 354.655,-796.743 312.539,-818.65C237.309,-857.783 115.338,-857.783 40.108,-818.65C-2.008,-796.743 -14.387,-772.991 -16.512,-747.078L-16.512,-738.965ZM70.5,-777.5C95.185,-790.341 129.746,-797.919 165.686,-799.524C211.894,-801.588 260.169,-794.365 291.906,-777.856C311,-767.5 321,-750 321,-742.5C321,-735 311.5,-719 291.906,-707.712C260.169,-691.202 211.894,-683.98 165.686,-686.043C129.746,-687.648 95.185,-694.659 70.5,-707.5C46,-720.5 32.5,-733 32.5,-743.5C32.5,-754 47,-766 70.5,-777.5Z" style="fill:rgb(104,188,54);fill-rule:nonzero;"/>
+            </g>
+            <g transform="matrix(0.949607,0,0,0.949607,-861.635,-387.409)">
+              <g transform="matrix(210.613,0,0,210.613,0,0)"><path d="M0.063,-0L0.063,-0.683L0.324,-0.683C0.377,-0.683 0.422,-0.676 0.459,-0.661C0.495,-0.646 0.524,-0.624 0.546,-0.595C0.568,-0.566 0.584,-0.532 0.594,-0.491C0.603,-0.45 0.608,-0.404 0.608,-0.352C0.608,-0.299 0.604,-0.252 0.595,-0.209C0.586,-0.166 0.57,-0.129 0.549,-0.098C0.528,-0.067 0.499,-0.043 0.463,-0.026C0.427,-0.009 0.382,-0 0.328,-0L0.063,-0ZM0.201,-0.116L0.32,-0.116C0.351,-0.116 0.377,-0.122 0.396,-0.134C0.415,-0.146 0.43,-0.163 0.441,-0.185C0.451,-0.206 0.458,-0.231 0.462,-0.26C0.465,-0.288 0.467,-0.319 0.467,-0.352C0.467,-0.384 0.465,-0.413 0.461,-0.44C0.457,-0.466 0.45,-0.489 0.44,-0.508C0.429,-0.527 0.415,-0.541 0.396,-0.552C0.377,-0.562 0.351,-0.567 0.32,-0.567L0.201,-0.567L0.201,-0.116Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,136.477,0)"><path d="M0.186,0.011C0.134,0.011 0.095,-0.002 0.069,-0.029C0.042,-0.055 0.029,-0.095 0.029,-0.148C0.029,-0.185 0.036,-0.215 0.049,-0.236C0.062,-0.257 0.082,-0.272 0.109,-0.282C0.135,-0.291 0.167,-0.297 0.205,-0.299L0.327,-0.31L0.327,-0.34C0.327,-0.364 0.321,-0.381 0.309,-0.391C0.297,-0.4 0.279,-0.405 0.256,-0.405C0.237,-0.405 0.216,-0.404 0.192,-0.403C0.167,-0.402 0.143,-0.4 0.12,-0.398C0.096,-0.396 0.075,-0.394 0.058,-0.392L0.054,-0.486C0.071,-0.49 0.092,-0.494 0.117,-0.499C0.141,-0.503 0.166,-0.506 0.193,-0.509C0.22,-0.512 0.244,-0.513 0.267,-0.513C0.31,-0.513 0.345,-0.508 0.374,-0.497C0.403,-0.486 0.424,-0.469 0.439,-0.445C0.454,-0.42 0.461,-0.387 0.461,-0.346L0.461,-0.117C0.462,-0.108 0.467,-0.1 0.476,-0.096C0.485,-0.09 0.495,-0.087 0.506,-0.085L0.503,0.007C0.492,0.007 0.482,0.007 0.472,0.008C0.461,0.008 0.451,0.008 0.442,0.008C0.433,0.007 0.424,0.006 0.417,0.005C0.402,0.003 0.389,-0.001 0.378,-0.007C0.367,-0.013 0.358,-0.019 0.351,-0.026C0.34,-0.021 0.326,-0.016 0.308,-0.01C0.29,-0.004 0.271,0.001 0.25,0.005C0.229,0.009 0.207,0.011 0.186,0.011ZM0.218,-0.088C0.231,-0.088 0.244,-0.089 0.258,-0.092C0.272,-0.095 0.285,-0.098 0.298,-0.102C0.31,-0.105 0.32,-0.109 0.327,-0.112L0.327,-0.227L0.225,-0.218C0.203,-0.216 0.187,-0.21 0.178,-0.199C0.168,-0.188 0.163,-0.172 0.163,-0.152C0.163,-0.132 0.167,-0.116 0.177,-0.105C0.186,-0.094 0.199,-0.088 0.218,-0.088Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,245.365,0)"><path d="M0.231,0.012C0.194,0.012 0.165,0.007 0.142,-0.004C0.119,-0.015 0.103,-0.033 0.094,-0.06C0.084,-0.086 0.079,-0.123 0.079,-0.17L0.079,-0.391L0.02,-0.391L0.02,-0.502L0.079,-0.502L0.079,-0.635L0.212,-0.635L0.212,-0.502L0.34,-0.502L0.34,-0.391L0.212,-0.391L0.212,-0.205C0.212,-0.179 0.213,-0.159 0.216,-0.144C0.218,-0.129 0.223,-0.119 0.231,-0.113C0.239,-0.107 0.251,-0.104 0.268,-0.104C0.273,-0.104 0.28,-0.104 0.289,-0.105C0.298,-0.106 0.308,-0.106 0.317,-0.107C0.326,-0.108 0.334,-0.108 0.34,-0.109L0.344,-0.002C0.334,0 0.322,0.002 0.308,0.004C0.293,0.006 0.279,0.008 0.266,0.01C0.252,0.011 0.24,0.012 0.231,0.012Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,320.975,0)"><path d="M0.186,0.011C0.134,0.011 0.095,-0.002 0.069,-0.029C0.042,-0.055 0.029,-0.095 0.029,-0.148C0.029,-0.185 0.036,-0.215 0.049,-0.236C0.062,-0.257 0.082,-0.272 0.109,-0.282C0.135,-0.291 0.167,-0.297 0.205,-0.299L0.327,-0.31L0.327,-0.34C0.327,-0.364 0.321,-0.381 0.309,-0.391C0.297,-0.4 0.279,-0.405 0.256,-0.405C0.237,-0.405 0.216,-0.404 0.192,-0.403C0.167,-0.402 0.143,-0.4 0.12,-0.398C0.096,-0.396 0.075,-0.394 0.058,-0.392L0.054,-0.486C0.071,-0.49 0.092,-0.494 0.117,-0.499C0.141,-0.503 0.166,-0.506 0.193,-0.509C0.22,-0.512 0.244,-0.513 0.267,-0.513C0.31,-0.513 0.345,-0.508 0.374,-0.497C0.403,-0.486 0.424,-0.469 0.439,-0.445C0.454,-0.42 0.461,-0.387 0.461,-0.346L0.461,-0.117C0.462,-0.108 0.467,-0.1 0.476,-0.096C0.485,-0.09 0.495,-0.087 0.506,-0.085L0.503,0.007C0.492,0.007 0.482,0.007 0.472,0.008C0.461,0.008 0.451,0.008 0.442,0.008C0.433,0.007 0.424,0.006 0.417,0.005C0.402,0.003 0.389,-0.001 0.378,-0.007C0.367,-0.013 0.358,-0.019 0.351,-0.026C0.34,-0.021 0.326,-0.016 0.308,-0.01C0.29,-0.004 0.271,0.001 0.25,0.005C0.229,0.009 0.207,0.011 0.186,0.011ZM0.218,-0.088C0.231,-0.088 0.244,-0.089 0.258,-0.092C0.272,-0.095 0.285,-0.098 0.298,-0.102C0.31,-0.105 0.32,-0.109 0.327,-0.112L0.327,-0.227L0.225,-0.218C0.203,-0.216 0.187,-0.21 0.178,-0.199C0.168,-0.188 0.163,-0.172 0.163,-0.152C0.163,-0.132 0.167,-0.116 0.177,-0.105C0.186,-0.094 0.199,-0.088 0.218,-0.088Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,431.126,0)"><path d="M0.309,0.011C0.256,0.011 0.212,0.004 0.178,-0.01C0.143,-0.023 0.116,-0.044 0.096,-0.073C0.076,-0.102 0.062,-0.138 0.055,-0.183C0.047,-0.227 0.043,-0.28 0.043,-0.341C0.043,-0.403 0.047,-0.456 0.055,-0.501C0.062,-0.545 0.076,-0.581 0.096,-0.61C0.116,-0.639 0.143,-0.66 0.179,-0.674C0.214,-0.688 0.258,-0.695 0.313,-0.695C0.335,-0.695 0.358,-0.694 0.382,-0.691C0.406,-0.688 0.429,-0.685 0.452,-0.682C0.474,-0.678 0.493,-0.674 0.509,-0.67L0.505,-0.56C0.492,-0.563 0.475,-0.565 0.455,-0.568C0.435,-0.57 0.415,-0.572 0.394,-0.573C0.373,-0.574 0.354,-0.575 0.336,-0.575C0.304,-0.575 0.278,-0.571 0.258,-0.563C0.238,-0.555 0.223,-0.542 0.212,-0.523C0.201,-0.504 0.193,-0.48 0.189,-0.451C0.185,-0.421 0.183,-0.384 0.183,-0.341C0.183,-0.298 0.185,-0.262 0.189,-0.233C0.193,-0.203 0.2,-0.179 0.211,-0.161C0.222,-0.142 0.237,-0.129 0.258,-0.121C0.278,-0.112 0.304,-0.108 0.337,-0.108C0.364,-0.108 0.393,-0.11 0.426,-0.113C0.458,-0.116 0.485,-0.118 0.506,-0.121L0.509,-0.012C0.493,-0.009 0.474,-0.005 0.452,-0.002C0.43,0.002 0.407,0.005 0.382,0.008C0.357,0.01 0.333,0.011 0.309,0.011Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,544.857,0)"><rect x="0.059" y="-0.707" width="0.133" height="0.707" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,597.721,0)"><path d="M0.271,0.011C0.214,0.011 0.169,0.002 0.135,-0.017C0.1,-0.036 0.075,-0.065 0.06,-0.104C0.045,-0.142 0.037,-0.193 0.037,-0.255C0.037,-0.315 0.045,-0.364 0.061,-0.402C0.077,-0.439 0.102,-0.467 0.137,-0.486C0.172,-0.504 0.216,-0.513 0.271,-0.513C0.326,-0.513 0.371,-0.504 0.406,-0.486C0.44,-0.467 0.465,-0.439 0.482,-0.402C0.498,-0.364 0.506,-0.315 0.506,-0.255C0.506,-0.193 0.498,-0.142 0.483,-0.104C0.468,-0.065 0.443,-0.036 0.409,-0.017C0.374,0.002 0.328,0.011 0.271,0.011ZM0.271,-0.099C0.299,-0.099 0.32,-0.104 0.334,-0.115C0.348,-0.125 0.358,-0.141 0.363,-0.165C0.368,-0.188 0.37,-0.218 0.37,-0.255C0.37,-0.292 0.367,-0.321 0.361,-0.343C0.355,-0.364 0.345,-0.38 0.331,-0.389C0.317,-0.398 0.297,-0.403 0.271,-0.403C0.246,-0.403 0.226,-0.398 0.212,-0.389C0.197,-0.38 0.187,-0.364 0.181,-0.343C0.175,-0.321 0.172,-0.292 0.172,-0.255C0.172,-0.218 0.175,-0.188 0.18,-0.165C0.185,-0.141 0.194,-0.125 0.208,-0.115C0.222,-0.104 0.243,-0.099 0.271,-0.099Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,711.873,0)"><path d="M0.215,0.011C0.172,0.011 0.138,0.002 0.115,-0.017C0.091,-0.035 0.074,-0.063 0.065,-0.1C0.055,-0.137 0.05,-0.184 0.05,-0.241L0.05,-0.502L0.183,-0.502L0.183,-0.247C0.183,-0.212 0.185,-0.184 0.189,-0.163C0.192,-0.142 0.2,-0.128 0.211,-0.119C0.222,-0.11 0.239,-0.106 0.26,-0.106C0.281,-0.106 0.3,-0.109 0.318,-0.114C0.336,-0.119 0.35,-0.125 0.361,-0.13L0.361,-0.502L0.494,-0.502L0.494,-0L0.362,-0L0.362,-0.031C0.339,-0.018 0.317,-0.008 0.295,-0.001C0.272,0.007 0.246,0.011 0.215,0.011Z" style="fill-rule:nonzero;"/></g>
+              <g transform="matrix(210.613,0,0,210.613,827.5,0)"><path d="M0.224,0.011C0.2,0.011 0.178,0.008 0.158,0.003C0.138,-0.003 0.121,-0.012 0.106,-0.025C0.091,-0.037 0.078,-0.053 0.068,-0.073C0.057,-0.093 0.049,-0.118 0.044,-0.147C0.039,-0.175 0.036,-0.209 0.036,-0.248C0.036,-0.305 0.043,-0.354 0.058,-0.393C0.072,-0.432 0.095,-0.462 0.126,-0.483C0.157,-0.503 0.199,-0.513 0.251,-0.513C0.261,-0.513 0.273,-0.513 0.286,-0.512C0.299,-0.511 0.312,-0.509 0.325,-0.508C0.338,-0.506 0.348,-0.504 0.356,-0.503L0.356,-0.707L0.49,-0.707L0.49,-0L0.358,-0L0.357,-0.029C0.348,-0.024 0.335,-0.018 0.321,-0.012C0.306,-0.005 0.29,0 0.273,0.005C0.256,0.009 0.24,0.011 0.224,0.011Z" style="fill-rule:nonzero;"/></g>
+            </g>
+          </g>
+        </g>
+      </svg>
+      <div class="h-5 w-px bg-slate-200 mx-1"></div>
+      <div class="leading-none">
+        <div class="text-sm font-black uppercase tracking-tight text-slate-800">Tripart</div>
+        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">Escrow &amp; Custody</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 border border-slate-200 rounded-full px-3 py-1">Rev. 1.1 · Jul 2026</span>
+      <span class="text-[10px] font-black uppercase tracking-widest text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-3 py-1">Product Cut Sheet</span>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="px-7 md:px-10 pt-4 pb-3">
+    <div class="text-[9.5px] font-black uppercase tracking-widest text-brand-600 mb-2">International Trade Escrow</div>
+    <h1 class="text-[26px] md:text-[28px] font-black tracking-tight text-slate-900 leading-[1.1] max-w-2xl">
+      Escrow that clears at the speed of the shipment, not the speed of the bank.
+    </h1>
+    <p class="mt-3 max-w-xl text-[10px] leading-snug text-slate-600 font-medium">
+      A tripartite escrow platform built on the Canton Network, releasing funds against verified milestones — territorial crossing, customs filing, customs clearance — instead of waiting on correspondent banking chains.
+    </p>
+    <div class="mt-2 flex flex-wrap gap-3">
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-2 min-w-[170px]">
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Settlement</div>
+        <div class="text-xs font-bold text-slate-700">Stablecoin, native speed &amp; fiat when required</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-2 min-w-[170px]">
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Governance</div>
+        <div class="text-xs font-bold text-slate-700">Tripartite signatory, mediated, arbitrable</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-2 min-w-[170px]">
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Network</div>
+        <div class="text-xs font-bold text-slate-700">Canton Network, sub-transaction privacy</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEDGER STEPPER (mirrors the real EscrowCard timeline pattern) -->
+  <div class="px-7 md:px-10 py-3 bg-slate-50 border-y border-slate-100">
+    <div class="flex items-start justify-between relative max-w-3xl">
+      <div class="absolute left-0 right-0 top-[9px] h-0.5 bg-slate-200 -z-0 rounded-full">
+        <div class="h-full bg-brand-500 rounded-full" style="width:38%"></div>
+      </div>
+      <div class="flex flex-col items-start relative z-10 pr-4">
+        <div class="w-[18px] h-[18px] rounded-full bg-brand-500 border-2 border-brand-500 shadow-[0_0_10px_rgba(59,130,246,0.35)]"></div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-brand-600 mt-2.5">Funded</div>
+        <div class="text-[9.5px] font-bold text-slate-500 mt-0.5">Asset locked, escrow live</div>
+      </div>
+      <div class="flex flex-col items-start relative z-10 pr-4">
+        <div class="w-[18px] h-[18px] rounded-full bg-brand-500 border-2 border-brand-500 shadow-[0_0_10px_rgba(59,130,246,0.35)]"></div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-brand-600 mt-2.5">100nm Boundary</div>
+        <div class="text-[9.5px] font-bold text-slate-500 mt-0.5">Signed vessel-position feed</div>
+      </div>
+      <div class="flex flex-col items-start relative z-10 pr-4">
+        <div class="w-[18px] h-[18px] rounded-full bg-white border-2 border-slate-300"></div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2.5">Entry Filed</div>
+        <div class="text-[9.5px] font-bold text-slate-500 mt-0.5">Customs declaration uploaded</div>
+      </div>
+      <div class="flex flex-col items-start relative z-10 pr-4">
+        <div class="w-[18px] h-[18px] rounded-full bg-white border-2 border-slate-300"></div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2.5">Inspection</div>
+        <div class="text-[9.5px] font-bold text-slate-500 mt-0.5">Verifier confirms in writing</div>
+      </div>
+      <div class="flex flex-col items-start relative z-10">
+        <div class="w-[18px] h-[18px] rounded-full bg-white border-2 border-slate-300"></div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2.5">Cleared</div>
+        <div class="text-[9.5px] font-bold text-slate-500 mt-0.5">Remainder released to seller</div>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-3 mt-2 pt-3 border-t border-slate-200">
+      <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 mr-1">Evidence accepted per milestone</span>
+      <span class="flex items-center gap-1.5 text-xs font-bold text-slate-600"><span class="w-2 h-2 rounded-full bg-slate-500"></span>Document — an uploaded file</span>
+      <span class="flex items-center gap-1.5 text-xs font-bold text-slate-600"><span class="w-2 h-2 rounded-full bg-brand-500"></span>Event — a signed feed</span>
+      <span class="flex items-center gap-1.5 text-xs font-bold text-slate-600"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Attested note — a written confirmation</span>
+    </div>
+  </div>
+
+  <!-- PROBLEM / OPPORTUNITY / SOLUTION -->
+  <div class="px-7 md:px-10 py-4 grid md:grid-cols-3 print:grid-cols-3 gap-2">
+    <div class="rounded-3xl border border-slate-200 p-3">
+      <div class="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2">The Problem</div>
+      <h2 class="text-lg font-black text-slate-900 leading-snug mb-2">Trust in trade still runs through a single intermediary.</h2>
+      <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Cross-border trade escrow today means a correspondent-banking chain that takes days to clear, a single custodian who can become a single point of failure, and settlement terms enforced by contract language rather than by the system moving the money.</p>
+      <ul class="space-y-2 text-[10.5px] text-slate-600 font-medium">
+        <li class="flex gap-2"><span class="text-rose-400">—</span>Multi-day settlement across time zones and banking hours</li>
+        <li class="flex gap-2"><span class="text-rose-400">—</span>No native way to tie release to a physical or regulatory event</li>
+        <li class="flex gap-2"><span class="text-rose-400">—</span>Dispute resolution bolted on after the fact, not designed in</li>
+      </ul>
+    </div>
+    <div class="rounded-3xl border border-slate-200 p-3">
+      <div class="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-2">The Opportunity</div>
+      <h2 class="text-lg font-black text-slate-900 leading-snug mb-2">Money that moves as fast as the data proving the deal.</h2>
+      <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Stablecoin settlement, milestone-verified release, and a private institutional network converge into something correspondent banking was never built for: escrow that reacts to a shipment crossing a boundary in the time it takes a signed feed to arrive.</p>
+      <ul class="space-y-2 text-[10.5px] text-slate-600 font-medium">
+        <li class="flex gap-2"><span class="text-amber-400">—</span>24/7 settlement, not bound to banking-hour cutoffs</li>
+        <li class="flex gap-2"><span class="text-amber-400">—</span>Evidence-driven release, a fact triggers a transfer, not a form</li>
+        <li class="flex gap-2"><span class="text-amber-400">—</span>One counterparty relationship instead of a correspondent chain</li>
+      </ul>
+    </div>
+    <div class="rounded-3xl border border-brand-100 bg-brand-50/40 p-3">
+      <div class="text-[10px] font-black uppercase tracking-widest text-brand-600 mb-2">The Solution</div>
+      <h2 class="text-lg font-black text-slate-900 leading-snug mb-2">A ledger-native escrow, governed by three parties, not one.</h2>
+      <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Buyer, seller, and a regulated issuer co-sign every state change. A mediator and, where needed, a binding arbitrator sit above the transaction. No party, including the platform, can unilaterally move funds.</p>
+      <ul class="space-y-2 text-[10.5px] text-slate-600 font-medium">
+        <li class="flex gap-2"><span class="text-brand-500">—</span>Tripartite signatory authority on every disbursement</li>
+        <li class="flex gap-2"><span class="text-brand-500">—</span>Stablecoin or fiat rail, selected per settlement leg</li>
+        <li class="flex gap-2"><span class="text-brand-500">—</span>Sub-transaction privacy on a shared institutional network</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STABLECOIN COMPARISON -->
+  <div class="px-7 md:px-10 pb-4">
+    <h2 class="text-lg font-black text-slate-900 tracking-tight mb-2">Why stablecoins carry the international leg</h2>
+    <p class="text-[10.5px] text-slate-500 font-medium max-w-xl mb-2">Fiat rails stay the right choice for domestic, regulated, or payroll-adjacent disbursement. The moment a payment crosses a border and needs to move outside banking hours, the calculus changes.</p>
+    <div class="rounded-3xl border border-slate-200 overflow-hidden">
+      <table class="w-full text-[10.5px]">
+        <thead>
+          <tr class="bg-slate-50">
+            <th class="text-left font-black uppercase tracking-widest text-[10px] text-slate-400 px-5 py-3">Dimension</th>
+            <th class="text-left font-black uppercase tracking-widest text-[10px] text-slate-400 px-5 py-3">Correspondent Banking</th>
+            <th class="text-left font-black uppercase tracking-widest text-[10px] text-slate-400 px-5 py-3">Stablecoin Settlement</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-5 py-3 font-bold text-slate-700">Settlement window</td><td class="px-5 py-3 text-rose-600 font-semibold">1–5 business days, banking-hour bound</td><td class="px-5 py-3 text-emerald-600 font-semibold">Minutes, 24/7/365</td></tr>
+          <tr><td class="px-5 py-3 font-bold text-slate-700">Intermediary chain</td><td class="px-5 py-3 text-rose-600 font-semibold">2–5 correspondent banks per leg</td><td class="px-5 py-3 text-emerald-600 font-semibold">Single custodial issuer</td></tr>
+          <tr><td class="px-5 py-3 font-bold text-slate-700">Release trigger</td><td class="px-5 py-3 text-rose-600 font-semibold">Manual confirmation, document review</td><td class="px-5 py-3 text-emerald-600 font-semibold">Signed on-chain or oracle event</td></tr>
+          <tr><td class="px-5 py-3 font-bold text-slate-700">Cost structure</td><td class="px-5 py-3 text-rose-600 font-semibold">Cumulative correspondent fees</td><td class="px-5 py-3 text-emerald-600 font-semibold">Fixed network + custody fee</td></tr>
+          <tr><td class="px-5 py-3 font-bold text-slate-700">Regulated payroll / domestic payout</td><td class="px-5 py-3 text-emerald-600 font-semibold">Purpose-built, well understood</td><td class="px-5 py-3 text-rose-600 font-semibold">Not the right tool</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FLEXIBLE CONTRACTUAL STATE MACHINE -->
+  <div class="px-7 md:px-10 pb-4 pt-6 print:break-before-page print:pt-0">
+    <h2 class="text-lg font-black text-slate-900 tracking-tight mb-2">A contract that knows exactly what state it's in</h2>
+    <p class="text-[10.5px] text-slate-500 font-medium max-w-2xl mb-2">Every escrow is a formal state machine, not a status field a person edits by hand. Strict transition guards mean funds cannot move until the specific condition for that transition — a signature, a piece of evidence, a bilateral ratification — is actually satisfied. Six states, each with its own authorized signer and its own exit conditions.</p>
+
+    <div class="rounded-3xl border border-slate-200 p-3 md:p-4">
+      <div class="grid md:grid-cols-3 print:grid-cols-3 gap-2 mb-2">
+        <div class="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-slate-400"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-slate-500">Draft</span></div>
+          <p class="text-[10px] text-slate-500 font-medium leading-snug">Terms agreed by all three parties, asset not yet deposited.</p>
+        </div>
+        <div class="rounded-2xl bg-blue-50 border border-blue-100 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-brand-500"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-brand-600">Funded</span></div>
+          <p class="text-[10px] text-slate-600 font-medium leading-snug">Asset locked on-chain by the depositor, awaiting issuer activation.</p>
+        </div>
+        <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-emerald-600">Active</span></div>
+          <p class="text-[10px] text-slate-600 font-medium leading-snug">Escrow is live; milestones are being monitored against incoming evidence.</p>
+        </div>
+        <div class="rounded-2xl bg-rose-50 border border-rose-100 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-rose-600">Disputed</span></div>
+          <p class="text-[10px] text-slate-600 font-medium leading-snug">Either counterparty can raise a dispute from Active; adjudication begins.</p>
+        </div>
+        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-amber-600">Proposed</span></div>
+          <p class="text-[10px] text-slate-600 font-medium leading-snug">Mediator has proposed a settlement; both parties must ratify or it reverts to Disputed.</p>
+        </div>
+        <div class="rounded-2xl bg-purple-50 border border-purple-100 p-3">
+          <div class="flex items-center gap-2 mb-1.5"><span class="w-2 h-2 rounded-full bg-purple-500"></span><span class="text-[9.5px] font-black uppercase tracking-widest text-purple-600">Settled</span></div>
+          <p class="text-[10px] text-slate-600 font-medium leading-snug">Terms are satisfied or a settlement is ratified; awaiting final disbursement by the issuer.</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-slate-100">
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Draft → Funded</span> — depositor funds</span>
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Funded → Active</span> — issuer activates</span>
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Active → Settled</span> — mediator confirms conditions</span>
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Active → Disputed</span> — either party raises a dispute</span>
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Proposed → Settled</span> — both parties ratify</span>
+        <span class="text-[10px] text-slate-500 font-medium"><span class="font-black text-slate-700">Settled → closed</span> — issuer disburses</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOUR CONCEPTS -->
+  <div class="px-7 md:px-10 pb-4">
+    <h2 class="text-lg font-black text-slate-900 tracking-tight mb-2">Four things engineered into the ledger, not bolted on after</h2>
+    <p class="text-[10.5px] text-slate-500 font-medium max-w-2xl mb-2">Each of these is a property of the contract itself — enforced by the state machine and the network it runs on, not by a policy document sitting next to the software.</p>
+    <div class="grid md:grid-cols-2 print:grid-cols-2 gap-2">
+
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center"><svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+          <h3 class="text-[10px] font-black text-slate-900">Finance</h3>
+        </div>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Settlement runs on standardized, interoperable token mechanics rather than a custom ledger entry, so it can plug into real institutional stablecoin issuance.</p>
+        <ul class="space-y-2 text-[10px] text-slate-600 font-medium">
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Native CIP-0056 support for interoperability with major stablecoin issuers</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Assets are cryptographically locked while a contract is Active, preventing double-spend</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Final settlement transfers execute through standardized token choices, not bespoke code</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Terms and milestones can be negotiated in a zero-fee draft layer before anything touches the ledger</li>
+        </ul>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center"><svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7l8-4z"/></svg></div>
+          <h3 class="text-[10px] font-black text-slate-900">Governance</h3>
+        </div>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Authority is distributed by design. No single signer, including Data Cloud, can move a contract through its lifecycle alone.</p>
+        <ul class="space-y-2 text-[10px] text-slate-600 font-medium">
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Every material transition requires co-signature from depositor, beneficiary, and issuer</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Each participant runs its own Canton node, so no party depends on another's infrastructure</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Mediator escalation on dispute, binding arbitration only once mediation is exhausted</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Infrastructure itself is tiered — foundation, workload, and identity are separately governed</li>
+        </ul>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center"><svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          <h3 class="text-[10px] font-black text-slate-900">Integrity</h3>
+        </div>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">The state machine's guards are only as trustworthy as the signatures and infrastructure behind them, so both are held to a hardware standard.</p>
+        <ul class="space-y-2 text-[10px] text-slate-600 font-medium">
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Settlement-triggering signatures are proofed through hardware-backed KMS keys, not software keys</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Continuous health diagnostics across database, ledger, and oracle layers, not a single uptime check</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Distributed tracing on every request, so a stalled milestone can be diagnosed, not just noticed</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Transition guards are enforced at the contract level — a client bug can't release funds early</li>
+        </ul>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center"><svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+          <h3 class="text-[10px] font-black text-slate-900">Privacy</h3>
+        </div>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug mb-2">Institutions on a shared network still need their deal terms hidden from every other participant on that network, competitors included.</p>
+        <ul class="space-y-2 text-[10px] text-slate-600 font-medium">
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Contract terms, counterparty identity, and amounts are visible only to that agreement's signers</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Each participant's private contract data lives only on their own node — zero-trust isolation by default</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>Evidence documents sit in private storage with no public access; access requires a time-limited signed link</li>
+          <li class="flex gap-2"><span class="text-brand-500">—</span>All document blobs are encrypted at rest with hardware-backed keys</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="mt-3 rounded-3xl bg-slate-900 text-white p-3">
+      <div class="text-[10px] font-black uppercase tracking-widest text-brand-400 mb-2">In practice — import/export</div>
+      <p class="text-[10.5px] text-slate-300 font-medium leading-snug">
+        <span class="text-white font-bold">A shipment crossing 100 nautical miles of territorial waters</span> releases an agreed partial percentage the moment a signed vessel-position feed confirms the crossing.
+        <span class="text-white font-bold"> Filing entry with customs</span> releases a further tranche.
+        <span class="text-white font-bold"> Customs clearance</span> releases the remainder — each step verified independently, each disputable independently, with no party waiting on a bank's confirmation queue to find out where the money stands.
+      </p>
+    </div>
+  </div>
+
+  <!-- TWO CLEARING MODES -->
+  <div class="px-7 md:px-10 pb-4">
+    <div class="text-[10px] font-black uppercase tracking-widest text-brand-600 mb-2">The Custody Line</div>
+    <h2 class="text-lg font-black text-slate-900 tracking-tight mb-2">Two ways a contract can clear</h2>
+    <p class="text-[10.5px] text-slate-500 font-medium max-w-xl mb-2">The custody line is Tripart's release mechanism, the sequence that actually moves funds out of escrow. Every deal picks one mode at signing. It doesn't change mid-contract, so neither side is ever surprised by how release behaves partway through.</p>
+    <div class="grid md:grid-cols-2 print:grid-cols-2 gap-2">
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <span class="text-[10px] font-black uppercase tracking-widest text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-3 py-1">Progressive</span>
+        <h3 class="text-base font-black text-slate-900 mt-2 mb-2">Each milestone releases on its own</h3>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug">The default mode. A construction draw, an earnout tranche, or a customs-boundary crossing releases its own portion the moment its evidence clears, independent of every other milestone in the contract, and independently disputable.</p>
+      </div>
+      <div class="rounded-3xl border border-slate-200 p-3">
+        <span class="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 border border-purple-100 rounded-full px-3 py-1">All-or-none</span>
+        <h3 class="text-base font-black text-slate-900 mt-2 mb-2">Nothing releases until everything clears</h3>
+        <p class="text-[10.5px] text-slate-600 font-medium leading-snug">Every milestone in the contract must reach verified before any funds move, then the full balance releases in one action. Suited to deals where a partial release would leave either side exposed if the remaining conditions never land.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMING SOON -->
+  <div class="px-7 md:px-10 pb-4 pt-8 print:break-before-page print:pt-0">
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 print:hidden">Tripart · Product Cut Sheet — Page 3</div>
+    <div class="rounded-3xl border border-dashed border-slate-300 p-2">
+      <div class="rounded-[20px] border border-slate-200 bg-white p-3">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <h2 class="text-base font-black text-slate-900 tracking-tight">What's next</h2>
+          <span class="text-[10px] font-black uppercase tracking-widest text-amber-600 border border-amber-200 bg-amber-50 rounded-full px-3 py-1">Coming soon</span>
+        </div>
+        <p class="text-[10px] text-slate-500 font-medium max-w-xl mb-2">The next releases layer AI assistance onto contract authoring and evidence review. In every case below, the AI drafts, translates, flags, or recommends — a party still signs.</p>
+        <div class="grid md:grid-cols-3 print:grid-cols-3 gap-x-4 gap-y-2">
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Authoring</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Draft a contract from a brief</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">Describe the deal in plain language; get a structured draft — parties, milestones, evidence types — ready for review before anyone signs.</p>
+          </div>
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Authoring</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Transfer or extend an existing contract</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">Reuse a prior deal's structure for a new counterparty, or propose an extension to a live contract, routed through the same ratification every hand-drafted change requires.</p>
+          </div>
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Language</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Legal translation</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">Counterparty-facing translations of contract terms, always labeled against the governing original, never a second source of truth.</p>
+          </div>
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Review</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Change detection</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">Upload a revised shipping agreement or purchase order; see exactly what changed against the terms on record before proposing an amendment.</p>
+          </div>
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Mediation</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Mediation advisor</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">A dispute-evidence summary and rationale, surfaced to the mediator or arbitrator alongside the underlying documents, never a substitute for their decision.</p>
+          </div>
+          <div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-brand-500 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>Clearing</div>
+            <h3 class="text-[9.5px] font-bold text-slate-900 mb-1">Trusted-signer auto-approval</h3>
+            <p class="text-[10px] text-slate-500 font-medium leading-snug">When evidence is signed by a pre-registered trusted party, a licensed customs broker, a notarization service, the matching milestone can clear automatically, on a signature check, not a judgment call.</p>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-slate-100 text-[9.5px] text-slate-500 font-medium">
+          <span class="text-slate-900 font-black">By design:</span> no AI recommendation ever changes a milestone's status on its own, and no auto-cleared milestone loses its right to be disputed after the fact.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="bg-slate-900 text-slate-400 px-7 md:px-10 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="text-[9.5px] font-bold"><span class="text-white font-black">Tripart</span> — escrow &amp; custody for international trade, built on Canton Network</div>
+    <div class="flex items-center gap-4">
+      <span class="text-[10px] font-mono text-slate-500">Platform build · Phase 17 (CIP-0103)</span>
+      <div class="h-3 w-px bg-slate-700"></div>
+      <div class="text-[9.5px] font-mono">daml-escrow · api.vdatacloudai.com</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
