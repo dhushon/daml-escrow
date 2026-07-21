@@ -14,14 +14,13 @@
   },
   "dependencies": {
     "@vdatacloud/cx-commons": "file:../../cx-commons",
-    "@astrojs/node": "^10.1.4",
+    "@astrojs/node": "^11.0.2",
     "@canton-network/dapp-sdk": "^1.4.0",
     "@tailwindcss/vite": "^4.3.2",
-    "astro": "^6.4.8",
+    "astro": "^7.1.1",
     "tailwindcss": "^4.3.2"
   },
   "overrides": {
-    "vite": "7.3.5",
     "cross-spawn": "7.0.6",
     "nanoid": "3.3.11",
     "undici": "6.21.1",
