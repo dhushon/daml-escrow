@@ -53,6 +53,7 @@ This platform implements a **Sovereign Tripartite Architecture**, ensuring each 
 * **Canton OpenZeppelin Stablecoin/CDP Module:** Utilizes production-ready Daml templates for Collateralized Debt Positions (CDP) and standard CIP-0056 holding mechanisms.
 * **Validator APIs (Splice):** Employs high-level validator endpoints for automated escrow workflows and external party signing (e.g., trusted escrow agents).
 * **Noves Data & Analytics:** Integrates real-time indexed data for tracking token holdings, transaction history, and wallet metrics across the Canton Network.
+* **Frontend Platform & Design System (`cx-platform`):** Consumes external layout, theme, and LNF design tokens from `@vdatacloud/cx-commons` (see **[FRONTEND-PROCESS.md](./FRONTEND-PROCESS.md)**).
 
 ### Escrow Lifecycle (Formal Model)
 

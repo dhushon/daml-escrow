@@ -52,12 +52,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Checkout cx-commons
+        uses: actions/checkout@v5
+        with:
+          repository: vdatacloud/cx-commons
+          path: temp-cx-commons
+
+      - name: Move cx-commons to sibling position
+        run: mv temp-cx-commons ../cx-commons
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Install and Build cx-commons
+        run: |
+          cd ../cx-commons
+          npm install
+          npm run build
 
       - name: Install dependencies
         run: cd frontend && npm install

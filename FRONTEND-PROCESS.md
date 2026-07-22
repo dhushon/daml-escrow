@@ -13,6 +13,29 @@
 
 ---
 
+## EXTERNAL PLATFORM REPOSITORY SHIFT (`cx-platform` / `@vdatacloud/cx-commons`)
+
+To decouple generic web layout, design system tokens, and re-usable Astro components from application-specific escrow domain logic, the shared frontend foundation has been migrated to an external repository: **`cx-platform`** (published as `@vdatacloud/cx-commons`).
+
+### Architectural Division of Responsibilities
+
+1. **Shared Platform Foundation (`@vdatacloud/cx-commons`)**:
+   - **Repository:** Located in `cx-platform` (`../../cx-commons` locally or NPM package `@vdatacloud/cx-commons`).
+   - **Responsibilities:**
+     - Data Cloud LNF design system tokens (`--color-brand-*`, `--color-status-*`, font definitions).
+     - Global CSS reset, glassmorphism utilities (`.glass-card`, `.glass-nav`), and dark mode theme persistence.
+     - Astro Integration Plugin (`cxCommons()`) providing automated zero-configuration styling injection into page SSR.
+     - Common layout components (`Nav.astro`, `Footer.astro`, `ConsentBanner.astro`).
+
+2. **Domain Application Frontend (`daml-escrow/frontend`)**:
+   - **Responsibilities:**
+     - Escrow-specific state machine rendering (`EscrowCard.astro`, `PartySetRoster.astro`, `MilestoneBoard.astro`).
+     - REST API communication layer (`src/lib/api.ts`) connecting to Go backend endpoints (`/bank`, `/depositor`, `/beneficiary`).
+     - Tripartite role switcher, settlement rail selector, and `/metrics` operational velocity dashboard.
+   - **Integration:** Registered in `frontend/astro.config.mjs` via `integrations: [cxCommons()]` and referenced in `frontend/package.json` as `"@vdatacloud/cx-commons": "file:../../cx-commons"`.
+
+---
+
 ## DIRECTIVE F1 — STATE MACHINE & COMPONENT MAPPING
 
 ```
