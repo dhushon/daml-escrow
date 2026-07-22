@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@vdatacloud/cx-commons": "file:../../cx-commons",
     "@astrojs/node": "^10.1.4",
     "@canton-network/dapp-sdk": "^1.4.0",
     "@tailwindcss/vite": "^4.3.2",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@tailwindcss/typography": "^0.5.20",
     "openapi-typescript": "^7.13.0",
     "vitest": "^4.1.10"
   }
