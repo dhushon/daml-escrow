@@ -185,7 +185,7 @@ Goals: Extend the DAML contract model beyond bilateral escrow to support multi-p
 
 ### Phase 17 Tasks
 
-- [ ] **Multi-Party Consent Model:** Generalize `Buyer`/`Seller` template parameters into `BuyerSet`/`SellerSet` with a configurable `ConsentThreshold`, preserving today's unanimous single-party behavior as the default case.
+- [x] **Multi-Party Consent Model:** Generalize `Buyer`/`Seller` template parameters into `BuyerSet`/`SellerSet` with a configurable `ConsentThreshold`, preserving today's unanimous single-party behavior as the default case.
 - [ ] **Weighted Disbursement Split:** Implement `WeightedSplit` on `SettlementTerms` so multi-beneficiary payouts do not default to an equal split unless explicitly configured that way.
 - [ ] **Milestone-Independent Release:** Replace the contract-wide `ConfirmConditions` gate with per-`MilestoneId` verification and release, so unrelated tranches can clear independently.
 - [ ] **Nested Escrow Composition:** Implement `SpawnChildEscrow` and `SettleParent`, with parent-child party authorization checks to prevent privilege escalation through nesting.
