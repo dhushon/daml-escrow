@@ -108,6 +108,12 @@
 			console.log('Authoritatively sending invitation...', { identity, role, type });
 			await createInvitation(identity, role, type, asset, terms);
 			alert(`Invitation authoritatively sent to ${identity}`);
+			
+			// Dispatch event to update parent page lists/rosters
+			window.dispatchEvent(new CustomEvent('counterparty-invited', {
+				detail: { email: identity, role: role }
+			}));
+
 			hideModal();
 		} catch (err: any) {
 			console.error('CRITICAL: Invitation failed', err);

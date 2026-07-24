@@ -49,40 +49,56 @@ type SettlementTerms struct {
 }
 
 type CreateEscrowRequest struct {
-	Depositor    string      `json:"depositor"`
-	Beneficiary  string      `json:"beneficiary"`
-	Mediator     string      `json:"mediator"`
-	ContractType string      `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	Metadata     string      `json:"metadata"`
+	Depositor            string      `json:"depositor"` // Kept for backward compatibility
+	Beneficiary          string      `json:"beneficiary"` // Kept for backward compatibility
+	Depositors           []string    `json:"depositors"`
+	DepositorThreshold   int         `json:"depositorThreshold"`
+	Beneficiaries        []string    `json:"beneficiaries"`
+	BeneficiaryThreshold int         `json:"beneficiaryThreshold"`
+	Mediator             string      `json:"mediator"`
+	ContractType         string      `json:"contractType"`
+	Asset                Asset       `json:"asset"`
+	Terms                EscrowTerms `json:"terms"`
+	Metadata             string      `json:"metadata"`
 }
 
 type EscrowProposal struct {
-	ID          string      `json:"id"`
-	Issuer      string      `json:"issuer"`
-	Depositor   string      `json:"depositor"`
-	Beneficiary string      `json:"beneficiary"`
-	Mediator    string      `json:"mediator"`
-	Asset       Asset       `json:"asset"`
-	Terms       EscrowTerms `json:"terms"`
-	Metadata    string      `json:"metadata"`
+	ID                     string      `json:"id"`
+	Issuer                 string      `json:"issuer"`
+	Depositor              string      `json:"depositor"` // Kept for backward compatibility
+	Beneficiary            string      `json:"beneficiary"` // Kept for backward compatibility
+	Depositors             []string    `json:"depositors"`
+	DepositorThreshold     int         `json:"depositorThreshold"`
+	Beneficiaries          []string    `json:"beneficiaries"`
+	BeneficiaryThreshold   int         `json:"beneficiaryThreshold"`
+	Mediator               string      `json:"mediator"`
+	Asset                  Asset       `json:"asset"`
+	Terms                  EscrowTerms `json:"terms"`
+	Metadata               string      `json:"metadata"`
+	DepositorAcceptances   []string    `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []string    `json:"beneficiaryAcceptances"`
 }
 
 type EscrowContract struct {
-	ID                    string      `json:"id"`
-	Issuer                string      `json:"issuer"`
-	Depositor             string      `json:"depositor"`
-	Beneficiary           string      `json:"beneficiary"`
-	Mediator              string      `json:"mediator"`
-	Asset                 Asset       `json:"asset"`
-	Terms                 EscrowTerms `json:"terms"`
-	Metadata              string      `json:"metadata"`
-	AgreementURL          string      `json:"agreementUrl,omitempty"`
-	State                 string      `json:"state"`
-	CurrentMilestoneIndex int         `json:"currentMilestoneIndex"`
-	DepositorAccepted     bool        `json:"depositorAccepted"`
-	BeneficiaryAccepted   bool        `json:"beneficiaryAccepted"`
+	ID                     string      `json:"id"`
+	Issuer                 string      `json:"issuer"`
+	Depositor              string      `json:"depositor"` // Kept for backward compatibility
+	Beneficiary            string      `json:"beneficiary"` // Kept for backward compatibility
+	Depositors             []string    `json:"depositors"`
+	DepositorThreshold     int         `json:"depositorThreshold"`
+	Beneficiaries          []string    `json:"beneficiaries"`
+	BeneficiaryThreshold   int         `json:"beneficiaryThreshold"`
+	Mediator               string      `json:"mediator"`
+	Asset                  Asset       `json:"asset"`
+	Terms                  EscrowTerms `json:"terms"`
+	Metadata               string      `json:"metadata"`
+	AgreementURL           string      `json:"agreementUrl,omitempty"`
+	State                  string      `json:"state"`
+	CurrentMilestoneIndex  int         `json:"currentMilestoneIndex"`
+	DepositorAccepted      bool        `json:"depositorAccepted"`
+	BeneficiaryAccepted    bool        `json:"beneficiaryAccepted"`
+	DepositorAcceptances   []string    `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []string    `json:"beneficiaryAcceptances"`
 }
 
 type EscrowInvitation struct {

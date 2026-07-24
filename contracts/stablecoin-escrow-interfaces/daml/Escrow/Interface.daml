@@ -53,16 +53,18 @@ data SettlementTerms = SettlementTerms with
 
 -- Unified View for visibility
 data View = View with
-  issuer       : Party
-  initiator    : Party -- Tracks the deal's originator
-  depositor    : Party
-  beneficiary  : Party
-  mediator     : Party
-  contractType : Text -- Corporate, ImportExport, RealEstate, etc.
-  asset        : Asset
-  terms        : EscrowTerms
-  state        : EscrowState
-  metadata     : Text
+  issuer               : Party
+  initiator            : Party -- Tracks the deal's originator
+  depositors           : [Party]
+  depositorThreshold   : Int
+  beneficiaries        : [Party]
+  beneficiaryThreshold : Int
+  mediator             : Party
+  contractType         : Text -- Corporate, ImportExport, RealEstate, etc.
+  asset                : Asset
+  terms                : EscrowTerms
+  state                : EscrowState
+  metadata             : Text
     deriving (Eq, Show)
 
 -- ---------------------------------------------------------------------------
@@ -77,7 +79,7 @@ interface Escrow where
   -- Choice definitions per Directive 05
   
   choice GetStatus : View
-    controller (view this).issuer, (view this).depositor, (view this).beneficiary, (view this).mediator
+    controller (view this).issuer :: (view this).mediator :: ((view this).depositors ++ (view this).beneficiaries)
     do return (view this)
 
   -- Move to ACTIVE state once funds are locked

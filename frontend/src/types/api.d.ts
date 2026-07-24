@@ -701,6 +701,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/drafts/{draftID}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw and reset contract draft
+         * @description Unilaterally withdraw a promoted on-chain contract proposal, resetting the local draft status back to DRAFT and clearing all approvals.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Draft ID (Root ID) */
+                    draftID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["services.DraftEscrow"];
+                    };
+                };
+                /** @description failed to withdraw */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string;
+                    };
+                };
+                /** @description unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string;
+                    };
+                };
+                /** @description draft not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/escrows": {
         parameters: {
             query?: never;
@@ -2127,10 +2196,15 @@ export interface components {
             amount?: number;
             assetId?: string;
             assetType?: string;
+            beneficiaries?: string[];
+            /** @description Kept for backward compatibility */
             beneficiary?: string;
+            beneficiaryThreshold?: number;
             conditionDescription?: string;
             conditionType?: string;
             currency?: string;
+            depositorThreshold?: number;
+            depositors?: string[];
             disputeWindowDays?: number;
             evidenceRequired?: string;
             expiryDate?: string;
@@ -2182,11 +2256,19 @@ export interface components {
         "ledger.EscrowContract": {
             agreementUrl?: string;
             asset?: components["schemas"]["ledger.Asset"];
+            beneficiaries?: string[];
+            /** @description Kept for backward compatibility */
             beneficiary?: string;
+            beneficiaryAcceptances?: string[];
             beneficiaryAccepted?: boolean;
+            beneficiaryThreshold?: number;
             currentMilestoneIndex?: number;
+            /** @description Kept for backward compatibility */
             depositor?: string;
+            depositorAcceptances?: string[];
             depositorAccepted?: boolean;
+            depositorThreshold?: number;
+            depositors?: string[];
             id?: string;
             issuer?: string;
             mediator?: string;
@@ -2209,8 +2291,16 @@ export interface components {
         };
         "ledger.EscrowProposal": {
             asset?: components["schemas"]["ledger.Asset"];
+            beneficiaries?: string[];
+            /** @description Kept for backward compatibility */
             beneficiary?: string;
+            beneficiaryAcceptances?: string[];
+            beneficiaryThreshold?: number;
+            /** @description Kept for backward compatibility */
             depositor?: string;
+            depositorAcceptances?: string[];
+            depositorThreshold?: number;
+            depositors?: string[];
             id?: string;
             issuer?: string;
             mediator?: string;

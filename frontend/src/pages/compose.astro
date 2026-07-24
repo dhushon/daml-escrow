@@ -24,13 +24,46 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 					<h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">1. Agreement Parties</h3>
 					<button type="button" id="open-invite-btn" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none">Invite New Counterparty +</button>
 				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-					<div class="text-left">
-						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Counterparty</label>
-						<select id="counterparty-select" name="counterparty" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
+				<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end mb-6">
+					<div class="md:col-span-5 text-left">
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Identity</label>
+						<select id="counterparty-select" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
 							<option value="">Searching institutional directory...</option>
 						</select>
-						<p class="mt-2 text-[10px] text-slate-400 italic">Only provisioned ledger identities are shown.</p>
+					</div>
+					<div class="md:col-span-4 text-left">
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Assign Role</label>
+						<select id="role-select" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white">
+							<option value="Depositor">Depositor (Pledger)</option>
+							<option value="Beneficiary">Beneficiary (Payee)</option>
+						</select>
+					</div>
+					<div class="md:col-span-3">
+						<button type="button" id="add-party-btn" class="w-full bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-sm border-none cursor-pointer active:scale-95 transition-all">Add Counterparty</button>
+					</div>
+				</div>
+
+				<!-- Stakeholder Roster List -->
+				<div class="mb-6">
+					<label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Roster of Escrow Stakeholders</label>
+					<div id="roster-container" class="space-y-2">
+						<!-- Roster rows injected by JS -->
+						<div id="empty-roster-msg" class="text-xs text-slate-400 italic py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+							No counterparties added yet. (Your self-identity will be automatically included as a depositor).
+						</div>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800/40">
+					<div class="text-left">
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Depositor Threshold</label>
+						<input type="number" id="depositor-threshold-input" name="depositorThreshold" min="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white" />
+						<p class="mt-1 text-[9px] text-slate-400">Min signatures required from depositors.</p>
+					</div>
+					<div class="text-left">
+						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Beneficiary Threshold</label>
+						<input type="number" id="beneficiary-threshold-input" name="beneficiaryThreshold" min="1" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white" />
+						<p class="mt-1 text-[9px] text-slate-400">Min signatures required from beneficiaries.</p>
 					</div>
 					<div class="text-left">
 						<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Currency</label>
@@ -116,6 +149,125 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 	const mediatorSelect = document.getElementById('mediator-select') as HTMLSelectElement;
 	const openInviteBtn = document.getElementById('open-invite-btn');
 
+	let roster: Array<{ email: string; role: 'Depositor' | 'Beneficiary'; label: string }> = [];
+
+	const rosterContainer = document.getElementById('roster-container');
+	const addPartyBtn = document.getElementById('add-party-btn');
+	const roleSelect = document.getElementById('role-select') as HTMLSelectElement;
+	const depThresholdInput = document.getElementById('depositor-threshold-input') as HTMLInputElement;
+	const benThresholdInput = document.getElementById('beneficiary-threshold-input') as HTMLInputElement;
+
+	addPartyBtn?.addEventListener('click', () => {
+		const email = counterpartySelect.value;
+		const role = roleSelect.value as 'Depositor' | 'Beneficiary';
+		const selectedText = counterpartySelect.options[counterpartySelect.selectedIndex]?.text || email;
+
+		if (!email) {
+			alert('Please select a counterparty');
+			return;
+		}
+
+		if (roster.some(item => item.email === email)) {
+			alert('This counterparty is already in the roster');
+			return;
+		}
+
+		roster.push({ email, role, label: selectedText });
+		renderRoster();
+		updateThresholdBounds();
+	});
+
+	function renderRoster() {
+		if (!rosterContainer) return;
+
+		// Clear old roster
+		rosterContainer.innerHTML = '';
+
+		if (roster.length === 0) {
+			rosterContainer.innerHTML = `
+				<div id="empty-roster-msg" class="text-xs text-slate-400 italic py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+					No counterparties added yet. (Your self-identity will be automatically included as a depositor).
+				</div>
+			`;
+			return;
+		}
+
+		roster.forEach((item, index) => {
+			const row = document.createElement('div');
+			row.className = 'flex items-center justify-between bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200 dark:border-slate-850';
+			row.innerHTML = `
+				<div>
+					<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${item.role === 'Depositor' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800/30'}">${item.role}</span>
+					<span class="ml-3 text-xs font-bold text-slate-700 dark:text-slate-350">${item.label}</span>
+				</div>
+				<button type="button" class="remove-roster-item text-slate-400 hover:text-red-500 cursor-pointer bg-transparent border-none font-bold" data-index="${index}">x</button>
+			`;
+			rosterContainer.appendChild(row);
+		});
+
+		// Attach remove listeners
+		const removeBtns = rosterContainer.querySelectorAll('.remove-roster-item');
+		removeBtns.forEach(btn => {
+			btn.addEventListener('click', (e) => {
+				const idx = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0', 10);
+				roster.splice(idx, 1);
+				renderRoster();
+				updateThresholdBounds();
+			});
+		});
+	}
+
+	function updateThresholdBounds() {
+		const session = getSession();
+		const depositorsCount = roster.filter(r => r.role === 'Depositor').length + 1; // self is always depositor
+		const beneficiariesCount = roster.filter(r => r.role === 'Beneficiary').length;
+
+		if (depThresholdInput) {
+			depThresholdInput.max = depositorsCount.toString();
+			if (parseInt(depThresholdInput.value, 10) > depositorsCount) {
+				depThresholdInput.value = depositorsCount.toString();
+			}
+		}
+		if (benThresholdInput) {
+			benThresholdInput.max = beneficiariesCount.toString();
+			if (parseInt(benThresholdInput.value, 10) > beneficiariesCount) {
+				benThresholdInput.value = Math.max(1, beneficiariesCount).toString();
+			}
+		}
+	}
+
+	counterpartySelect?.addEventListener('change', () => {
+		if (counterpartySelect.value === 'invite-new-counterparty') {
+			counterpartySelect.value = '';
+			window.dispatchEvent(new CustomEvent('open-invite-modal'));
+		}
+	});
+
+	window.addEventListener('counterparty-invited', (e: any) => {
+		const { email, role } = e.detail;
+		
+		// Add to counterpartySelect dropdown
+		const opt = document.createElement('option');
+		opt.value = email;
+		opt.text = `${role}: ${email.split('@')[0]} (Invited)`;
+		counterpartySelect.add(opt, counterpartySelect.options[1]); // insert after the "invite new" option
+		
+		// Select the newly invited user in the dropdown
+		counterpartySelect.value = email;
+		
+		// Set the role select matching the invitation role
+		if (roleSelect) {
+			roleSelect.value = role;
+		}
+
+		// Automatically push to the draft roster
+		if (!roster.some(item => item.email === email)) {
+			roster.push({ email, role: role as 'Depositor' | 'Beneficiary', label: opt.text });
+			renderRoster();
+			updateThresholdBounds();
+		}
+	});
+
 	async function loadIdentities() {
 		try {
 			const identities = await fetchIdentities();
@@ -125,7 +277,8 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 			const identityList = identities || [];
 
 			// Filter counterparties (anyone not me and not a mediator)
-			const counterpartyOptions = identityList
+			let counterpartyOptions = '<option value="invite-new-counterparty">+ Invite a new email...</option>';
+			counterpartyOptions += identityList
 				.filter((id: any) => id.damlUserId !== currentUserId && id.role !== 'Mediator')
 				.map((id: any) => {
 					const emailPrefix = id.email.split('@')[0];
@@ -142,14 +295,15 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				}).join('');
 
 			if (counterpartySelect) {
-				counterpartySelect.innerHTML = counterpartyOptions || '<option value="">No other identities found - Try inviting them?</option>';
+				counterpartySelect.innerHTML = counterpartyOptions || '<option value="invite-new-counterparty">+ Invite a new email...</option>';
 			}
 			if (mediatorSelect) {
 				mediatorSelect.innerHTML = mediatorOptions || '<option value="">No mediators found</option>';
 			}
+			updateThresholdBounds();
 		} catch (err) {
 			console.error('Failed to load identities', err);
-			if (counterpartySelect) counterpartySelect.innerHTML = '<option value="">No identities found - Try inviting them?</option>';
+			if (counterpartySelect) counterpartySelect.innerHTML = '<option value="invite-new-counterparty">+ Invite a new email...</option>';
 			if (mediatorSelect) mediatorSelect.innerHTML = '<option value="">No mediators found</option>';
 		}
 	}
@@ -184,6 +338,7 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 	form?.addEventListener('submit', async (e) => {
 		e.preventDefault();
 		const formData = new FormData(form);
+		const session = getSession();
 		
 		const labels = formData.getAll('m-label');
 		const amounts = formData.getAll('m-amount');
@@ -209,8 +364,19 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 		else if (schemaUrl?.includes('leasing')) contractType = 'RealEstate';
 		else if (schemaUrl?.includes('supply-chain')) contractType = 'ImportExport';
 
+		const depositors = [session?.identity.email, ...roster.filter(item => item.role === 'Depositor').map(item => item.email)].filter(Boolean);
+		const beneficiaries = roster.filter(item => item.role === 'Beneficiary').map(item => item.email);
+
+		const depThreshold = parseInt(formData.get('depositorThreshold')?.toString() || '1', 10);
+		const benThreshold = parseInt(formData.get('beneficiaryThreshold')?.toString() || '1', 10);
+
+		if (beneficiaries.length === 0) {
+			alert('At least one beneficiary is required in the Roster.');
+			return;
+		}
+
 		const req = {
-			beneficiaryEmail: formData.get('counterparty'),
+			beneficiaryEmail: beneficiaries[0],
 			mediator: formData.get('mediator'),
 			contractType: contractType,
 			amount: totalAmount,
@@ -220,7 +386,13 @@ const defaultPayload = JSON.stringify({ description: "Standard escrow protocol" 
 				conditionDescription: milestones.map(m => `${m.label}: ${m.amount}`).join(', '),
 				expiryDate: new Date(Date.now() + 86400000 * 30).toISOString()
 			},
-			metadata: payload
+			metadata: {
+				...payload,
+				depositors: depositors,
+				depositorThreshold: depThreshold,
+				beneficiaries: beneficiaries,
+				beneficiaryThreshold: benThreshold
+			}
 		};
 
 		try {

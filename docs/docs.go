@@ -504,6 +504,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/drafts/{draftID}/withdraw": {
+            "post": {
+                "description": "Unilaterally withdraw a promoted on-chain contract proposal, resetting the local draft status back to DRAFT and clearing all approvals.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drafts"
+                ],
+                "summary": "Withdraw and reset contract draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID (Root ID)",
+                        "name": "draftID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.DraftEscrow"
+                        }
+                    },
+                    "400": {
+                        "description": "failed to withdraw",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "draft not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/escrows": {
             "get": {
                 "description": "Get a list of active Escrow contracts from the Canton ledger associated with the user's role/party",
@@ -1537,8 +1584,18 @@ const docTemplate = `{
                 "assetType": {
                     "type": "string"
                 },
+                "beneficiaries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "beneficiary": {
+                    "description": "Kept for backward compatibility",
                     "type": "string"
+                },
+                "beneficiaryThreshold": {
+                    "type": "integer"
                 },
                 "conditionDescription": {
                     "type": "string"
@@ -1548,6 +1605,15 @@ const docTemplate = `{
                 },
                 "currency": {
                     "type": "string"
+                },
+                "depositorThreshold": {
+                    "type": "integer"
+                },
+                "depositors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "disputeWindowDays": {
                     "type": "integer"
@@ -1688,20 +1754,52 @@ const docTemplate = `{
                 "asset": {
                     "$ref": "#/definitions/ledger.Asset"
                 },
+                "beneficiaries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "beneficiary": {
+                    "description": "Kept for backward compatibility",
                     "type": "string"
+                },
+                "beneficiaryAcceptances": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "beneficiaryAccepted": {
                     "type": "boolean"
+                },
+                "beneficiaryThreshold": {
+                    "type": "integer"
                 },
                 "currentMilestoneIndex": {
                     "type": "integer"
                 },
                 "depositor": {
+                    "description": "Kept for backward compatibility",
                     "type": "string"
+                },
+                "depositorAcceptances": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "depositorAccepted": {
                     "type": "boolean"
+                },
+                "depositorThreshold": {
+                    "type": "integer"
+                },
+                "depositors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string"
@@ -1765,11 +1863,43 @@ const docTemplate = `{
                 "asset": {
                     "$ref": "#/definitions/ledger.Asset"
                 },
+                "beneficiaries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "beneficiary": {
+                    "description": "Kept for backward compatibility",
                     "type": "string"
                 },
+                "beneficiaryAcceptances": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "beneficiaryThreshold": {
+                    "type": "integer"
+                },
                 "depositor": {
+                    "description": "Kept for backward compatibility",
                     "type": "string"
+                },
+                "depositorAcceptances": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "depositorThreshold": {
+                    "type": "integer"
+                },
+                "depositors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string"

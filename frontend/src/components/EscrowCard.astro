@@ -119,6 +119,45 @@ switch (state) {
 			</div>
 		</div>
 
+		<!-- Multi-Party Stakeholders & Thresholds -->
+		{escrow.depositors && escrow.depositors.length > 0 && (
+			<div class="mb-4 text-xs">
+				<div class="flex justify-between items-center mb-1.5">
+					<span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Depositors ({escrow.depositorAcceptances?.length || 0}/{escrow.depositorThreshold || 1} signed)</span>
+				</div>
+				<div class="flex flex-wrap gap-1.5">
+					{escrow.depositors.map(d => {
+						const name = d.split('@')[0] || d;
+						const isSigned = escrow.depositorAcceptances?.includes(d);
+						return (
+							<span class={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${isSigned ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+								{name}
+							</span>
+						);
+					})}
+				</div>
+			</div>
+		)}
+
+		{escrow.beneficiaries && escrow.beneficiaries.length > 0 && (
+			<div class="mb-4 text-xs">
+				<div class="flex justify-between items-center mb-1.5">
+					<span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Beneficiaries ({escrow.beneficiaryAcceptances?.length || 0}/{escrow.beneficiaryThreshold || 1} signed)</span>
+				</div>
+				<div class="flex flex-wrap gap-1.5">
+					{escrow.beneficiaries.map(b => {
+						const name = b.split('@')[0] || b;
+						const isSigned = escrow.beneficiaryAcceptances?.includes(b);
+						return (
+							<span class={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${isSigned ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+								{name}
+							</span>
+						);
+					})}
+				</div>
+			</div>
+		)}
+
 		<!-- Visual Stepper Timeline -->
 		<div class="my-6 px-1">
 			<div class="flex items-center justify-between relative">

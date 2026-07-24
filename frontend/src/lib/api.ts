@@ -98,6 +98,12 @@ export interface EscrowResponse {
     id: string;
     depositor: string;
     beneficiary: string;
+    depositors?: string[];
+    depositorThreshold?: number;
+    beneficiaries?: string[];
+    beneficiaryThreshold?: number;
+    depositorAcceptances?: string[];
+    beneficiaryAcceptances?: string[];
     issuer: string;
     mediator: string;
     amount: number;

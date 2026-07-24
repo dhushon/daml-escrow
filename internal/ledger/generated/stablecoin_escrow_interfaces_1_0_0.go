@@ -558,16 +558,18 @@ func (t *Unlock) UnmarshalJSON(data []byte) error {
 
 // View is a Record type
 type View struct {
-	Issuer       types.PARTY `json:"issuer"`
-	Initiator    types.PARTY `json:"initiator"`
-	Depositor    types.PARTY `json:"depositor"`
-	Beneficiary  types.PARTY `json:"beneficiary"`
-	Mediator     types.PARTY `json:"mediator"`
-	ContractType types.TEXT  `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	State        EscrowState `json:"state"`
-	Metadata     types.TEXT  `json:"metadata"`
+	Issuer               types.PARTY   `json:"issuer"`
+	Initiator            types.PARTY   `json:"initiator"`
+	Depositors           []types.PARTY `json:"depositors"`
+	DepositorThreshold   types.INT64   `json:"depositorThreshold"`
+	Beneficiaries        []types.PARTY `json:"beneficiaries"`
+	BeneficiaryThreshold types.INT64   `json:"beneficiaryThreshold"`
+	Mediator             types.PARTY   `json:"mediator"`
+	ContractType         types.TEXT    `json:"contractType"`
+	Asset                Asset         `json:"asset"`
+	Terms                EscrowTerms   `json:"terms"`
+	State                EscrowState   `json:"state"`
+	Metadata             types.TEXT    `json:"metadata"`
 }
 
 // ToMap converts View to a map for DAML arguments
@@ -578,9 +580,25 @@ func (t View) ToMap() map[string]any {
 
 	m["initiator"] = t.Initiator.ToMap()
 
-	m["depositor"] = t.Depositor.ToMap()
+	m["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
-	m["beneficiary"] = t.Beneficiary.ToMap()
+	m["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	m["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	m["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	m["mediator"] = t.Mediator.ToMap()
 
