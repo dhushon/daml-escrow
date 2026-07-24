@@ -25,7 +25,7 @@ standalone-up: ## Authoritatively launch local baseline (Ledger: 7575, API: 8081
 		STORAGE_BUCKET=escrow-documents \
 		go run ./cmd/escrow-api serve --notls --bypass --config config/config-standalone.yaml --port 8081 > log/standalone-api.log 2>&1 &
 	@cd frontend && env PUBLIC_API_URL=http://localhost:8081 npm run dev -- --port 4321 > ../log/standalone-frontend.log 2>&1 &
-	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321"
+	@echo "SUCCESS: Standalone Baseline LIVE on http://localhost:4321 (with Mock Fiat Payment Router active on http://localhost:8081)"
 
 .PHONY: standalone-down
 standalone-down: ## Purge all local standalone processes and containers
