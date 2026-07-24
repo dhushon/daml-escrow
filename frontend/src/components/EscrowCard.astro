@@ -16,6 +16,7 @@ const statusColors: Record<string, string> = {
 	DISPUTED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800',
 	PROPOSED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800',
 	SETTLED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
+	FIAT_PENDING: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800',
 };
 
 // Normalize data from different templates
@@ -66,6 +67,7 @@ switch (state) {
 		break;
 	case 'PROPOSED':
 	case 'SETTLED':
+	case 'FIAT_PENDING':
 	case 'DISBURSING':
 		currentStepIndex = 3;
 		break;
@@ -100,6 +102,7 @@ switch (state) {
 					{state === 'PROPOSED' && "Settlement proposal offered. Requires bilateral signature."}
 					{state === 'DISPUTED' && "Dispute raised. A mediator is investigating details."}
 					{state === 'SETTLED' && "Settlement reached and approved. Awaiting final disbursement."}
+					{state === 'FIAT_PENDING' && "Disbursement initiated off-ledger on fiat network. Awaiting transfer settlement."}
 				</span>
 			</div>
 		</div>

@@ -1419,6 +1419,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/webhooks/fiat-settlement": {
+            "post": {
+                "description": "External webhook receiver for payments orchestration to confirm transfer settlement.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Fiat settlement confirmation webhook callback",
+                "parameters": [
+                    {
+                        "description": "Fiat Settlement Webhook Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.FiatSettlementWebhookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "settlement rejected",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/webhooks/milestone": {
             "post": {
                 "description": "External webhook receiver for oracle providers to sign off milestone target conditions",
@@ -1534,6 +1574,24 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.FiatSettlementWebhookRequest": {
+            "type": "object",
+            "properties": {
+                "escrowId": {
+                    "type": "string"
+                },
+                "paymentRef": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "COMPLETED, FAILED",
                     "type": "string"
                 }
             }

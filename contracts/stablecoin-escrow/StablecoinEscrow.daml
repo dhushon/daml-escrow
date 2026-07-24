@@ -543,6 +543,84 @@ template DisbursementOrder
 
         return ()
 
+    choice InitiateFiatSettlement : ContractId FiatPendingSettlement
+      with
+        paymentRef : Text
+      controller issuer
+      do
+        assertMsg "Holding missing" (asset.holdingCid /= None)
+        let 
+          hcid : ContractId CIP56.Holding = fromSome asset.holdingCid
+          lcid : ContractId CIP56.Lockable = coerceContractId hcid
+        
+        -- 1. Authoritative Unlock & Transfer to Bank (Redemption)
+        hcid_unlocked <- exercise lcid CIP56.Unlock with actor = issuer
+        let tcid : ContractId CIP56.Transferable = coerceContractId hcid_unlocked
+        _ <- exercise tcid CIP56.Transfer with newOwner = issuer
+
+        create FiatPendingSettlement with
+          issuer = issuer
+          initiator = initiator
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
+          mediator = mediator
+          contractType = contractType
+          asset = asset with holdingCid = None
+          terms = terms
+          metadata = metadata
+          settlement = settlement
+          paymentRef = paymentRef
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
+
+-- ---------------------------------------------------------------------------
+-- FIAT_PENDING State (FiatPendingSettlement)
+-- ---------------------------------------------------------------------------
+template FiatPendingSettlement
+  with
+    issuer               : Party
+    initiator            : Party
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    settlement           : SettlementTerms
+    paymentRef           : Text
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
+  where
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances) ++ [mediator]
+    observer  depositors ++ beneficiaries
+
+    interface instance Escrow for FiatPendingSettlement where
+      view = View with
+        issuer = issuer
+        initiator = initiator
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
+        mediator = mediator
+        contractType = contractType
+        asset = asset
+        terms = terms
+        state = FIAT_PENDING
+        metadata = metadata
+      
+      activateEscrow = do error "Already active / pending fiat settlement."
+
+    choice ConfirmFiatSettlement : ()
+      controller issuer
+      do
+        return ()
+
 -- ---------------------------------------------------------------------------
 -- ONBOARDING State (EscrowInvitation)
 -- ---------------------------------------------------------------------------

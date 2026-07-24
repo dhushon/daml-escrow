@@ -1329,6 +1329,37 @@ func (h *Handler) OracleMilestoneTrigger(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
+// FiatSettlementWebhook godoc
+// @Summary      Fiat settlement confirmation webhook callback
+// @Description  External webhook receiver for payments orchestration to confirm transfer settlement.
+// @Tags         system
+// @Accept       json
+// @Param        request  body  FiatSettlementWebhookRequest  true  "Fiat Settlement Webhook Request"
+// @Success      200      "OK"
+// @Failure      400      {string}  string  "invalid request body"
+// @Failure      403      {string}  string  "settlement rejected"
+// @Router       /webhooks/fiat-settlement [post]
+func (h *Handler) FiatSettlementWebhook(w http.ResponseWriter, r *http.Request) {
+	var body FiatSettlementWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.escrowService.ConfirmFiatSettlement(r.Context(), body.EscrowID, body.PaymentRef, body.Status, body.Signature); err != nil {
+		h.logger.Error("fiat settlement webhook confirmation failed", zap.Error(err))
+		http.Error(w, "settlement confirmation rejected", http.StatusForbidden)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // GetMetrics godoc
 // @Summary      Get system performance metrics
 // @Description  Retrieve real-time metrics including total volume in escrow, active counts, API latency, and CPU/Memory usage

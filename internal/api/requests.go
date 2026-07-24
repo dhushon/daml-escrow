@@ -311,4 +311,28 @@ func (r *SaveDraftRequest) Validate() error {
 	return nil
 }
 
+// FiatSettlementWebhookRequest is the API DTO for fiat settlement confirmations.
+type FiatSettlementWebhookRequest struct {
+	EscrowID   string `json:"escrowId"`
+	PaymentRef string `json:"paymentRef"`
+	Status     string `json:"status"` // COMPLETED, FAILED
+	Signature  string `json:"signature"`
+}
+
+func (r *FiatSettlementWebhookRequest) Validate() error {
+	if strings.TrimSpace(r.EscrowID) == "" {
+		return errors.New("escrowId is required")
+	}
+	if strings.TrimSpace(r.PaymentRef) == "" {
+		return errors.New("paymentRef is required")
+	}
+	if strings.TrimSpace(r.Status) == "" {
+		return errors.New("status is required")
+	}
+	if strings.TrimSpace(r.Signature) == "" {
+		return errors.New("signature is required")
+	}
+	return nil
+}
+
 

@@ -17,6 +17,7 @@ data EscrowState
   | SETTLED 
   | EXPIRED 
   | CANCELLED
+  | FIAT_PENDING
     deriving (Eq, Show)
 
 -- Directive 02

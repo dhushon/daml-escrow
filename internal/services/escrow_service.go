@@ -264,3 +264,18 @@ func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, us
 
 	return proposal.ID, nil
 }
+
+func (s *EscrowService) ConfirmFiatSettlement(ctx context.Context, escrowID string, paymentRef string, status string, signature string) error {
+	s.logger.Info("confirming fiat settlement webhook call", zap.String("id", escrowID), zap.String("ref", paymentRef), zap.String("status", status))
+	
+	if status == "FAILED" {
+		return fmt.Errorf("fiat settlement failed for reference: %s", paymentRef)
+	}
+
+	escrow, err := s.ledger.GetEscrow(ctx, escrowID, "CentralBank")
+	if err != nil {
+		return fmt.Errorf("failed to look up escrow for confirmation: %w", err)
+	}
+
+	return s.ledger.ConfirmFiatSettlement(ctx, escrowID, []string{escrow.Issuer})
+}

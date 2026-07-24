@@ -23,7 +23,7 @@ var (
 
 const (
 	PackageName = "stablecoin-escrow"
-	PackageID   = "b1cde2ef779d76c2683a2db95576bd4721a5e731af8da0c2b21b91e3c04f3907"
+	PackageID   = "ce6e6ab313d04c353a7ad315a8ffe1f189a2fe32f058ea6befc872969ff80cc2"
 	SDKVersion  = "3.4.11"
 )
 
@@ -463,6 +463,26 @@ func (t *ConfirmConditions) UnmarshalJSON(data []byte) error {
 	return jsonCodec.Unmarshal(data, t)
 }
 
+// ConfirmFiatSettlement is a Record type
+type ConfirmFiatSettlement struct {
+}
+
+// ToMap converts ConfirmFiatSettlement to a map for DAML arguments
+func (t ConfirmFiatSettlement) ToMap() map[string]any {
+	m := make(map[string]any)
+	return m
+}
+
+func (t ConfirmFiatSettlement) MarshalJSON() ([]byte, error) {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Marshal(t)
+}
+
+func (t *ConfirmFiatSettlement) UnmarshalJSON(data []byte) error {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Unmarshal(data, t)
+}
+
 // Disburse is a Record type
 type Disburse struct {
 }
@@ -728,6 +748,27 @@ func (t DisbursementOrder) DisburseWithPackageID(contractID string, packageID st
 		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "DisbursementOrder"),
 		ContractID: contractID,
 		Choice:     "Disburse",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// InitiateFiatSettlement exercises the InitiateFiatSettlement choice on this DisbursementOrder contract
+// This method uses the package name in the template ID
+func (t DisbursementOrder) InitiateFiatSettlement(contractID string, args InitiateFiatSettlement) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "DisbursementOrder"),
+		ContractID: contractID,
+		Choice:     "InitiateFiatSettlement",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// InitiateFiatSettlementWithPackageID exercises the InitiateFiatSettlement choice using the provided package ID instead of package name
+func (t DisbursementOrder) InitiateFiatSettlementWithPackageID(contractID string, packageID string, args InitiateFiatSettlement) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "DisbursementOrder"),
+		ContractID: contractID,
+		Choice:     "InitiateFiatSettlement",
 		Arguments:  argsToMap(args),
 	}
 }
@@ -2010,6 +2051,329 @@ func (t EscrowProposal) ActivateWithPackageID(contractID string, packageID strin
 
 var _ IEscrow = (*EscrowProposal)(nil)
 
+// FiatPendingSettlement is a Template type
+type FiatPendingSettlement struct {
+	Issuer                 types.PARTY     `json:"issuer"`
+	Initiator              types.PARTY     `json:"initiator"`
+	Depositors             []types.PARTY   `json:"depositors"`
+	DepositorThreshold     types.INT64     `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY   `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64     `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY     `json:"mediator"`
+	ContractType           types.TEXT      `json:"contractType"`
+	Asset                  Asset           `json:"asset"`
+	Terms                  EscrowTerms     `json:"terms"`
+	Metadata               types.TEXT      `json:"metadata"`
+	Settlement             SettlementTerms `json:"settlement"`
+	PaymentRef             types.TEXT      `json:"paymentRef"`
+	DepositorAcceptances   []types.PARTY   `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY   `json:"beneficiaryAcceptances"`
+}
+
+// GetTemplateID returns the template ID for this template using the package name
+func (t FiatPendingSettlement) GetTemplateID() string {
+	return fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "FiatPendingSettlement")
+}
+
+// GetTemplateIDWithPackageID returns the template ID using the provided package ID instead of package name
+func (t FiatPendingSettlement) GetTemplateIDWithPackageID(packageID string) string {
+	return fmt.Sprintf("%s:%s:%s", packageID, "StablecoinEscrow", "FiatPendingSettlement")
+}
+
+// CreateCommand returns a CreateCommand for this template using the package name
+func (t FiatPendingSettlement) CreateCommand() *model.CreateCommand {
+	args := make(map[string]any)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["asset"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Asset).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Asset
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["terms"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Terms).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Terms
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["metadata"] = string(t.Metadata)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["settlement"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Settlement).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Settlement
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["paymentRef"] = string(t.PaymentRef)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	return &model.CreateCommand{
+		TemplateID: t.GetTemplateID(),
+		Arguments:  args,
+	}
+}
+
+// CreateCommandWithPackageID returns a CreateCommand using the provided package ID instead of package name
+func (t FiatPendingSettlement) CreateCommandWithPackageID(packageID string) *model.CreateCommand {
+	args := make(map[string]any)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["issuer"] = t.Issuer.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["initiator"] = t.Initiator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["mediator"] = t.Mediator.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["contractType"] = string(t.ContractType)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["asset"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Asset).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Asset
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["terms"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Terms).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Terms
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["metadata"] = string(t.Metadata)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["settlement"] = func() any {
+		type mapper interface{ toMap() map[string]any }
+		if m, ok := any(t.Settlement).(mapper); ok {
+			return m.toMap()
+		}
+		return t.Settlement
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["paymentRef"] = string(t.PaymentRef)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	return &model.CreateCommand{
+		TemplateID: t.GetTemplateIDWithPackageID(packageID),
+		Arguments:  args,
+	}
+}
+
+func (t FiatPendingSettlement) MarshalJSON() ([]byte, error) {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Marshal(t)
+}
+
+func (t *FiatPendingSettlement) UnmarshalJSON(data []byte) error {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Unmarshal(data, t)
+}
+
+// Choice methods for FiatPendingSettlement
+
+// ConfirmFiatSettlement exercises the ConfirmFiatSettlement choice on this FiatPendingSettlement contract
+// This method uses the package name in the template ID
+func (t FiatPendingSettlement) ConfirmFiatSettlement(contractID string, args ConfirmFiatSettlement) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "FiatPendingSettlement"),
+		ContractID: contractID,
+		Choice:     "ConfirmFiatSettlement",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// ConfirmFiatSettlementWithPackageID exercises the ConfirmFiatSettlement choice using the provided package ID instead of package name
+func (t FiatPendingSettlement) ConfirmFiatSettlementWithPackageID(contractID string, packageID string, args ConfirmFiatSettlement) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "FiatPendingSettlement"),
+		ContractID: contractID,
+		Choice:     "ConfirmFiatSettlement",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// Archive exercises the Archive choice on this FiatPendingSettlement contract
+// This method uses the package name in the template ID
+func (t FiatPendingSettlement) Archive(contractID string) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "FiatPendingSettlement"),
+		ContractID: contractID,
+		Choice:     "Archive",
+		Arguments:  map[string]any{},
+	}
+}
+
+// ArchiveWithPackageID exercises the Archive choice using the provided package ID instead of package name
+func (t FiatPendingSettlement) ArchiveWithPackageID(contractID string, packageID string) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "FiatPendingSettlement"),
+		ContractID: contractID,
+		Choice:     "Archive",
+		Arguments:  map[string]any{},
+	}
+}
+
+// GetStatus exercises the GetStatus choice on this FiatPendingSettlement contract via the IEscrow interface
+// This method uses the package name in the template ID
+func (t FiatPendingSettlement) GetStatus(contractID string, args GetStatus) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "Escrow"),
+		ContractID: contractID,
+		Choice:     "GetStatus",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// GetStatusWithPackageID exercises the GetStatus choice using the provided package ID instead of package name
+func (t FiatPendingSettlement) GetStatusWithPackageID(contractID string, packageID string, args GetStatus) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "Escrow"),
+		ContractID: contractID,
+		Choice:     "GetStatus",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// Activate exercises the Activate choice on this FiatPendingSettlement contract via the IEscrow interface
+// This method uses the package name in the template ID
+func (t FiatPendingSettlement) Activate(contractID string, args Activate) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "Escrow"),
+		ContractID: contractID,
+		Choice:     "Activate",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// ActivateWithPackageID exercises the Activate choice using the provided package ID instead of package name
+func (t FiatPendingSettlement) ActivateWithPackageID(contractID string, packageID string, args Activate) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "Escrow"),
+		ContractID: contractID,
+		Choice:     "Activate",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// Verify interface implementations for FiatPendingSettlement
+
+var _ IEscrow = (*FiatPendingSettlement)(nil)
+
 // FinalizeSettlement is a Record type
 type FinalizeSettlement struct {
 }
@@ -2062,6 +2426,30 @@ func (t Fund) MarshalJSON() ([]byte, error) {
 }
 
 func (t *Fund) UnmarshalJSON(data []byte) error {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Unmarshal(data, t)
+}
+
+// InitiateFiatSettlement is a Record type
+type InitiateFiatSettlement struct {
+	PaymentRef types.TEXT `json:"paymentRef"`
+}
+
+// ToMap converts InitiateFiatSettlement to a map for DAML arguments
+func (t InitiateFiatSettlement) ToMap() map[string]any {
+	m := make(map[string]any)
+
+	m["paymentRef"] = string(t.PaymentRef)
+
+	return m
+}
+
+func (t InitiateFiatSettlement) MarshalJSON() ([]byte, error) {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Marshal(t)
+}
+
+func (t *InitiateFiatSettlement) UnmarshalJSON(data []byte) error {
 	jsonCodec := codec.NewJsonCodec()
 	return jsonCodec.Unmarshal(data, t)
 }

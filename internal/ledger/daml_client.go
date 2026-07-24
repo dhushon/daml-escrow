@@ -167,4 +167,12 @@ func (c *DamlClient) ResolveDispute(ctx context.Context, id string, b, s float64
 func (c *DamlClient) RefundDepositor(ctx context.Context, id string) error   { return nil }
 func (c *DamlClient) RefundByBeneficiary(ctx context.Context, id string) error { return nil }
 
+func (c *DamlClient) InitiateFiatSettlement(ctx context.Context, id string, paymentRef string, actAs []string) (string, error) {
+	return "", fmt.Errorf("gRPC not implemented")
+}
+
+func (c *DamlClient) ConfirmFiatSettlement(ctx context.Context, id string, actAs []string) error {
+	return fmt.Errorf("gRPC not implemented")
+}
+
 var _ Client = (*DamlClient)(nil)

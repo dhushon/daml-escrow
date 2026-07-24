@@ -200,6 +200,14 @@ func (m *MultiLedgerClient) ExpireEscrow(ctx context.Context, id string, userID 
 	return m.getClientForUser(userID).ExpireEscrow(ctx, id, userID)
 }
 
+func (m *MultiLedgerClient) InitiateFiatSettlement(ctx context.Context, id string, paymentRef string, actAs []string) (string, error) {
+	return m.getClientForUser(actAs[0]).InitiateFiatSettlement(ctx, id, paymentRef, actAs)
+}
+
+func (m *MultiLedgerClient) ConfirmFiatSettlement(ctx context.Context, id string, actAs []string) error {
+	return m.getClientForUser(actAs[0]).ConfirmFiatSettlement(ctx, id, actAs)
+}
+
 func (m *MultiLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error) {
 	return m.getClientForUser(userID).ListEscrows(ctx, userID)
 }

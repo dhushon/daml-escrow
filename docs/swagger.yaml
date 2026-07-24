@@ -51,6 +51,18 @@ definitions:
       email:
         type: string
     type: object
+  api.FiatSettlementWebhookRequest:
+    properties:
+      escrowId:
+        type: string
+      paymentRef:
+        type: string
+      signature:
+        type: string
+      status:
+        description: COMPLETED, FAILED
+        type: string
+    type: object
   api.FundEscrowRequest:
     properties:
       custodyRef:
@@ -1557,6 +1569,33 @@ paths:
       summary: List simulated wallets
       tags:
       - wallets
+  /webhooks/fiat-settlement:
+    post:
+      consumes:
+      - application/json
+      description: External webhook receiver for payments orchestration to confirm
+        transfer settlement.
+      parameters:
+      - description: Fiat Settlement Webhook Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.FiatSettlementWebhookRequest'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "403":
+          description: settlement rejected
+          schema:
+            type: string
+      summary: Fiat settlement confirmation webhook callback
+      tags:
+      - system
   /webhooks/milestone:
     post:
       consumes:

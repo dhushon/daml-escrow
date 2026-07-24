@@ -227,6 +227,8 @@ type Client interface {
 	Cancel(ctx context.Context, id string, userID string) error
 	WithdrawProposal(ctx context.Context, id string, userID string) error
 	ExpireEscrow(ctx context.Context, id string, userID string) (string, error)
+	InitiateFiatSettlement(ctx context.Context, id string, paymentRef string, actAs []string) (string, error)
+	ConfirmFiatSettlement(ctx context.Context, id string, actAs []string) error
 
 	// Queries
 	ListEscrows(ctx context.Context, userID string) ([]*EscrowContract, error)

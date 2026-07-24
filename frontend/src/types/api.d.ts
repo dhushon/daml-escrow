@@ -2088,6 +2088,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/fiat-settlement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fiat settlement confirmation webhook callback
+         * @description External webhook receiver for payments orchestration to confirm transfer settlement.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Fiat Settlement Webhook Request */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api.FiatSettlementWebhookRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description invalid request body */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": string;
+                    };
+                };
+                /** @description settlement rejected */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/milestone": {
         parameters: {
             query?: never;
@@ -2179,6 +2239,13 @@ export interface components {
         };
         "api.DiscoverAuthRequest": {
             email?: string;
+        };
+        "api.FiatSettlementWebhookRequest": {
+            escrowId?: string;
+            paymentRef?: string;
+            signature?: string;
+            /** @description COMPLETED, FAILED */
+            status?: string;
         };
         "api.FundEscrowRequest": {
             custodyRef?: string;

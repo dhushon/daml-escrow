@@ -473,6 +473,7 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 						fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "SettlementRecord"),
 						fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "DisbursementOrder"),
 						fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
+						fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "FiatPendingSettlement"),
 					},
 				},
 			},
@@ -522,6 +523,8 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 				state = "PROPOSED"
 			} else if strings.Contains(templateID, "DisbursementOrder") {
 				state = "SETTLED"
+			} else if strings.Contains(templateID, "FiatPendingSettlement") {
+				state = "FIAT_PENDING"
 			} else if strings.Contains(templateID, "EscrowProposal") {
 				state = "DRAFT"
 				if _, ok := args["holdingCid"]; ok {
@@ -1231,4 +1234,65 @@ func (c *JsonLedgerClient) RefundDepositor(ctx context.Context, id string) error
 }
 func (c *JsonLedgerClient) RefundByBeneficiary(ctx context.Context, id string) error {
 	return fmt.Errorf("legacy RefundByBeneficiary removed")
+}
+
+func (c *JsonLedgerClient) InitiateFiatSettlement(ctx context.Context, id string, paymentRef string, actAs []string) (string, error) {
+	actAsParties := make([]string, len(actAs))
+	for i, u := range actAs {
+		actAsParties[i] = c.GetParty(u)
+	}
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("init-fiat-settlement-%d", time.Now().UnixNano()),
+			"actAs":     actAsParties,
+			"userId":    actAs[0],
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "DisbursementOrder"),
+						"contractId":     id,
+						"choice":         "InitiateFiatSettlement",
+						"choiceArgument": map[string]interface{}{
+							"paymentRef": paymentRef,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	resp, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	if err != nil {
+		return "", err
+	}
+	return c.extractNewContractID(resp)
+}
+
+func (c *JsonLedgerClient) ConfirmFiatSettlement(ctx context.Context, id string, actAs []string) error {
+	actAsParties := make([]string, len(actAs))
+	for i, u := range actAs {
+		actAsParties[i] = c.GetParty(u)
+	}
+
+	body := map[string]interface{}{
+		"commands": map[string]interface{}{
+			"commandId": fmt.Sprintf("confirm-fiat-settlement-%d", time.Now().UnixNano()),
+			"actAs":     actAsParties,
+			"userId":    actAs[0],
+			"commands": []interface{}{
+				map[string]interface{}{
+					"ExerciseCommand": map[string]interface{}{
+						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "FiatPendingSettlement"),
+						"contractId":     id,
+						"choice":         "ConfirmFiatSettlement",
+						"choiceArgument": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.doRawRequest(ctx, "POST", "/v2/commands/submit-and-wait-for-transaction", body)
+	return err
 }

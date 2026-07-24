@@ -289,6 +289,7 @@ func runServer() {
 
 		// --- System ---
 		r.Post("/webhooks/milestone", handler.OracleMilestoneTrigger)
+		r.Post("/webhooks/fiat-settlement", handler.FiatSettlementWebhook)
 		r.Get("/metrics", handler.GetMetrics)
 	})
 	server := &http.Server{

@@ -227,6 +227,8 @@ const (
 	EscrowStateEXPIRED EscrowState = "EXPIRED"
 
 	EscrowStateCANCELLED EscrowState = "CANCELLED"
+
+	EscrowStateFIAT_PENDING EscrowState = "FIAT_PENDING"
 )
 
 func (e EscrowState) GetEnumConstructor() string { return string(e) }
