@@ -43,7 +43,7 @@ func TestEndToEndStorageMirroring_Infra(t *testing.T) {
 	
 	mockLedger := new(ledger.MockLedgerClient)
 	// We use the real storage service inside EscrowService to test mirroring
-	escrowSvc := NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, storage)
+	escrowSvc := NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, storage, nil)
 
 	// --- STEP 1: Authoritative Ingest (Bank) ---
 	t.Run("Bank Ingest and Vaulting", func(t *testing.T) {

@@ -20,7 +20,7 @@ func TestEscrowService_Unit(t *testing.T) {
 	signer, _ := crypto.NewLocalSigner()
 	webhookSecret := "test-secret"
 
-	svc := NewEscrowService(logger, mockLedger, mockStablecoin, compliance, webhookSecret, signer, nil)
+	svc := NewEscrowService(logger, mockLedger, mockStablecoin, compliance, webhookSecret, signer, nil, nil)
 
 	t.Run("ProposeEscrow", func(t *testing.T) {
 		req := ledger.CreateEscrowRequest{Depositor: "Depositor", Beneficiary: "Beneficiary"}

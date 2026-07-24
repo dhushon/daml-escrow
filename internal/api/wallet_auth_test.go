@@ -46,7 +46,7 @@ providers:
 	idSvc, err := services.NewIdentityService(tmpFile.Name(), db)
 	require.NoError(err)
 
-	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, nil)
+	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, nil, nil)
 	h := NewHandler(logger, escrowSvc, nil, configSvc, nil, idSvc, nil, nil, nil)
 
 	// Generate a valid Ed25519 keypair for cryptographic signing

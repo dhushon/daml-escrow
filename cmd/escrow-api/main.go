@@ -14,6 +14,7 @@ import (
 	"daml-escrow/internal/config"
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
+	"daml-escrow/internal/railrouter"
 	"daml-escrow/internal/services"
 	"daml-escrow/pkg/logging"
 	"fmt"
@@ -209,8 +210,15 @@ func runServer() {
 	if err != nil {
 		logger.Warn("storage service disabled (missing config)", zap.Error(err))
 	}
+	apiURL := fmt.Sprintf("http://localhost:%d", cfg.Server.Port)
+	if cfg.Server.Port == 0 {
+		apiURL = "http://localhost:8081"
+	}
+	fiatProvider := railrouter.NewMockFiatProvider(apiURL)
+	railRouter := railrouter.NewRouter(ledgerClient, fiatProvider)
+
 	ingestService := services.NewIngestService(logger, aiService, schemaService, identityService, storageService)
-	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner, storageService)
+	escrowService := services.NewEscrowService(logger, ledgerClient, stablecoinProvider, complianceService, cfg.Oracle.WebhookSecret, oracleSigner, storageService, railRouter)
 
 	handler := api.NewHandler(logger, escrowService, metricsService, configService, analyticsService, identityService, schemaService, ingestService, storageService)
 

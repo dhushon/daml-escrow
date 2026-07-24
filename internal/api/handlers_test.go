@@ -28,7 +28,7 @@ func TestHandler_GetHealth(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil, nil)
 	metrics := services.NewMetricsService()
 
 	db, _, _ := sqlmock.New()
@@ -59,7 +59,7 @@ func TestHandler_GetIdentity(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil, nil)
 	
 	configContent := `
 providers:
@@ -146,7 +146,7 @@ func TestHandler_OracleMilestoneTrigger(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil, nil)
 	h := NewHandler(logger, svc, nil, nil, nil, nil, nil, nil, nil)
 
 	t.Run("Valid HMAC Trigger", func(t *testing.T) {
@@ -180,7 +180,7 @@ func TestHandler_WithdrawDraft(t *testing.T) {
 	mockStablecoin := new(ledger.MockStablecoinProvider)
 	compliance := services.NewMockCompliance()
 	signer, _ := crypto.NewLocalSigner()
-	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil)
+	svc := services.NewEscrowService(logger, mockLedger, mockStablecoin, compliance, "secret", signer, nil, nil)
 
 	configContent := "providers:\n  test.com:\n    type: OIDC\n    issuer: https://oidc.test.com\n"
 	tmpFile, _ := os.CreateTemp("", "idp*.yaml")

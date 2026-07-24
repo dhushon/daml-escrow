@@ -28,7 +28,7 @@ func TestPayloadGeneration_DryRun(t *testing.T) {
 
 	// 1. Setup Services & Handler (Mocks)
 	mockLedger := new(ledger.MockLedgerClient)
-	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, nil)
+	escrowSvc := services.NewEscrowService(logger, mockLedger, nil, nil, "secret", nil, nil, nil)
 	
 	// Write a mock yaml config for IdentityService
 	configContent := `

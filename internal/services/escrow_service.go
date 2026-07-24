@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
+	"daml-escrow/internal/railrouter"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ type EscrowService struct {
 	webhookSecret string
 	oracleSigner  crypto.HighAssuranceSigner
 	storage       *StorageService
+	railRouter    *railrouter.Router
 }
 
 func NewEscrowService(
@@ -30,6 +32,7 @@ func NewEscrowService(
 	webhookSecret string,
 	oracleSigner crypto.HighAssuranceSigner,
 	storage *StorageService,
+	railRouter *railrouter.Router,
 ) *EscrowService {
 	return &EscrowService{
 		logger:        logger,
@@ -39,6 +42,7 @@ func NewEscrowService(
 		webhookSecret: webhookSecret,
 		oracleSigner:  oracleSigner,
 		storage:       storage,
+		railRouter:    railRouter,
 	}
 }
 
@@ -64,6 +68,23 @@ func (s *EscrowService) ActivateEscrow(ctx context.Context, id string, userID st
 
 func (s *EscrowService) DisburseEscrow(ctx context.Context, id string, userID string, actAs []string) error {
 	s.logger.Info("disbursing escrow", zap.String("id", id), zap.String("userID", userID))
+
+	escrow, err := s.ledger.GetEscrow(ctx, id, userID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve escrow: %w", err)
+	}
+
+	rail := railrouter.RailStablecoin
+	if escrow.Asset.Currency != "USD" && escrow.Asset.Currency != "EUR" && escrow.Asset.Currency != "GBP" {
+		rail = railrouter.RailFiat
+	} else if strings.Contains(escrow.Metadata, `"rail":"Fiat"`) || strings.Contains(escrow.Metadata, `"rail":"fiat"`) {
+		rail = railrouter.RailFiat
+	}
+
+	if s.railRouter != nil {
+		return s.railRouter.Route(ctx, id, rail, actAs, userID)
+	}
+
 	return s.ledger.Disburse(ctx, id, actAs)
 }
 

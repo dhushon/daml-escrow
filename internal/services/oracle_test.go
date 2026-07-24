@@ -21,7 +21,7 @@ func TestOracleMilestoneTrigger(t *testing.T) {
 	t.Run("Valid Signature", func(t *testing.T) {
 		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
-		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil, nil)
 
 		escrowID := "escrow-123"
 		milestoneIndex := 0
@@ -46,7 +46,7 @@ func TestOracleMilestoneTrigger(t *testing.T) {
 	t.Run("Invalid Signature", func(t *testing.T) {
 		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
-		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil, nil)
 
 		err := svc.OracleMilestoneTrigger(context.Background(), "escrow-123", 0, "EVENT", "invalid-sig", false)
 		assert.Error(t, err)
@@ -56,7 +56,7 @@ func TestOracleMilestoneTrigger(t *testing.T) {
 	t.Run("Mismatched Milestone Index", func(t *testing.T) {
 		mockLedger := new(ledger.MockLedgerClient)
 		stablecoin := ledger.NewJsonStablecoinProvider(logger, mockLedger)
-		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil)
+		svc := NewEscrowService(logger, mockLedger, stablecoin, compliance, secret, signer, nil, nil)
 
 		escrowID := "escrow-123"
 
