@@ -1,15 +1,15 @@
 -- Test/StablecoinEscrowTest.daml  —  package: stablecoin-escrow-tests 1.0.0
 --  Daml-LF 2.1  (SDK 3.4.x)
-
+ 
 module Test.StablecoinEscrowTest where
-
+ 
 import Daml.Script
 import StablecoinEscrow
 import Escrow.Interface
 import Token.CIP56 qualified as Token
 import DA.Time
 import DA.Date
-
+ 
 -- ---------------------------------------------------------------------------
 -- Mock Holding implementation for tests
 -- ---------------------------------------------------------------------------
@@ -23,26 +23,26 @@ template MockHolding
     beneficiary : Party -- Added as co-signatory to facilitate bilateral transfer in tests
   where
     signatory owner, issuer, beneficiary
-
+ 
     interface instance Token.Holding for MockHolding where
       view = Token.HoldingView with 
         owner
         amount
         base = Token.BaseView with issuer, assetId, metadata = ""
-
+ 
     interface instance Token.Transferable for MockHolding where
       view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
       transfer_internal newOwner = do
         cid <- create this with owner = newOwner
         return (toInterfaceContractId @Token.Holding cid)
-
+ 
     interface instance Token.Lockable for MockHolding where
       view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
       lock_internal locker context = do
         cid <- create LockedHolding with ..
         return (toInterfaceContractId @Token.Holding cid)
       unlock_internal actor = error "Already unlocked"
-
+ 
 template LockedHolding
   with
     owner       : Party
@@ -54,10 +54,10 @@ template LockedHolding
     beneficiary : Party
   where
     signatory owner, issuer, locker, beneficiary
-
+ 
     interface instance Token.Holding for LockedHolding where
       view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
-
+ 
     interface instance Token.Lockable for LockedHolding where
       view = Token.HoldingView with owner, amount, base = Token.BaseView with issuer, assetId, metadata = ""
       lock_internal locker context = error "Already locked"
@@ -65,11 +65,11 @@ template LockedHolding
         assert (actor == locker)
         cid <- create MockHolding with ..
         return (toInterfaceContractId @Token.Holding cid)
-
+ 
 -- ---------------------------------------------------------------------------
 -- Setup
 -- ---------------------------------------------------------------------------
-
+ 
 setup : Script (Party, Party, Party, Party)
 setup = do
   issuer      <- allocateParty "Issuer"
@@ -77,11 +77,11 @@ setup = do
   beneficiary <- allocateParty "Beneficiary"
   mediator    <- allocateParty "Mediator"
   return (issuer, depositor, beneficiary, mediator)
-
+ 
 -- ---------------------------------------------------------------------------
 -- testFullLifecycle: happy path through funding and disbursement
 -- ---------------------------------------------------------------------------
-
+ 
 testFullLifecycle : Script ()
 testFullLifecycle = do
   (issuer, depositor, beneficiary, mediator) <- setup
@@ -89,101 +89,227 @@ testFullLifecycle = do
   -- Create a mock holding (requires depositor, issuer, and beneficiary authorization)
   holdingCid <- submit (actAs [depositor, issuer, beneficiary]) do
     createCmd MockHolding with owner = depositor, amount = 1000.0, issuer, assetId = "USD-123", beneficiary
-
+ 
   let 
     asset = Asset with
       assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
     terms = EscrowTerms with
       conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
       expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = [], minAmount = None, maxAmount = None
-
+ 
   -- 1. Create Proposal (DRAFT)
-  proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, contractType = "Corporate", asset, terms, metadata = "{}"
+  proposalCid <- submit (actAs [issuer, depositor]) do
+    createCmd EscrowProposal with
+      issuer
+      initiator = depositor
+      depositors = [depositor]
+      depositorThreshold = 1
+      beneficiaries = [beneficiary]
+      beneficiaryThreshold = 1
+      mediator
+      contractType = "Corporate"
+      asset
+      terms
+      metadata = "{}"
+      depositorAcceptances = [depositor]
+      beneficiaryAcceptances = []
+ 
+  -- 1.25 Beneficiary Accept
+  proposal2Cid <- submit (actAs [beneficiary]) do
+    exerciseCmd proposalCid AcceptProposal with acceptingParty = beneficiary
 
   -- 1.5 Beneficiary Accepts (DRAFT -> BeneficiaryAcceptedProposal)
   acceptedCid <- submit (actAs [beneficiary]) do
-    exerciseCmd proposalCid BeneficiaryAccept
-
+    exerciseCmd proposal2Cid BeneficiaryAccept with actor = beneficiary
+ 
   -- 2. Fund (BeneficiaryAcceptedProposal -> FUNDED)
   fundedCid <- submit (actAs [depositor]) do
     exerciseCmd acceptedCid Fund with 
       custodyRef = "REF-999"
       holdingCid = toInterfaceContractId @Token.Holding holdingCid
-
+      fundingDepositor = depositor
+ 
   -- 3. Activate (FUNDED -> ACTIVE)
   -- Requires authorization from all signatories of the holding (Depositor, Issuer, Beneficiary).
   activeCid <- submit (actAs [issuer, depositor, beneficiary]) do
     exerciseCmd (toInterfaceContractId @Escrow fundedCid) Activate
-
+ 
   -- 4. Confirm (ACTIVE -> SETTLED)
   settledCid : ContractId DisbursementOrder <- submit (actAs [mediator]) do
     exerciseCmd (fromInterfaceContractId @EscrowContract activeCid) ConfirmConditions
-
+ 
   -- 5. Disburse (SETTLED -> terminal)
   -- Requires authorization from all signatories of the holding (Depositor, Issuer, Beneficiary).
   submit (actAs [issuer, depositor, beneficiary]) do
     exerciseCmd settledCid Disburse
-
+ 
 -- ---------------------------------------------------------------------------
 -- testDisputeLifecycle: raise, propose, ratify, and finalize
 -- ---------------------------------------------------------------------------
-
+ 
 testDisputeLifecycle : Script ()
 testDisputeLifecycle = do
   (issuer, depositor, beneficiary, mediator) <- setup
-
+ 
   -- Create a mock holding
   holdingCid <- submit (actAs [depositor, issuer, beneficiary]) do
     createCmd MockHolding with owner = depositor, amount = 1000.0, issuer, assetId = "USD-123", beneficiary
-
+ 
   let 
     asset = Asset with
       assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
     terms = EscrowTerms with
       conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
       expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = [], minAmount = None, maxAmount = None
-
+ 
   -- 1. Create Proposal
-  proposalCid <- submit (actAs [issuer]) do
-    createCmd EscrowProposal with issuer, initiator = depositor, depositor, beneficiary, mediator, contractType = "Corporate", asset, terms, metadata = "{}"
+  proposalCid <- submit (actAs [issuer, depositor]) do
+    createCmd EscrowProposal with
+      issuer
+      initiator = depositor
+      depositors = [depositor]
+      depositorThreshold = 1
+      beneficiaries = [beneficiary]
+      beneficiaryThreshold = 1
+      mediator
+      contractType = "Corporate"
+      asset
+      terms
+      metadata = "{}"
+      depositorAcceptances = [depositor]
+      beneficiaryAcceptances = []
+ 
+  -- 1.25 Beneficiary Accept
+  proposal2Cid <- submit (actAs [beneficiary]) do
+    exerciseCmd proposalCid AcceptProposal with acceptingParty = beneficiary
 
   -- 1.5 Beneficiary Accept
   acceptedCid <- submit (actAs [beneficiary]) do
-    exerciseCmd proposalCid BeneficiaryAccept
-
+    exerciseCmd proposal2Cid BeneficiaryAccept with actor = beneficiary
+ 
   -- 2. Fund
   fundedCid <- submit (actAs [depositor]) do
     exerciseCmd acceptedCid Fund with 
       custodyRef = "REF-999"
       holdingCid = toInterfaceContractId @Token.Holding holdingCid
-
+      fundingDepositor = depositor
+ 
   -- 3. Activate
   activeCid <- submit (actAs [issuer, depositor, beneficiary]) do
     exerciseCmd (toInterfaceContractId @Escrow fundedCid) Activate
-
+ 
   -- 4. Raise Dispute (ACTIVE -> DISPUTED)
   disputeCid : ContractId DisputeRecord <- submit (actAs [depositor]) do
-    exerciseCmd (fromInterfaceContractId @EscrowContract activeCid) RaiseDispute
-
+    exerciseCmd (fromInterfaceContractId @EscrowContract activeCid) RaiseDispute with actor = depositor
+ 
   -- 5. Propose Settlement (DISPUTED -> PROPOSED)
   proposedCid : ContractId SettlementRecord <- submit (actAs [mediator]) do
     exerciseCmd disputeCid ProposeSettlement with
       proposal = SettlementTerms with
         settlementType = "PartialSplit", depositorReturn = 400.0, beneficiaryPayment = 600.0, mediatorFee = 0.0
-
+ 
   -- 6. Ratify (Depositor)
   proposed2Cid : ContractId SettlementRecord <- submit (actAs [depositor]) do
     exerciseCmd proposedCid RatifySettlement with actor = depositor
-
+ 
   -- 7. Ratify (Beneficiary)
   proposed3Cid : ContractId SettlementRecord <- submit (actAs [beneficiary]) do
     exerciseCmd proposed2Cid RatifySettlement with actor = beneficiary
-
+ 
   -- 8. Finalize (PROPOSED -> SETTLED)
   settledCid : ContractId DisbursementOrder <- submit (actAs [mediator]) do
     exerciseCmd proposed3Cid FinalizeSettlement
-
+ 
   -- 9. Disburse
   submit (actAs [issuer, depositor, beneficiary]) do
+    exerciseCmd settledCid Disburse
+
+-- ---------------------------------------------------------------------------
+-- testMultiPartyConsent: 2 of 3 depositors and 1 of 1 beneficiary consent
+-- ---------------------------------------------------------------------------
+testMultiPartyConsent : Script ()
+testMultiPartyConsent = do
+  (issuer, depositor, beneficiary, mediator) <- setup
+  dep2 <- allocateParty "Depositor2"
+  dep3 <- allocateParty "Depositor3"
+ 
+  -- Create a mock holding
+  holdingCid <- submit (actAs [depositor, issuer, beneficiary]) do
+    createCmd MockHolding with owner = depositor, amount = 1000.0, issuer, assetId = "USD-123", beneficiary
+ 
+  let 
+    asset = Asset with
+      assetType = "stablecoin", assetId = "USD-123", amount = 1000.0, currency = "USD", custodyRef = None, holdingCid = None
+    terms = EscrowTerms with
+      conditionDescription = "Deliver software", conditionType = "Binary", evidenceRequired = "MediatorAttestation"
+      expiryDate = time (date 2026 Jun 01) 0 0 0, gracePeriodDays = 7, disputeWindowDays = 14, partialSchedule = [], minAmount = None, maxAmount = None
+ 
+  -- 1. Create Proposal (2 of 3 threshold)
+  proposalCid <- submit (actAs [issuer, depositor]) do
+    createCmd EscrowProposal with
+      issuer
+      initiator = depositor
+      depositors = [depositor, dep2, dep3]
+      depositorThreshold = 2
+      beneficiaries = [beneficiary]
+      beneficiaryThreshold = 1
+      mediator
+      contractType = "Corporate"
+      asset
+      terms
+      metadata = "{}"
+      depositorAcceptances = [depositor]
+      beneficiaryAcceptances = []
+ 
+  -- 2. Second depositor accepts
+  proposal2Cid <- submit (actAs [dep2]) do
+    exerciseCmd proposalCid AcceptProposal with acceptingParty = dep2
+ 
+  -- 3. Beneficiary accepts
+  proposal3Cid <- submit (actAs [beneficiary]) do
+    exerciseCmd proposal2Cid AcceptProposal with acceptingParty = beneficiary
+ 
+  -- 4. BeneficiaryAccept transition
+  acceptedCid <- submit (actAs [beneficiary]) do
+    exerciseCmd proposal3Cid BeneficiaryAccept with actor = beneficiary
+ 
+  -- 5. Fund
+  fundedCid <- submit (actAs [depositor]) do
+    exerciseCmd acceptedCid Fund with 
+      custodyRef = "REF-999"
+      holdingCid = toInterfaceContractId @Token.Holding holdingCid
+      fundingDepositor = depositor
+ 
+  -- 6. Activate
+  activeCid <- submit (actAs [issuer, depositor, dep2, beneficiary]) do
+    exerciseCmd (toInterfaceContractId @Escrow fundedCid) Activate
+ 
+  -- 7. Raise Dispute by dep2
+  disputeCid : ContractId DisputeRecord <- submit (actAs [dep2]) do
+    exerciseCmd (fromInterfaceContractId @EscrowContract activeCid) RaiseDispute with actor = dep2
+ 
+  -- 8. Propose Settlement
+  proposedCid : ContractId SettlementRecord <- submit (actAs [mediator]) do
+    exerciseCmd disputeCid ProposeSettlement with
+      proposal = SettlementTerms with
+        settlementType = "PartialSplit", depositorReturn = 400.0, beneficiaryPayment = 600.0, mediatorFee = 0.0
+ 
+  -- 9. Ratify (Depositor)
+  proposed2Cid : ContractId SettlementRecord <- submit (actAs [depositor]) do
+    exerciseCmd proposedCid RatifySettlement with actor = depositor
+ 
+  -- 10. Ratify (Dep2)
+  proposed3Cid : ContractId SettlementRecord <- submit (actAs [dep2]) do
+    exerciseCmd proposed2Cid RatifySettlement with actor = dep2
+ 
+  -- 11. Ratify (Beneficiary)
+  proposed4Cid : ContractId SettlementRecord <- submit (actAs [beneficiary]) do
+    exerciseCmd proposed3Cid RatifySettlement with actor = beneficiary
+ 
+  -- 12. Finalize
+  settledCid : ContractId DisbursementOrder <- submit (actAs [mediator]) do
+    exerciseCmd proposed4Cid FinalizeSettlement
+ 
+  -- 13. Disburse
+  submit (actAs [issuer, depositor, dep2, beneficiary]) do
     exerciseCmd settledCid Disburse

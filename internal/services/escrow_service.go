@@ -220,16 +220,37 @@ func (s *EscrowService) PromoteDraft(ctx context.Context, draft *DraftEscrow, us
 
 	// 2. Beneficiary is registered, create a Proposal
 	req := ledger.CreateEscrowRequest{
-		Depositor:    draft.DepositorID,
-		Beneficiary:  draft.BeneficiaryID,
-		Mediator:     draft.MediatorID,
-		ContractType: draft.ContractType,
+		Depositor:            draft.DepositorID,
+		Beneficiary:          draft.BeneficiaryID,
+		Depositors:           []string{draft.DepositorID},
+		DepositorThreshold:   1,
+		Beneficiaries:        []string{draft.BeneficiaryID},
+		BeneficiaryThreshold: 1,
+		Mediator:             draft.MediatorID,
+		ContractType:         draft.ContractType,
 		Asset: ledger.Asset{
 			Amount:   draft.Amount,
 			Currency: draft.Currency,
 		},
 		Terms:    terms,
 		Metadata: string(draft.Metadata),
+	}
+
+	var meta struct {
+		Depositors           []string `json:"depositors"`
+		DepositorThreshold   int      `json:"depositorThreshold"`
+		Beneficiaries        []string `json:"beneficiaries"`
+		BeneficiaryThreshold int      `json:"beneficiaryThreshold"`
+	}
+	if err := json.Unmarshal(draft.Metadata, &meta); err == nil {
+		if len(meta.Depositors) > 0 {
+			req.Depositors = meta.Depositors
+			req.DepositorThreshold = meta.DepositorThreshold
+		}
+		if len(meta.Beneficiaries) > 0 {
+			req.Beneficiaries = meta.Beneficiaries
+			req.BeneficiaryThreshold = meta.BeneficiaryThreshold
+		}
 	}
 
 	if req.Mediator == "" {

@@ -23,7 +23,7 @@ var (
 
 const (
 	PackageName = "stablecoin-escrow"
-	PackageID   = "e40073ba574f8a8532388dae368fcd1458dd7a7bc5a2384ddbed9f097879f50b"
+	PackageID   = "b1cde2ef779d76c2683a2db95576bd4721a5e731af8da0c2b21b91e3c04f3907"
 	SDKVersion  = "3.4.11"
 )
 
@@ -51,13 +51,41 @@ func argsToMap(args any) map[string]any {
 	return map[string]any{"args": args}
 }
 
+// AcceptProposal is a Record type
+type AcceptProposal struct {
+	AcceptingParty types.PARTY `json:"acceptingParty"`
+}
+
+// ToMap converts AcceptProposal to a map for DAML arguments
+func (t AcceptProposal) ToMap() map[string]any {
+	m := make(map[string]any)
+
+	m["acceptingParty"] = t.AcceptingParty.ToMap()
+
+	return m
+}
+
+func (t AcceptProposal) MarshalJSON() ([]byte, error) {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Marshal(t)
+}
+
+func (t *AcceptProposal) UnmarshalJSON(data []byte) error {
+	jsonCodec := codec.NewJsonCodec()
+	return jsonCodec.Unmarshal(data, t)
+}
+
 // BeneficiaryAccept is a Record type
 type BeneficiaryAccept struct {
+	Actor types.PARTY `json:"actor"`
 }
 
 // ToMap converts BeneficiaryAccept to a map for DAML arguments
 func (t BeneficiaryAccept) ToMap() map[string]any {
 	m := make(map[string]any)
+
+	m["actor"] = t.Actor.ToMap()
+
 	return m
 }
 
@@ -73,15 +101,19 @@ func (t *BeneficiaryAccept) UnmarshalJSON(data []byte) error {
 
 // BeneficiaryAcceptedProposal is a Template type
 type BeneficiaryAcceptedProposal struct {
-	Issuer       types.PARTY `json:"issuer"`
-	Initiator    types.PARTY `json:"initiator"`
-	Depositor    types.PARTY `json:"depositor"`
-	Beneficiary  types.PARTY `json:"beneficiary"`
-	Mediator     types.PARTY `json:"mediator"`
-	ContractType types.TEXT  `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	Metadata     types.TEXT  `json:"metadata"`
+	Issuer                 types.PARTY   `json:"issuer"`
+	Initiator              types.PARTY   `json:"initiator"`
+	Depositors             []types.PARTY `json:"depositors"`
+	DepositorThreshold     types.INT64   `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64   `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY   `json:"mediator"`
+	ContractType           types.TEXT    `json:"contractType"`
+	Asset                  Asset         `json:"asset"`
+	Terms                  EscrowTerms   `json:"terms"`
+	Metadata               types.TEXT    `json:"metadata"`
+	DepositorAcceptances   []types.PARTY `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY `json:"beneficiaryAcceptances"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -105,10 +137,28 @@ func (t BeneficiaryAcceptedProposal) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -136,6 +186,24 @@ func (t BeneficiaryAcceptedProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["metadata"] = string(t.Metadata)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateID(),
@@ -154,10 +222,28 @@ func (t BeneficiaryAcceptedProposal) CreateCommandWithPackageID(packageID string
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -185,6 +271,24 @@ func (t BeneficiaryAcceptedProposal) CreateCommandWithPackageID(packageID string
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["metadata"] = string(t.Metadata)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateIDWithPackageID(packageID),
@@ -381,16 +485,20 @@ func (t *Disburse) UnmarshalJSON(data []byte) error {
 
 // DisbursementOrder is a Template type
 type DisbursementOrder struct {
-	Issuer       types.PARTY     `json:"issuer"`
-	Initiator    types.PARTY     `json:"initiator"`
-	Depositor    types.PARTY     `json:"depositor"`
-	Beneficiary  types.PARTY     `json:"beneficiary"`
-	Mediator     types.PARTY     `json:"mediator"`
-	ContractType types.TEXT      `json:"contractType"`
-	Asset        Asset           `json:"asset"`
-	Terms        EscrowTerms     `json:"terms"`
-	Metadata     types.TEXT      `json:"metadata"`
-	Settlement   SettlementTerms `json:"settlement"`
+	Issuer                 types.PARTY     `json:"issuer"`
+	Initiator              types.PARTY     `json:"initiator"`
+	Depositors             []types.PARTY   `json:"depositors"`
+	DepositorThreshold     types.INT64     `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY   `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64     `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY     `json:"mediator"`
+	ContractType           types.TEXT      `json:"contractType"`
+	Asset                  Asset           `json:"asset"`
+	Terms                  EscrowTerms     `json:"terms"`
+	Metadata               types.TEXT      `json:"metadata"`
+	Settlement             SettlementTerms `json:"settlement"`
+	DepositorAcceptances   []types.PARTY   `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY   `json:"beneficiaryAcceptances"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -414,10 +522,28 @@ func (t DisbursementOrder) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -453,6 +579,24 @@ func (t DisbursementOrder) CreateCommand() *model.CreateCommand {
 			return m.toMap()
 		}
 		return t.Settlement
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
 	}()
 
 	return &model.CreateCommand{
@@ -472,10 +616,28 @@ func (t DisbursementOrder) CreateCommandWithPackageID(packageID string) *model.C
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -511,6 +673,24 @@ func (t DisbursementOrder) CreateCommandWithPackageID(packageID string) *model.C
 			return m.toMap()
 		}
 		return t.Settlement
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
 	}()
 
 	return &model.CreateCommand{
@@ -621,16 +801,20 @@ var _ IEscrow = (*DisbursementOrder)(nil)
 
 // DisputeRecord is a Template type
 type DisputeRecord struct {
-	Issuer       types.PARTY `json:"issuer"`
-	Initiator    types.PARTY `json:"initiator"`
-	Depositor    types.PARTY `json:"depositor"`
-	Beneficiary  types.PARTY `json:"beneficiary"`
-	Mediator     types.PARTY `json:"mediator"`
-	ContractType types.TEXT  `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	Metadata     types.TEXT  `json:"metadata"`
-	RaisingParty types.PARTY `json:"raisingParty"`
+	Issuer                 types.PARTY   `json:"issuer"`
+	Initiator              types.PARTY   `json:"initiator"`
+	Depositors             []types.PARTY `json:"depositors"`
+	DepositorThreshold     types.INT64   `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64   `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY   `json:"mediator"`
+	ContractType           types.TEXT    `json:"contractType"`
+	Asset                  Asset         `json:"asset"`
+	Terms                  EscrowTerms   `json:"terms"`
+	Metadata               types.TEXT    `json:"metadata"`
+	RaisingParty           types.PARTY   `json:"raisingParty"`
+	DepositorAcceptances   []types.PARTY `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY `json:"beneficiaryAcceptances"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -654,10 +838,28 @@ func (t DisputeRecord) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -688,6 +890,24 @@ func (t DisputeRecord) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["raisingParty"] = t.RaisingParty.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateID(),
@@ -706,10 +926,28 @@ func (t DisputeRecord) CreateCommandWithPackageID(packageID string) *model.Creat
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -740,6 +978,24 @@ func (t DisputeRecord) CreateCommandWithPackageID(packageID string) *model.Creat
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["raisingParty"] = t.RaisingParty.ToMap()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateIDWithPackageID(packageID),
@@ -849,16 +1105,20 @@ var _ IEscrow = (*DisputeRecord)(nil)
 
 // EscrowContract is a Template type
 type EscrowContract struct {
-	Issuer       types.PARTY `json:"issuer"`
-	Initiator    types.PARTY `json:"initiator"`
-	Depositor    types.PARTY `json:"depositor"`
-	Beneficiary  types.PARTY `json:"beneficiary"`
-	Mediator     types.PARTY `json:"mediator"`
-	ContractType types.TEXT  `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	Metadata     types.TEXT  `json:"metadata"`
-	State        EscrowState `json:"state"`
+	Issuer                 types.PARTY   `json:"issuer"`
+	Initiator              types.PARTY   `json:"initiator"`
+	Depositors             []types.PARTY `json:"depositors"`
+	DepositorThreshold     types.INT64   `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64   `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY   `json:"mediator"`
+	ContractType           types.TEXT    `json:"contractType"`
+	Asset                  Asset         `json:"asset"`
+	Terms                  EscrowTerms   `json:"terms"`
+	Metadata               types.TEXT    `json:"metadata"`
+	State                  EscrowState   `json:"state"`
+	DepositorAcceptances   []types.PARTY `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY `json:"beneficiaryAcceptances"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -882,10 +1142,28 @@ func (t EscrowContract) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -921,6 +1199,24 @@ func (t EscrowContract) CreateCommand() *model.CreateCommand {
 			return m.toMap()
 		}
 		return t.State
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
 	}()
 
 	return &model.CreateCommand{
@@ -940,10 +1236,28 @@ func (t EscrowContract) CreateCommandWithPackageID(packageID string) *model.Crea
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -979,6 +1293,24 @@ func (t EscrowContract) CreateCommandWithPackageID(packageID string) *model.Crea
 			return m.toMap()
 		}
 		return t.State
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
 	}()
 
 	return &model.CreateCommand{
@@ -1299,15 +1631,19 @@ func (t EscrowInvitation) ClaimInvitationWithPackageID(contractID string, packag
 
 // EscrowProposal is a Template type
 type EscrowProposal struct {
-	Issuer       types.PARTY `json:"issuer"`
-	Initiator    types.PARTY `json:"initiator"`
-	Depositor    types.PARTY `json:"depositor"`
-	Beneficiary  types.PARTY `json:"beneficiary"`
-	Mediator     types.PARTY `json:"mediator"`
-	ContractType types.TEXT  `json:"contractType"`
-	Asset        Asset       `json:"asset"`
-	Terms        EscrowTerms `json:"terms"`
-	Metadata     types.TEXT  `json:"metadata"`
+	Issuer                 types.PARTY   `json:"issuer"`
+	Initiator              types.PARTY   `json:"initiator"`
+	Depositors             []types.PARTY `json:"depositors"`
+	DepositorThreshold     types.INT64   `json:"depositorThreshold"`
+	Beneficiaries          []types.PARTY `json:"beneficiaries"`
+	BeneficiaryThreshold   types.INT64   `json:"beneficiaryThreshold"`
+	Mediator               types.PARTY   `json:"mediator"`
+	ContractType           types.TEXT    `json:"contractType"`
+	Asset                  Asset         `json:"asset"`
+	Terms                  EscrowTerms   `json:"terms"`
+	Metadata               types.TEXT    `json:"metadata"`
+	DepositorAcceptances   []types.PARTY `json:"depositorAcceptances"`
+	BeneficiaryAcceptances []types.PARTY `json:"beneficiaryAcceptances"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -1331,10 +1667,28 @@ func (t EscrowProposal) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -1362,6 +1716,24 @@ func (t EscrowProposal) CreateCommand() *model.CreateCommand {
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["metadata"] = string(t.Metadata)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateID(),
@@ -1380,10 +1752,28 @@ func (t EscrowProposal) CreateCommandWithPackageID(packageID string) *model.Crea
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -1412,6 +1802,24 @@ func (t EscrowProposal) CreateCommandWithPackageID(packageID string) *model.Crea
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["metadata"] = string(t.Metadata)
 
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateIDWithPackageID(packageID),
 		Arguments:  args,
@@ -1429,6 +1837,27 @@ func (t *EscrowProposal) UnmarshalJSON(data []byte) error {
 }
 
 // Choice methods for EscrowProposal
+
+// AcceptProposal exercises the AcceptProposal choice on this EscrowProposal contract
+// This method uses the package name in the template ID
+func (t EscrowProposal) AcceptProposal(contractID string, args AcceptProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "AcceptProposal",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// AcceptProposalWithPackageID exercises the AcceptProposal choice using the provided package ID instead of package name
+func (t EscrowProposal) AcceptProposalWithPackageID(contractID string, packageID string, args AcceptProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "AcceptProposal",
+		Arguments:  argsToMap(args),
+	}
+}
 
 // BeneficiaryAccept exercises the BeneficiaryAccept choice on this EscrowProposal contract
 // This method uses the package name in the template ID
@@ -1472,27 +1901,6 @@ func (t EscrowProposal) RequestChangesWithPackageID(contractID string, packageID
 	}
 }
 
-// CancelProposal exercises the CancelProposal choice on this EscrowProposal contract
-// This method uses the package name in the template ID
-func (t EscrowProposal) CancelProposal(contractID string, args CancelProposal) *model.ExerciseCommand {
-	return &model.ExerciseCommand{
-		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "EscrowProposal"),
-		ContractID: contractID,
-		Choice:     "CancelProposal",
-		Arguments:  argsToMap(args),
-	}
-}
-
-// CancelProposalWithPackageID exercises the CancelProposal choice using the provided package ID instead of package name
-func (t EscrowProposal) CancelProposalWithPackageID(contractID string, packageID string, args CancelProposal) *model.ExerciseCommand {
-	return &model.ExerciseCommand{
-		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "EscrowProposal"),
-		ContractID: contractID,
-		Choice:     "CancelProposal",
-		Arguments:  argsToMap(args),
-	}
-}
-
 // WithdrawProposal exercises the WithdrawProposal choice on this EscrowProposal contract
 // This method uses the package name in the template ID
 func (t EscrowProposal) WithdrawProposal(contractID string, args WithdrawProposal) *model.ExerciseCommand {
@@ -1532,6 +1940,27 @@ func (t EscrowProposal) ArchiveWithPackageID(contractID string, packageID string
 		ContractID: contractID,
 		Choice:     "Archive",
 		Arguments:  map[string]any{},
+	}
+}
+
+// CancelProposal exercises the CancelProposal choice on this EscrowProposal contract
+// This method uses the package name in the template ID
+func (t EscrowProposal) CancelProposal(contractID string, args CancelProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", PackageName, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "CancelProposal",
+		Arguments:  argsToMap(args),
+	}
+}
+
+// CancelProposalWithPackageID exercises the CancelProposal choice using the provided package ID instead of package name
+func (t EscrowProposal) CancelProposalWithPackageID(contractID string, packageID string, args CancelProposal) *model.ExerciseCommand {
+	return &model.ExerciseCommand{
+		TemplateID: fmt.Sprintf("#%s:%s:%s", packageID, "StablecoinEscrow", "EscrowProposal"),
+		ContractID: contractID,
+		Choice:     "CancelProposal",
+		Arguments:  argsToMap(args),
 	}
 }
 
@@ -1603,8 +2032,9 @@ func (t *FinalizeSettlement) UnmarshalJSON(data []byte) error {
 
 // Fund is a Record type
 type Fund struct {
-	CustodyRef types.TEXT        `json:"custodyRef"`
-	HoldingCid types.CONTRACT_ID `json:"holdingCid"`
+	CustodyRef       types.TEXT        `json:"custodyRef"`
+	HoldingCid       types.CONTRACT_ID `json:"holdingCid"`
+	FundingDepositor types.PARTY       `json:"fundingDepositor"`
 }
 
 // ToMap converts Fund to a map for DAML arguments
@@ -1620,6 +2050,8 @@ func (t Fund) ToMap() map[string]any {
 		}
 		return t.HoldingCid
 	}()
+
+	m["fundingDepositor"] = t.FundingDepositor.ToMap()
 
 	return m
 }
@@ -1666,11 +2098,15 @@ func (t *ProposeSettlement) UnmarshalJSON(data []byte) error {
 
 // RaiseDispute is a Record type
 type RaiseDispute struct {
+	Actor types.PARTY `json:"actor"`
 }
 
 // ToMap converts RaiseDispute to a map for DAML arguments
 func (t RaiseDispute) ToMap() map[string]any {
 	m := make(map[string]any)
+
+	m["actor"] = t.Actor.ToMap()
+
 	return m
 }
 
@@ -1710,11 +2146,15 @@ func (t *RatifySettlement) UnmarshalJSON(data []byte) error {
 
 // RejectSettlement is a Record type
 type RejectSettlement struct {
+	Actor types.PARTY `json:"actor"`
 }
 
 // ToMap converts RejectSettlement to a map for DAML arguments
 func (t RejectSettlement) ToMap() map[string]any {
 	m := make(map[string]any)
+
+	m["actor"] = t.Actor.ToMap()
+
 	return m
 }
 
@@ -1763,18 +2203,22 @@ func (t *RequestChanges) UnmarshalJSON(data []byte) error {
 
 // SettlementRecord is a Template type
 type SettlementRecord struct {
-	Issuer              types.PARTY     `json:"issuer"`
-	Initiator           types.PARTY     `json:"initiator"`
-	Depositor           types.PARTY     `json:"depositor"`
-	Beneficiary         types.PARTY     `json:"beneficiary"`
-	Mediator            types.PARTY     `json:"mediator"`
-	ContractType        types.TEXT      `json:"contractType"`
-	Asset               Asset           `json:"asset"`
-	Terms               EscrowTerms     `json:"terms"`
-	Metadata            types.TEXT      `json:"metadata"`
-	Settlement          SettlementTerms `json:"settlement"`
-	DepositorAccepted   types.BOOL      `json:"depositorAccepted"`
-	BeneficiaryAccepted types.BOOL      `json:"beneficiaryAccepted"`
+	Issuer                       types.PARTY     `json:"issuer"`
+	Initiator                    types.PARTY     `json:"initiator"`
+	Depositors                   []types.PARTY   `json:"depositors"`
+	DepositorThreshold           types.INT64     `json:"depositorThreshold"`
+	Beneficiaries                []types.PARTY   `json:"beneficiaries"`
+	BeneficiaryThreshold         types.INT64     `json:"beneficiaryThreshold"`
+	Mediator                     types.PARTY     `json:"mediator"`
+	ContractType                 types.TEXT      `json:"contractType"`
+	Asset                        Asset           `json:"asset"`
+	Terms                        EscrowTerms     `json:"terms"`
+	Metadata                     types.TEXT      `json:"metadata"`
+	Settlement                   SettlementTerms `json:"settlement"`
+	DepositorAcceptances         []types.PARTY   `json:"depositorAcceptances"`
+	BeneficiaryAcceptances       []types.PARTY   `json:"beneficiaryAcceptances"`
+	DepositorAcceptancesSigned   []types.PARTY   `json:"depositorAcceptancesSigned"`
+	BeneficiaryAcceptancesSigned []types.PARTY   `json:"beneficiaryAcceptancesSigned"`
 }
 
 // GetTemplateID returns the template ID for this template using the package name
@@ -1798,10 +2242,28 @@ func (t SettlementRecord) CreateCommand() *model.CreateCommand {
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -1840,10 +2302,40 @@ func (t SettlementRecord) CreateCommand() *model.CreateCommand {
 	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositorAccepted"] = bool(t.DepositorAccepted)
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiaryAccepted"] = bool(t.BeneficiaryAccepted)
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptancesSigned"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptancesSigned))
+		for _, e := range t.DepositorAcceptancesSigned {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptancesSigned"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptancesSigned))
+		for _, e := range t.BeneficiaryAcceptancesSigned {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateID(),
@@ -1862,10 +2354,28 @@ func (t SettlementRecord) CreateCommandWithPackageID(packageID string) *model.Cr
 	args["initiator"] = t.Initiator.ToMap()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositor"] = t.Depositor.ToMap()
+	args["depositors"] = func() []any {
+		res := make([]any, 0, len(t.Depositors))
+		for _, e := range t.Depositors {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiary"] = t.Beneficiary.ToMap()
+	args["depositorThreshold"] = int64(t.DepositorThreshold)
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaries"] = func() []any {
+		res := make([]any, 0, len(t.Beneficiaries))
+		for _, e := range t.Beneficiaries {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryThreshold"] = int64(t.BeneficiaryThreshold)
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
 	args["mediator"] = t.Mediator.ToMap()
@@ -1904,10 +2414,40 @@ func (t SettlementRecord) CreateCommandWithPackageID(packageID string) *model.Cr
 	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["depositorAccepted"] = bool(t.DepositorAccepted)
+	args["depositorAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptances))
+		for _, e := range t.DepositorAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
-	args["beneficiaryAccepted"] = bool(t.BeneficiaryAccepted)
+	args["beneficiaryAcceptances"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptances))
+		for _, e := range t.BeneficiaryAcceptances {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["depositorAcceptancesSigned"] = func() []any {
+		res := make([]any, 0, len(t.DepositorAcceptancesSigned))
+		for _, e := range t.DepositorAcceptancesSigned {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
+
+	// IMPORTANT: always include non-optional fields (GENMAP/MAP/LIST/[] etc), even if empty
+	args["beneficiaryAcceptancesSigned"] = func() []any {
+		res := make([]any, 0, len(t.BeneficiaryAcceptancesSigned))
+		for _, e := range t.BeneficiaryAcceptancesSigned {
+			res = append(res, e.ToMap())
+		}
+		return res
+	}()
 
 	return &model.CreateCommand{
 		TemplateID: t.GetTemplateIDWithPackageID(packageID),

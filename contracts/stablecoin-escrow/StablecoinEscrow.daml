@@ -5,36 +5,53 @@ import Token.CIP56 qualified as CIP56
 import DA.Time qualified
 import DA.Date qualified
 import DA.Optional (fromSome)
+import DA.List qualified
 
 -- ---------------------------------------------------------------------------
 -- DRAFT State (EscrowProposal) - Step 1: Initiator (Depositor) offers
 -- ---------------------------------------------------------------------------
 template EscrowProposal
   with
-    issuer       : Party
-    initiator    : Party -- Tracks the party who authoritatively proposed the deal
-    depositor    : Party
-    beneficiary  : Party
-    mediator     : Party
-    contractType : Text -- Corporate, ImportExport, RealEstate, etc.
-    asset        : Asset
-    terms        : EscrowTerms
-    metadata     : Text
+    issuer               : Party
+    initiator            : Party -- Tracks the party who authoritatively proposed the deal
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text -- Corporate, ImportExport, RealEstate, etc.
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
   where
-    signatory issuer
-    observer  depositor, beneficiary, mediator
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances)
+    observer depositors ++ beneficiaries ++ [mediator]
 
-    -- High-Assurance Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
+    -- High-Assurance Role Exclusivity & Threshold constraints
+    ensure not (null depositors) && not (null beneficiaries)
+        && depositorThreshold > 0 && depositorThreshold <= length depositors
+        && beneficiaryThreshold > 0 && beneficiaryThreshold <= length beneficiaries
+        && DA.List.dedup depositors == depositors
+        && DA.List.dedup beneficiaries == beneficiaries
+        && DA.List.dedup depositorAcceptances == depositorAcceptances
+        && DA.List.dedup beneficiaryAcceptances == beneficiaryAcceptances
+        && all (`elem` depositors) depositorAcceptances
+        && all (`elem` beneficiaries) beneficiaryAcceptances
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
         && terms.expiryDate > (DA.Time.time (DA.Date.date 1970 DA.Date.Jan 1) 0 0 0)
-        && (initiator == depositor || initiator == beneficiary)
+        && (initiator `elem` depositors || initiator `elem` beneficiaries)
 
     interface instance Escrow for EscrowProposal where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -45,9 +62,30 @@ template EscrowProposal
       activateEscrow = do
         error "Cannot activate a DRAFT proposal. Must be FUNDED first."
 
-    choice BeneficiaryAccept : ContractId BeneficiaryAcceptedProposal
-      controller beneficiary
+    choice AcceptProposal : ContractId EscrowProposal
+      with
+        acceptingParty : Party
+      controller acceptingParty
       do
+        assertMsg "Accepting party must be a depositor or beneficiary" (acceptingParty `elem` depositors || acceptingParty `elem` beneficiaries)
+        let
+          newDepositorAcceptances = if acceptingParty `elem` depositors && acceptingParty `notElem` depositorAcceptances
+                                    then acceptingParty :: depositorAcceptances
+                                    else depositorAcceptances
+          newBeneficiaryAcceptances = if acceptingParty `elem` beneficiaries && acceptingParty `notElem` beneficiaryAcceptances
+                                      then acceptingParty :: beneficiaryAcceptances
+                                      else beneficiaryAcceptances
+        create this with
+          depositorAcceptances = newDepositorAcceptances
+          beneficiaryAcceptances = newBeneficiaryAcceptances
+
+    choice BeneficiaryAccept : ContractId BeneficiaryAcceptedProposal
+      with
+        actor : Party
+      controller actor
+      do
+        assertMsg "Actor must be an accepting beneficiary" (actor `elem` beneficiaryAcceptances)
+        assertMsg "Beneficiary acceptance threshold not met" (length beneficiaryAcceptances >= beneficiaryThreshold)
         create BeneficiaryAcceptedProposal with ..
 
     -- Bilateral Consensus: Iterative Negotiation
@@ -57,11 +95,17 @@ template EscrowProposal
         proposingParty : Party
       controller proposingParty
       do
-        assertMsg "Only Depositor or Beneficiary can request changes" (proposingParty == depositor || proposingParty == beneficiary)
-        create this with terms = newTerms
+        assertMsg "Only Depositor or Beneficiary can request changes" (proposingParty `elem` depositors || proposingParty `elem` beneficiaries)
+        let
+          newDepositorAcceptances = if proposingParty `elem` depositors then [proposingParty] else []
+          newBeneficiaryAcceptances = if proposingParty `elem` beneficiaries then [proposingParty] else []
+        create this with 
+          terms = newTerms
+          depositorAcceptances = newDepositorAcceptances
+          beneficiaryAcceptances = newBeneficiaryAcceptances
 
     choice CancelProposal : ()
-      controller depositor, beneficiary
+      controller depositors ++ beneficiaries
       do return ()
 
     choice WithdrawProposal : ()
@@ -73,28 +117,35 @@ template EscrowProposal
 -- ---------------------------------------------------------------------------
 template BeneficiaryAcceptedProposal
   with
-    issuer       : Party
-    initiator    : Party
-    depositor    : Party
-    beneficiary  : Party
-    mediator     : Party
-    contractType : Text
-    asset        : Asset
-    terms        : EscrowTerms
-    metadata     : Text
+    issuer               : Party
+    initiator            : Party
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
   where
-    signatory issuer, beneficiary
-    observer  depositor, mediator
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances)
+    observer  depositors ++ beneficiaries ++ [mediator]
 
-    -- Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
+    ensure not (null depositors) && not (null beneficiaries)
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
 
     interface instance Escrow for BeneficiaryAcceptedProposal where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -109,13 +160,19 @@ template BeneficiaryAcceptedProposal
       with 
         custodyRef : Text
         holdingCid : ContractId CIP56.Holding
-      controller depositor
+        fundingDepositor : Party
+      controller fundingDepositor
       do
+        assertMsg "Funding depositor must be a depositor" (fundingDepositor `elem` depositors)
+        let newDepositorAcceptances = if fundingDepositor `elem` depositorAcceptances then depositorAcceptances else fundingDepositor :: depositorAcceptances
+        assertMsg "Depositor acceptance threshold not met" (length newDepositorAcceptances >= depositorThreshold)
         create EscrowContract with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset with 
@@ -124,36 +181,45 @@ template BeneficiaryAcceptedProposal
           terms = terms
           metadata = metadata
           state = FUNDED
+          depositorAcceptances = newDepositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
 
 -- ---------------------------------------------------------------------------
 -- FUNDED / ACTIVE States (EscrowContract)
 -- ---------------------------------------------------------------------------
 template EscrowContract
   with
-    issuer       : Party
-    initiator    : Party
-    depositor    : Party
-    beneficiary  : Party
-    mediator     : Party
-    contractType : Text
-    asset        : Asset
-    terms        : EscrowTerms
-    metadata     : Text
-    state        : EscrowState
+    issuer               : Party
+    initiator            : Party
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    state                : EscrowState
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
   where
-    signatory issuer, depositor, beneficiary
-    observer  mediator
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances)
+    observer  depositors ++ beneficiaries ++ [mediator]
 
-    -- Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
+    ensure not (null depositors) && not (null beneficiaries)
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
         && asset.amount > 0.0
 
     interface instance Escrow for EscrowContract where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -168,24 +234,24 @@ template EscrowContract
         let 
           hcid : ContractId CIP56.Holding = fromSome asset.holdingCid
           lcid : ContractId CIP56.Lockable = coerceContractId hcid
-
+ 
         holding <- fetch hcid
         let hv = view holding : CIP56.HoldingView
         
         -- High-Assurance Validation
         assertMsg "Holding amount must match escrow amount" (hv.amount == asset.amount)
-        assertMsg "Holding must be owned by the depositor" (hv.owner == depositor)
+        assertMsg "Holding must be owned by a depositor" (hv.owner `elem` depositors)
         
         -- Authoritative Locking (CIP-0056)
         lockedHoldingCid <- exercise lcid CIP56.Lock 
           with locker = issuer, context = "Escrow Activation"
-
+ 
         cid <- create this with 
           state = ACTIVE
           asset = asset with holdingCid = Some lockedHoldingCid
         
         return (toInterfaceContractId @Escrow cid)
-
+ 
     choice ConfirmConditions : ContractId DisbursementOrder
       controller mediator
       do
@@ -193,8 +259,10 @@ template EscrowContract
         create DisbursementOrder with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset
@@ -205,51 +273,66 @@ template EscrowContract
             depositorReturn = 0.0
             beneficiaryPayment = asset.amount
             mediatorFee = 0.0
-
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
+ 
     choice RaiseDispute : ContractId DisputeRecord
-      controller depositor
+      with actor : Party
+      controller actor
       do
+        assertMsg "Actor must be an accepting depositor" (actor `elem` depositorAcceptances)
         assertMsg "Can only dispute FUNDED or ACTIVE escrow" (state == ACTIVE || state == FUNDED)
         create DisputeRecord with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
-          raisingParty = depositor
-
+          raisingParty = actor
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
+ 
 -- ---------------------------------------------------------------------------
 -- DISPUTED State (DisputeRecord)
 -- ---------------------------------------------------------------------------
 template DisputeRecord
   with
-    issuer       : Party
-    initiator    : Party
-    depositor    : Party
-    beneficiary  : Party
-    mediator     : Party
-    contractType : Text
-    asset        : Asset
-    terms        : EscrowTerms
-    metadata     : Text
-    raisingParty : Party
+    issuer               : Party
+    initiator            : Party
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    raisingParty         : Party
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
   where
-    signatory issuer, depositor, beneficiary
-    observer  mediator
-
-    -- Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
-
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances)
+    observer  depositors ++ beneficiaries ++ [mediator]
+ 
+    ensure not (null depositors) && not (null beneficiaries)
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
+ 
     interface instance Escrow for DisputeRecord where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -267,46 +350,58 @@ template DisputeRecord
         create SettlementRecord with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
           settlement = proposal
-          depositorAccepted = False
-          beneficiaryAccepted = False
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
+          depositorAcceptancesSigned = []
+          beneficiaryAcceptancesSigned = []
 
 -- ---------------------------------------------------------------------------
 -- PROPOSED State (SettlementRecord)
 -- ---------------------------------------------------------------------------
 template SettlementRecord
   with
-    issuer              : Party
-    initiator           : Party
-    depositor           : Party
-    beneficiary         : Party
-    mediator            : Party
-    contractType        : Text
-    asset               : Asset
-    terms               : EscrowTerms
-    metadata            : Text
-    settlement          : SettlementTerms
-    depositorAccepted   : Bool
-    beneficiaryAccepted : Bool
+    issuer                       : Party
+    initiator                    : Party
+    depositors                   : [Party]
+    depositorThreshold           : Int
+    beneficiaries                : [Party]
+    beneficiaryThreshold         : Int
+    mediator                     : Party
+    contractType                 : Text
+    asset                        : Asset
+    terms                        : EscrowTerms
+    metadata                     : Text
+    settlement                   : SettlementTerms
+    depositorAcceptances         : [Party]
+    beneficiaryAcceptances       : [Party]
+    depositorAcceptancesSigned   : [Party]
+    beneficiaryAcceptancesSigned : [Party]
   where
-    signatory issuer, depositor, beneficiary, mediator
+    signatory issuer :: (depositorAcceptancesSigned ++ beneficiaryAcceptancesSigned) ++ [mediator]
+    observer  depositors ++ beneficiaries
 
-    -- Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
+    ensure not (null depositors) && not (null beneficiaries)
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
 
     interface instance Escrow for SettlementRecord where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -320,69 +415,95 @@ template SettlementRecord
       with actor : Party
       controller actor
       do
-        assert (actor == depositor || actor == beneficiary)
-        if actor == depositor 
-          then create this with depositorAccepted = True
-          else create this with beneficiaryAccepted = True
+        assertMsg "Actor must be an accepting depositor or beneficiary" (actor `elem` depositorAcceptances || actor `elem` beneficiaryAcceptances)
+        let
+          newDepositorSigned = if actor `elem` depositorAcceptances && actor `notElem` depositorAcceptancesSigned
+                               then actor :: depositorAcceptancesSigned
+                               else depositorAcceptancesSigned
+          newBeneficiarySigned = if actor `elem` beneficiaryAcceptances && actor `notElem` beneficiaryAcceptancesSigned
+                                 then actor :: beneficiaryAcceptancesSigned
+                                 else beneficiaryAcceptancesSigned
+        create this with
+          depositorAcceptancesSigned = newDepositorSigned
+          beneficiaryAcceptancesSigned = newBeneficiarySigned
 
     choice FinalizeSettlement : ContractId DisbursementOrder
       controller mediator
       do
-        assert (depositorAccepted && beneficiaryAccepted)
+        assertMsg "Depositor acceptance threshold not met for settlement" (length depositorAcceptancesSigned >= depositorThreshold)
+        assertMsg "Beneficiary acceptance threshold not met for settlement" (length beneficiaryAcceptancesSigned >= beneficiaryThreshold)
         create DisbursementOrder with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
           settlement = settlement
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
 
     choice RejectSettlement : ContractId DisputeRecord
-      controller depositor
+      with actor : Party
+      controller actor
       do
+        assertMsg "Actor must be a depositor or beneficiary" (actor `elem` depositors || actor `elem` beneficiaries)
         create DisputeRecord with
           issuer = issuer
           initiator = initiator
-          depositor = depositor
-          beneficiary = beneficiary
+          depositors = depositors
+          depositorThreshold = depositorThreshold
+          beneficiaries = beneficiaries
+          beneficiaryThreshold = beneficiaryThreshold
           mediator = mediator
           contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
-          raisingParty = depositor
+          raisingParty = actor
+          depositorAcceptances = depositorAcceptances
+          beneficiaryAcceptances = beneficiaryAcceptances
 
 -- ---------------------------------------------------------------------------
 -- SETTLED State (DisbursementOrder)
 -- ---------------------------------------------------------------------------
 template DisbursementOrder
   with
-    issuer       : Party
-    initiator    : Party
-    depositor    : Party
-    beneficiary  : Party
-    mediator     : Party
-    contractType : Text
-    asset        : Asset
-    terms        : EscrowTerms
-    metadata     : Text
-    settlement   : SettlementTerms
+    issuer               : Party
+    initiator            : Party
+    depositors           : [Party]
+    depositorThreshold   : Int
+    beneficiaries        : [Party]
+    beneficiaryThreshold : Int
+    mediator             : Party
+    contractType         : Text
+    asset                : Asset
+    terms                : EscrowTerms
+    metadata             : Text
+    settlement           : SettlementTerms
+    depositorAcceptances : [Party]
+    beneficiaryAcceptances : [Party]
   where
-    signatory issuer, depositor, beneficiary, mediator
+    signatory issuer :: (depositorAcceptances ++ beneficiaryAcceptances) ++ [mediator]
+    observer  depositors ++ beneficiaries
 
-    -- Role Exclusivity
-    ensure (depositor /= beneficiary) && (depositor /= mediator) && (beneficiary /= mediator)
+    ensure not (null depositors) && not (null beneficiaries)
+        && all (\d -> notElem d beneficiaries && d /= mediator) depositors
+        && all (\b -> b /= mediator) beneficiaries
 
     interface instance Escrow for DisbursementOrder where
       view = View with
         issuer = issuer
         initiator = initiator
-        depositor = depositor
-        beneficiary = beneficiary
+        depositors = depositors
+        depositorThreshold = depositorThreshold
+        beneficiaries = beneficiaries
+        beneficiaryThreshold = beneficiaryThreshold
         mediator = mediator
         contractType = contractType
         asset = asset
@@ -404,12 +525,20 @@ template DisbursementOrder
         hcid_unlocked <- exercise lcid CIP56.Unlock with actor = issuer
         let tcid : ContractId CIP56.Transferable = coerceContractId hcid_unlocked
         
+        let
+          primaryBeneficiary = case beneficiaries of
+            b :: _ -> b
+            [] -> error "Empty beneficiaries list"
+          primaryDepositor = case depositors of
+            d :: _ -> d
+            [] -> error "Empty depositors list"
+
         -- 2. Execute authoritative transfers based on settlement
         if settlement.beneficiaryPayment > 0.0 then do
-          _ <- exercise tcid CIP56.Transfer with newOwner = beneficiary
+          _ <- exercise tcid CIP56.Transfer with newOwner = primaryBeneficiary
           return ()
         else do
-          _ <- exercise tcid CIP56.Transfer with newOwner = depositor
+          _ <- exercise tcid CIP56.Transfer with newOwner = primaryDepositor
           return ()
 
         return ()
@@ -450,14 +579,23 @@ template EscrowInvitation
         assertMsg "Claimant cannot be the inviter" (claimingParty /= inviter)
         assertMsg "Claimant cannot be the mediator" (claimingParty /= mediator)
 
-        let isInviteeDepositor = inviteeRole == "Depositor"
+        let
+          isInviteeDepositor = inviteeRole == "Depositor"
+          deps = if isInviteeDepositor then [claimingParty] else [inviter]
+          bens = if isInviteeDepositor then [inviter] else [claimingParty]
+          depAccs = if isInviteeDepositor then [claimingParty] else [inviter]
+          benAccs = if isInviteeDepositor then [inviter] else [claimingParty]
         create EscrowProposal with
           issuer = issuer
           initiator = inviter
-          depositor = if isInviteeDepositor then claimingParty else inviter
-          beneficiary = if isInviteeDepositor then inviter else claimingParty
+          depositors = deps
+          depositorThreshold = 1
+          beneficiaries = bens
+          beneficiaryThreshold = 1
           mediator = mediator
           contractType = contractType
           asset = asset
           terms = terms
           metadata = metadata
+          depositorAcceptances = depAccs
+          beneficiaryAcceptances = benAccs

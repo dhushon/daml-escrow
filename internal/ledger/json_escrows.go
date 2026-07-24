@@ -21,16 +21,48 @@ func (c *JsonLedgerClient) ProposeEscrow(ctx context.Context, req CreateEscrowRe
 	beneficiaryParty := c.GetParty(req.Beneficiary)
 	mediatorParty := c.GetParty(req.Mediator)
 
+	var depositors []string
+	if len(req.Depositors) > 0 {
+		for _, d := range req.Depositors {
+			depositors = append(depositors, c.GetParty(d))
+		}
+	} else {
+		depositors = []string{depositorParty}
+	}
+
+	depThreshold := req.DepositorThreshold
+	if depThreshold <= 0 {
+		depThreshold = 1
+	}
+
+	var beneficiaries []string
+	if len(req.Beneficiaries) > 0 {
+		for _, b := range req.Beneficiaries {
+			beneficiaries = append(beneficiaries, c.GetParty(b))
+		}
+	} else {
+		beneficiaries = []string{beneficiaryParty}
+	}
+
+	benThreshold := req.BeneficiaryThreshold
+	if benThreshold <= 0 {
+		benThreshold = 1
+	}
+
 	payload := map[string]interface{}{
-		"issuer":       cbParty,
-		"initiator":    depositorParty, // Default to depositor for manual proposals
-		"depositor":    depositorParty,
-		"beneficiary":  beneficiaryParty,
-		"mediator":     mediatorParty,
-		"contractType": req.ContractType,
-		"asset":        toDamlAsset(req.Asset),
-		"terms":        toDamlTerms(req.Terms),
-		"metadata":     toMetadataJSON(req.Metadata),
+		"issuer":                 cbParty,
+		"initiator":              depositorParty, // Default to depositor for manual proposals
+		"depositors":             depositors,
+		"depositorThreshold":     depThreshold,
+		"beneficiaries":          beneficiaries,
+		"beneficiaryThreshold":   benThreshold,
+		"mediator":               mediatorParty,
+		"contractType":           req.ContractType,
+		"asset":                  toDamlAsset(req.Asset),
+		"terms":                  toDamlTerms(req.Terms),
+		"metadata":               toMetadataJSON(req.Metadata),
+		"depositorAcceptances":   []string{depositorParty},
+		"beneficiaryAcceptances": []string{},
 	}
 
         body := map[string]interface{}{
@@ -66,11 +98,13 @@ func (c *JsonLedgerClient) BeneficiaryAccept(ctx context.Context, id string, use
                         "userId":    userID,
                         "commands": []interface{}{
                                 map[string]interface{}{
-                                        "ExerciseCommand": map[string]interface{}{
+                                         "ExerciseCommand": map[string]interface{}{
                                                 "templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowProposal"),
                                                 "contractId":     id,
                                                 "choice":         "BeneficiaryAccept",
-                                                "choiceArgument": map[string]interface{}{},
+                                                "choiceArgument": map[string]interface{}{
+							"actor": party,
+						},
                                         },
                                 },
                         },
@@ -93,13 +127,14 @@ func (c *JsonLedgerClient) Fund(ctx context.Context, id string, custodyRef strin
                         "userId":    userID,
                         "commands": []interface{}{
                                 map[string]interface{}{
-                                        "ExerciseCommand": map[string]interface{}{
+                                         "ExerciseCommand": map[string]interface{}{
                                                 "templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "BeneficiaryAcceptedProposal"),
                                                 "contractId":     id,
                                                 "choice":         "Fund",
                                                 "choiceArgument": map[string]interface{}{
-                                                        "custodyRef": custodyRef,
-                                                        "holdingCid": holdingCid,
+                                                         "custodyRef": custodyRef,
+                                                         "holdingCid": holdingCid,
+							"fundingDepositor": party,
                                                 },
                                         },
                                 },
@@ -214,7 +249,9 @@ func (c *JsonLedgerClient) RaiseDispute(ctx context.Context, id string, userID s
 						"templateId":     fmt.Sprintf("%s:%s:%s", c.PackageID, "StablecoinEscrow", "EscrowContract"),
 						"contractId":     id,
 						"choice":         "RaiseDispute",
-						"choiceArgument": map[string]interface{}{},
+						"choiceArgument": map[string]interface{}{
+							"actor": party,
+						},
 					},
 				},
 			},
@@ -537,10 +574,34 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 			depositorAccepted, _ := args["depositorAccepted"].(bool)
 			beneficiaryAccepted, _ := args["beneficiaryAccepted"].(bool)
 
+			depositors := parseStringSlice(args["depositors"])
+			beneficiaries := parseStringSlice(args["beneficiaries"])
+
+			var depositor string
+			if depVal, ok := args["depositor"]; ok && depVal != nil {
+				depositor = fmt.Sprintf("%v", depVal)
+			} else if len(depositors) > 0 {
+				depositor = depositors[0]
+			}
+
+			var beneficiary string
+			if benVal, ok := args["beneficiary"]; ok && benVal != nil {
+				beneficiary = fmt.Sprintf("%v", benVal)
+			} else if len(beneficiaries) > 0 {
+				beneficiary = beneficiaries[0]
+			}
+
+			depThreshold, _ := args["depositorThreshold"].(float64)
+			benThreshold, _ := args["beneficiaryThreshold"].(float64)
+
 			escrows = append(escrows, &EscrowContract{
 				ID:          created["contractId"].(string),
-				Depositor:   fmt.Sprintf("%v", args["depositor"]),
-				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
+				Depositor:   depositor,
+				Beneficiary: beneficiary,
+				Depositors:  depositors,
+				DepositorThreshold: int(depThreshold),
+				Beneficiaries: beneficiaries,
+				BeneficiaryThreshold: int(benThreshold),
 				Asset: Asset{
 					AssetType:  fmt.Sprintf("%v", assetData["assetType"]),
 					AssetID:    fmt.Sprintf("%v", assetData["assetId"]),
@@ -553,6 +614,8 @@ func (c *JsonLedgerClient) ListEscrows(ctx context.Context, userID string) ([]*E
 				State:               state,
 				DepositorAccepted:   depositorAccepted,
 				BeneficiaryAccepted: beneficiaryAccepted,
+				DepositorAcceptances: parseStringSlice(args["depositorAcceptances"]),
+				BeneficiaryAcceptances: parseStringSlice(args["beneficiaryAcceptances"]),
 			})
 		}
 	}
@@ -916,15 +979,41 @@ func (c *JsonLedgerClient) ListProposals(ctx context.Context, userID string) ([]
 			}
 
 			asset := args["asset"].(map[string]interface{})
+			depositors := parseStringSlice(args["depositors"])
+			beneficiaries := parseStringSlice(args["beneficiaries"])
+
+			var depositor string
+			if depVal, ok := args["depositor"]; ok && depVal != nil {
+				depositor = fmt.Sprintf("%v", depVal)
+			} else if len(depositors) > 0 {
+				depositor = depositors[0]
+			}
+
+			var beneficiary string
+			if benVal, ok := args["beneficiary"]; ok && benVal != nil {
+				beneficiary = fmt.Sprintf("%v", benVal)
+			} else if len(beneficiaries) > 0 {
+				beneficiary = beneficiaries[0]
+			}
+
+			depThreshold, _ := args["depositorThreshold"].(float64)
+			benThreshold, _ := args["beneficiaryThreshold"].(float64)
+
 			proposals = append(proposals, &EscrowProposal{
 				ID:          created["contractId"].(string),
-				Depositor:   fmt.Sprintf("%v", args["depositor"]),
-				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
+				Depositor:   depositor,
+				Beneficiary: beneficiary,
+				Depositors:  depositors,
+				DepositorThreshold: int(depThreshold),
+				Beneficiaries: beneficiaries,
+				BeneficiaryThreshold: int(benThreshold),
 				Asset: Asset{
 					Amount:   c.parseFloat(asset["amount"]),
 					Currency: fmt.Sprintf("%v", asset["currency"]),
 				},
 				Terms: terms,
+				DepositorAcceptances: parseStringSlice(args["depositorAcceptances"]),
+				BeneficiaryAcceptances: parseStringSlice(args["beneficiaryAcceptances"]),
 			})
 		}
 	}
@@ -993,14 +1082,40 @@ func (c *JsonLedgerClient) parseProposalResponse(body []byte) (*EscrowProposal, 
 		if created, ok := event["CreatedEvent"].(map[string]interface{}); ok {
 			args := created["createArgument"].(map[string]interface{})
 			asset := args["asset"].(map[string]interface{})
+			depositors := parseStringSlice(args["depositors"])
+			beneficiaries := parseStringSlice(args["beneficiaries"])
+
+			var depositor string
+			if depVal, ok := args["depositor"]; ok && depVal != nil {
+				depositor = fmt.Sprintf("%v", depVal)
+			} else if len(depositors) > 0 {
+				depositor = depositors[0]
+			}
+
+			var beneficiary string
+			if benVal, ok := args["beneficiary"]; ok && benVal != nil {
+				beneficiary = fmt.Sprintf("%v", benVal)
+			} else if len(beneficiaries) > 0 {
+				beneficiary = beneficiaries[0]
+			}
+
+			depThreshold, _ := args["depositorThreshold"].(float64)
+			benThreshold, _ := args["beneficiaryThreshold"].(float64)
+
 			return &EscrowProposal{
 				ID:          created["contractId"].(string),
-				Depositor:   fmt.Sprintf("%v", args["depositor"]),
-				Beneficiary: fmt.Sprintf("%v", args["beneficiary"]),
+				Depositor:   depositor,
+				Beneficiary: beneficiary,
+				Depositors:  depositors,
+				DepositorThreshold: int(depThreshold),
+				Beneficiaries: beneficiaries,
+				BeneficiaryThreshold: int(benThreshold),
 				Asset: Asset{
 					Amount:   c.parseFloat(asset["amount"]),
 					Currency: fmt.Sprintf("%v", asset["currency"]),
 				},
+				DepositorAcceptances: parseStringSlice(args["depositorAcceptances"]),
+				BeneficiaryAcceptances: parseStringSlice(args["beneficiaryAcceptances"]),
 			}, nil
 		}
 	}
@@ -1030,6 +1145,17 @@ func (c *JsonLedgerClient) getLedgerEnd(ctx context.Context) (json.RawMessage, e
 	}
 	
 	return json.RawMessage("0"), nil
+}
+
+func parseStringSlice(v interface{}) []string {
+	if slice, ok := v.([]interface{}); ok {
+		var res []string
+		for _, item := range slice {
+			res = append(res, fmt.Sprintf("%v", item))
+		}
+		return res
+	}
+	return nil
 }
 
 func (c *JsonLedgerClient) parseFloat(v interface{}) float64 {

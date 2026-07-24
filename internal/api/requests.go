@@ -11,7 +11,11 @@ import (
 
 // ProposeEscrowRequest is the API DTO for proposing a new escrow.
 type ProposeEscrowRequest struct {
-        Beneficiary          string                 `json:"beneficiary"`
+        Beneficiary          string                 `json:"beneficiary"` // Kept for backward compatibility
+        Depositors           []string               `json:"depositors"`
+        DepositorThreshold   int                    `json:"depositorThreshold"`
+        Beneficiaries        []string               `json:"beneficiaries"`
+        BeneficiaryThreshold int                    `json:"beneficiaryThreshold"`
         Mediator             string                 `json:"mediator"`
         AssetType            string                 `json:"assetType"`
         AssetID              string                 `json:"assetId"`
@@ -28,7 +32,7 @@ type ProposeEscrowRequest struct {
 }
 
 func (r *ProposeEscrowRequest) Validate() error {
-        if strings.TrimSpace(r.Beneficiary) == "" {
+        if strings.TrimSpace(r.Beneficiary) == "" && len(r.Beneficiaries) == 0 {
                 return errors.New("beneficiary is required")
         }
         if strings.TrimSpace(r.Mediator) == "" {
@@ -39,6 +43,18 @@ func (r *ProposeEscrowRequest) Validate() error {
         }
         if strings.TrimSpace(r.Currency) == "" {
                 return errors.New("currency is required")
+        }
+
+        // Multi-Party validation:
+        if len(r.Depositors) > 0 {
+                if r.DepositorThreshold <= 0 || r.DepositorThreshold > len(r.Depositors) {
+                        return errors.New("depositorThreshold must be between 1 and the number of depositors")
+                }
+        }
+        if len(r.Beneficiaries) > 0 {
+                if r.BeneficiaryThreshold <= 0 || r.BeneficiaryThreshold > len(r.Beneficiaries) {
+                        return errors.New("beneficiaryThreshold must be between 1 and the number of beneficiaries")
+                }
         }
 
         // High-Assurance: Default to 30 days if expiry is zero
@@ -65,8 +81,19 @@ func (r *ProposeEscrowRequest) ToLedgerRequest() ledger.CreateEscrowRequest {
         }
         metadataJSON, _ := json.Marshal(metadata)
 
+        depositors := r.Depositors
+        beneficiaries := r.Beneficiaries
+        if len(beneficiaries) == 0 && r.Beneficiary != "" {
+                beneficiaries = []string{r.Beneficiary}
+        }
+
         return ledger.CreateEscrowRequest{
-                Mediator: r.Mediator,
+                Beneficiary:          r.Beneficiary,
+                Depositors:           depositors,
+                DepositorThreshold:   r.DepositorThreshold,
+                Beneficiaries:        beneficiaries,
+                BeneficiaryThreshold: r.BeneficiaryThreshold,
+                Mediator:             r.Mediator,
                 Asset: ledger.Asset{
                         AssetType: r.AssetType,
                         AssetID:   r.AssetID,

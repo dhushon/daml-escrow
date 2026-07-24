@@ -81,14 +81,27 @@ definitions:
         type: string
       assetType:
         type: string
+      beneficiaries:
+        items:
+          type: string
+        type: array
       beneficiary:
+        description: Kept for backward compatibility
         type: string
+      beneficiaryThreshold:
+        type: integer
       conditionDescription:
         type: string
       conditionType:
         type: string
       currency:
         type: string
+      depositorThreshold:
+        type: integer
+      depositors:
+        items:
+          type: string
+        type: array
       disputeWindowDays:
         type: integer
       evidenceRequired:
@@ -180,16 +193,38 @@ definitions:
         type: string
       asset:
         $ref: '#/definitions/ledger.Asset'
+      beneficiaries:
+        items:
+          type: string
+        type: array
       beneficiary:
+        description: Kept for backward compatibility
         type: string
+      beneficiaryAcceptances:
+        items:
+          type: string
+        type: array
       beneficiaryAccepted:
         type: boolean
+      beneficiaryThreshold:
+        type: integer
       currentMilestoneIndex:
         type: integer
       depositor:
+        description: Kept for backward compatibility
         type: string
+      depositorAcceptances:
+        items:
+          type: string
+        type: array
       depositorAccepted:
         type: boolean
+      depositorThreshold:
+        type: integer
+      depositors:
+        items:
+          type: string
+        type: array
       id:
         type: string
       issuer:
@@ -231,10 +266,32 @@ definitions:
     properties:
       asset:
         $ref: '#/definitions/ledger.Asset'
+      beneficiaries:
+        items:
+          type: string
+        type: array
       beneficiary:
+        description: Kept for backward compatibility
         type: string
+      beneficiaryAcceptances:
+        items:
+          type: string
+        type: array
+      beneficiaryThreshold:
+        type: integer
       depositor:
+        description: Kept for backward compatibility
         type: string
+      depositorAcceptances:
+        items:
+          type: string
+        type: array
+      depositorThreshold:
+        type: integer
+      depositors:
+        items:
+          type: string
+        type: array
       id:
         type: string
       issuer:
@@ -876,6 +933,38 @@ paths:
           schema:
             type: string
       summary: Promote draft to active ledger escrow
+      tags:
+      - drafts
+  /drafts/{draftID}/withdraw:
+    post:
+      description: Unilaterally withdraw a promoted on-chain contract proposal, resetting
+        the local draft status back to DRAFT and clearing all approvals.
+      parameters:
+      - description: Draft ID (Root ID)
+        in: path
+        name: draftID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DraftEscrow'
+        "400":
+          description: failed to withdraw
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "404":
+          description: draft not found
+          schema:
+            type: string
+      summary: Withdraw and reset contract draft
       tags:
       - drafts
   /escrows:
