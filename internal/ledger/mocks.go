@@ -257,6 +257,16 @@ func (m *MockLedgerClient) RefundByBeneficiary(ctx context.Context, id string) e
 	return args.Error(0)
 }
 
+func (m *MockLedgerClient) InitiateFiatSettlement(ctx context.Context, id string, paymentRef string, actAs []string) (string, error) {
+	args := m.Called(ctx, id, paymentRef, actAs)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockLedgerClient) ConfirmFiatSettlement(ctx context.Context, id string, actAs []string) error {
+	args := m.Called(ctx, id, actAs)
+	return args.Error(0)
+}
+
 // Stablecoin Mocks
 type MockStablecoinProvider struct {
 	mock.Mock

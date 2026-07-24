@@ -6,6 +6,7 @@ import (
 
 	"daml-escrow/internal/crypto"
 	"daml-escrow/internal/ledger"
+	"daml-escrow/internal/railrouter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -67,5 +68,29 @@ func TestEscrowService_Unit(t *testing.T) {
 		resp, err := svc.GetLedgerClient().CreateInvitation(context.Background(), "Bank", "user@test.com", "Depositor", "Business", "Corporate", asset, terms)
 		assert.NoError(t, err)
 		assert.Equal(t, "inv-123", resp.ID)
+	})
+
+	t.Run("Disburse Fiat Rail", func(t *testing.T) {
+		escrow := &ledger.EscrowContract{
+			ID:          "escrow-123",
+			Beneficiary: "beneficiary@vdatacloud.com",
+			Asset: ledger.Asset{
+				Amount:   1000.0,
+				Currency: "USD",
+			},
+			Metadata: `{"rail":"Fiat"}`,
+			Issuer:   "CentralBank",
+		}
+		
+		mockLedger.On("GetEscrow", mock.Anything, "escrow-123", "Depositor").Return(escrow, nil)
+		mockLedger.On("InitiateFiatSettlement", mock.Anything, "escrow-123", mock.Anything, []string{"Depositor"}).Return("pending-fiat-cid", nil)
+
+		fp := railrouter.NewMockFiatProvider("http://localhost:8081")
+		router := railrouter.NewRouter(mockLedger, fp)
+		
+		svcWithRouter := NewEscrowService(logger, mockLedger, mockStablecoin, compliance, webhookSecret, signer, nil, router)
+
+		err := svcWithRouter.DisburseEscrow(context.Background(), "escrow-123", "Depositor", []string{"Depositor"})
+		assert.NoError(t, err)
 	})
 }
